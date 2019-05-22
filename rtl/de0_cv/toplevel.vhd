@@ -24,7 +24,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 
-entity toplevel_de0_cv is
+entity toplevel is
   port(
     -- RESET_N "3.3-V LVTTL"
     RESET_N : in std_logic;
@@ -83,9 +83,9 @@ entity toplevel_de0_cv is
     VGA_HS : out std_logic;
     VGA_VS : out std_logic
   );
-end toplevel_de0_cv;
+end toplevel;
 
-architecture rtl of toplevel_de0_cv is
+architecture rtl of toplevel is
   signal s_global_async_rst : std_logic;
 
   signal s_cpu_rst : std_logic;
