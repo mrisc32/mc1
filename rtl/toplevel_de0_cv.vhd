@@ -86,6 +86,8 @@ entity toplevel_de0_cv is
 end toplevel_de0_cv;
 
 architecture rtl of toplevel_de0_cv is
+  signal s_global_async_rst : std_logic;
+
   signal s_cpu_rst : std_logic;
   signal s_cpu_clk : std_logic;
 
@@ -97,17 +99,29 @@ architecture rtl of toplevel_de0_cv is
   signal s_vga_hs : std_logic;
   signal s_vga_vs : std_logic;
 begin
-  -- Reset logic.
-  -- TODO(m): We need one reset signal per clock domain, and we need more
-  -- robust reset signal handling.
-  s_cpu_rst <= not RESET_N;
-  s_vga_rst <= not RESET_N;
-
   -- Clock signals.
   -- TODO(m): Instantiate PLL:s to generate the different clocks of the
   -- design (CPU, VGA, DRAM, ...?).
   s_cpu_clk <= CLOCK_50;
   s_vga_clk <= CLOCK_50;
+
+  -- Reset logic - synchronize the reset signal to the different clock domains.
+  -- TODO(m): Include the PLL locked signal too (wait for the clocks to stabilize).
+  s_global_async_rst <= not RESET_N;
+
+  reset_conditioner_cpu: entity work.synchronizer
+    port map (
+      i_clk => s_cpu_clk,
+      i_d => s_global_async_rst,
+      o_q => s_cpu_rst
+    );
+
+  reset_conditioner_vga: entity work.synchronizer
+    port map (
+      i_clk => s_vga_clk,
+      i_d => s_global_async_rst,
+      o_q => s_vga_rst
+    );
 
   -- Instantiate the MC1 machine.
   mc1_1: entity work.mc1
