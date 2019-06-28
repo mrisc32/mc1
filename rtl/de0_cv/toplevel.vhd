@@ -86,6 +86,8 @@ entity toplevel is
 end toplevel;
 
 architecture rtl of toplevel is
+  signal s_pll_rst : std_logic;
+  signal s_pll_locked : std_logic;
   signal s_global_async_rst : std_logic;
 
   signal s_cpu_rst : std_logic;
@@ -100,14 +102,32 @@ architecture rtl of toplevel is
   signal s_vga_vs : std_logic;
 begin
   -- Clock signals.
-  -- TODO(m): Instantiate PLL:s to generate the different clocks of the
-  -- design (CPU, VGA, DRAM, ...?).
-  s_cpu_clk <= CLOCK_50;
-  s_vga_clk <= CLOCK_50;
+  s_pll_rst <= not RESET_N;
+  pll_1: entity work.pll
+    generic map (
+      -- The input clock of the DE0-CV is 50 MHz.
+      REFERENCE_CLOCK_FREQUENCY => "50 MHz",
+
+      NUMBER_OF_CLOCKS => 2,
+
+      -- The CPU clock frequency.
+      OUTPUT_CLOCK_FREQUENCY0 => "70.0 MHz",
+
+      -- Pixel frequency for HD 1280x720 @ 60 Hz = 74.250 MHz
+      -- We run the VGA logic at twice that frequency.
+      OUTPUT_CLOCK_FREQUENCY1 => "148.50 MHz"
+    )
+    port map
+    (
+      i_rst	=> s_pll_rst,
+      i_refclk => CLOCK_50,
+      o_clk0 => s_cpu_clk,
+      o_clk1 => s_vga_clk,
+      o_locked => s_pll_locked
+    );
 
   -- Reset logic - synchronize the reset signal to the different clock domains.
-  -- TODO(m): Include the PLL locked signal too (wait for the clocks to stabilize).
-  s_global_async_rst <= not RESET_N;
+  s_global_async_rst <= (not RESET_N) or (not s_pll_locked);
 
   reset_conditioner_cpu: entity work.synchronizer
     port map (
