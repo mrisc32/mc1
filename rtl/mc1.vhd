@@ -60,6 +60,12 @@ architecture rtl of mc1 is
   -- Video logic memory interface.
   signal s_video_adr : std_logic_vector(C_LOG2_RAM_SIZE-1 downto 0);
   signal s_video_dat : std_logic_vector(31 downto 0);
+  signal s_video_r : std_logic_vector(7 downto 0);
+  signal s_video_g : std_logic_vector(7 downto 0);
+  signal s_video_b : std_logic_vector(7 downto 0);
+  signal s_video_active : std_logic;
+  signal s_video_hsync : std_logic;
+  signal s_video_vsync : std_logic;
 begin
   -- Instantiate the CPU core.
   mrisc32_core_1: entity work.core
@@ -81,7 +87,6 @@ begin
     );
 
   -- Instantiate the Wishbone memory subsystem.
-  -- TODO(m): Implement me!
   ram_1: entity work.ram
     generic map (
       ADR_BITS => C_LOG2_RAM_SIZE
@@ -109,12 +114,31 @@ begin
   s_cpu_err <= '0';
 
   -- Instantiate the video logic.
+  video_1: entity work.video
+    generic map (
+      ADR_BITS => C_LOG2_RAM_SIZE
+    )
+    port map (
+      i_rst => i_vga_rst,
+      i_clk => i_vga_clk,
+
+      o_read_adr => s_video_adr,
+      i_read_dat => s_video_dat,
+
+      o_r => s_video_r,
+      o_g => s_video_g,
+      o_b => s_video_b,
+
+      o_active => s_video_active,
+      o_hsync => s_video_hsync,
+      o_vsync => s_video_vsync
+    );
+
   -- TODO(m): Implement me! Right now we connect some CPU signals to the
   -- VGA port to force the synthesis tool to avoid dead code removal.
-  s_video_adr <= (others => '0');
-  o_vga_r <= s_cpu_dat(23 downto 16);
-  o_vga_g <= s_cpu_dat(15 downto 8);
-  o_vga_b <= s_cpu_dat(7 downto 0);
-  o_vga_hs <= '0';
-  o_vga_vs <= '0';
+  o_vga_r <= s_video_r or s_cpu_dat(23 downto 16);
+  o_vga_g <= s_video_g or s_cpu_dat(15 downto 8);
+  o_vga_b <= s_video_b or s_cpu_dat(7 downto 0);
+  o_vga_hs <= s_video_hsync;
+  o_vga_vs <= s_video_vsync;
 end rtl;
