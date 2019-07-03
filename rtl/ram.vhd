@@ -63,69 +63,96 @@ entity ram is
 end ram;
 
 architecture rtl of ram is
-  constant C_NUM_WORDS : positive := 2**ADR_BITS;
-
-  type T_BYTE_ARRAY is array (0 to C_NUM_WORDS-1) of std_logic_vector(7 downto 0);
-  signal s_byte_array_0 : T_BYTE_ARRAY;
-  signal s_byte_array_1 : T_BYTE_ARRAY;
-  signal s_byte_array_2 : T_BYTE_ARRAY;
-  signal s_byte_array_3 : T_BYTE_ARRAY;
+  signal s_is_valid_wb_request : std_logic;
+  signal s_we_a : std_logic;
 begin
-  -- Port A
+  -- Wishbone control logic.
+  s_is_valid_wb_request <= i_wb_cyc and i_wb_stb;
+  s_we_a <= s_is_valid_wb_request and i_wb_we;
+
+  -- We always ack and never stall - we're that fast ;-)
   process(i_wb_clk)
-    variable v_adr : integer range 0 to C_NUM_WORDS-1;
-    variable v_is_valid_request : std_logic;
   begin
     if rising_edge(i_wb_clk) then
-      -- Is this a valid request for this Wishbone slave?
-      v_is_valid_request := (not i_rst) and i_wb_cyc and i_wb_stb;
-
-      -- Get the address.
-      v_adr := to_integer(unsigned(i_wb_adr));
-
-      -- Write?
-      if v_is_valid_request = '1' and i_wb_we = '1' then
-        if i_wb_sel(0) = '1' then
-          s_byte_array_0(v_adr) <= i_wb_dat(7 downto 0);
-        end if;
-        if i_wb_sel(1) = '1' then
-          s_byte_array_1(v_adr) <= i_wb_dat(15 downto 8);
-        end if;
-        if i_wb_sel(2) = '1' then
-          s_byte_array_2(v_adr) <= i_wb_dat(23 downto 16);
-        end if;
-        if i_wb_sel(3) = '1' then
-          s_byte_array_3(v_adr) <= i_wb_dat(31 downto 24);
-        end if;
-      end if;
-
-      -- We always read.
-      o_wb_dat(7 downto 0) <= s_byte_array_0(v_adr);
-      o_wb_dat(15 downto 8) <= s_byte_array_1(v_adr);
-      o_wb_dat(23 downto 16) <= s_byte_array_2(v_adr);
-      o_wb_dat(31 downto 24) <= s_byte_array_3(v_adr);
-
-      -- Ack that we have dealt with the request.
-      o_wb_ack <= v_is_valid_request;
+      o_wb_ack <= s_is_valid_wb_request;
     end if;
   end process;
-
-  -- Port B
-  process(i_read_clk)
-    variable v_adr : integer range 0 to C_NUM_WORDS-1;
-  begin
-    if rising_edge(i_wb_clk) then
-      -- Get the address.
-      v_adr := to_integer(unsigned(i_read_adr));
-
-      -- We always read.
-      o_read_dat(7 downto 0) <= s_byte_array_0(v_adr);
-      o_read_dat(15 downto 8) <= s_byte_array_1(v_adr);
-      o_read_dat(23 downto 16) <= s_byte_array_2(v_adr);
-      o_read_dat(31 downto 24) <= s_byte_array_3(v_adr);
-    end if;
-  end process;
-
-  -- We never stall - we're that fast ;-)
   o_wb_stall <= '0';
+
+  -- We instatiate four 8-bit wide RAM entities in order to support byte select.
+  ram_tdp_0: entity work.ram_true_dual_port
+    generic map (
+      DATA_BITS => 8,
+      ADR_BITS => ADR_BITS
+    )
+    port map (
+      i_clk_a => i_wb_clk,
+      i_we_a => s_we_a,
+      i_adr_a => i_wb_adr,
+      i_data_a => i_wb_dat(7 downto 0),
+      o_data_a => o_wb_dat(7 downto 0),
+
+      i_clk_b => i_read_clk,
+      i_we_b => '0',
+      i_adr_b => i_read_adr,
+      i_data_b => (others => '0'),
+      o_data_b => o_read_dat(7 downto 0)
+    );
+
+  ram_tdp_1: entity work.ram_true_dual_port
+    generic map (
+      DATA_BITS => 8,
+      ADR_BITS => ADR_BITS
+    )
+    port map (
+      i_clk_a => i_wb_clk,
+      i_we_a => s_we_a,
+      i_adr_a => i_wb_adr,
+      i_data_a => i_wb_dat(15 downto 8),
+      o_data_a => o_wb_dat(15 downto 8),
+
+      i_clk_b => i_read_clk,
+      i_we_b => '0',
+      i_adr_b => i_read_adr,
+      i_data_b => (others => '0'),
+      o_data_b => o_read_dat(15 downto 8)
+    );
+
+  ram_tdp_2: entity work.ram_true_dual_port
+    generic map (
+      DATA_BITS => 8,
+      ADR_BITS => ADR_BITS
+    )
+    port map (
+      i_clk_a => i_wb_clk,
+      i_we_a => s_we_a,
+      i_adr_a => i_wb_adr,
+      i_data_a => i_wb_dat(23 downto 16),
+      o_data_a => o_wb_dat(23 downto 16),
+
+      i_clk_b => i_read_clk,
+      i_we_b => '0',
+      i_adr_b => i_read_adr,
+      i_data_b => (others => '0'),
+      o_data_b => o_read_dat(23 downto 16)
+    );
+
+  ram_tdp_3: entity work.ram_true_dual_port
+    generic map (
+      DATA_BITS => 8,
+      ADR_BITS => ADR_BITS
+    )
+    port map (
+      i_clk_a => i_wb_clk,
+      i_we_a => s_we_a,
+      i_adr_a => i_wb_adr,
+      i_data_a => i_wb_dat(31 downto 24),
+      o_data_a => o_wb_dat(31 downto 24),
+
+      i_clk_b => i_read_clk,
+      i_we_b => '0',
+      i_adr_b => i_read_adr,
+      i_data_b => (others => '0'),
+      o_data_b => o_read_dat(31 downto 24)
+    );
 end rtl;
