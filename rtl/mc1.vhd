@@ -134,11 +134,9 @@ begin
       o_vsync => s_video_vsync
     );
 
-  -- TODO(m): Implement me! Right now we connect some CPU signals to the
-  -- VGA port to force the synthesis tool to avoid dead code removal.
-  o_vga_r <= s_video_r or s_cpu_dat(23 downto 16);
-  o_vga_g <= s_video_g or s_cpu_dat(15 downto 8);
-  o_vga_b <= s_video_b or s_cpu_dat(7 downto 0);
+  o_vga_r <= s_video_r;
+  o_vga_g <= s_video_g;
+  o_vga_b <= s_video_b;
   o_vga_hs <= s_video_hsync;
   o_vga_vs <= s_video_vsync;
 end rtl;

@@ -114,8 +114,9 @@ begin
       OUTPUT_CLOCK_FREQUENCY0 => "70.0 MHz",
 
       -- Pixel frequency for HD 1280x720 @ 60 Hz = 74.250 MHz
-      -- We run the VGA logic at twice that frequency.
-      OUTPUT_CLOCK_FREQUENCY1 => "148.50 MHz"
+      -- We run the VGA logic at twice that frequency (rounded to the nearest
+      -- valid frequency that the PLL can generate).
+      OUTPUT_CLOCK_FREQUENCY1 => "148.75 MHz"
     )
     port map
     (

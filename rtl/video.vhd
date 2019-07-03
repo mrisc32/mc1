@@ -19,6 +19,7 @@
 
 library ieee;
 use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
 
 entity video is
   generic(
@@ -53,13 +54,34 @@ entity video is
 end video;
 
 architecture rtl of video is
+  signal s_dummy_adr : std_logic_vector(ADR_BITS-1 downto 0);
+  signal s_next_dummy_adr : std_logic_vector(ADR_BITS-1 downto 0);
 begin
   -- TODO(m): Implement me!
-  o_read_adr <= (others => '0');
-  o_r <= (others => '0');
-  o_g <= (others => '0');
-  o_b <= (others => '0');
-  o_active <= '1';
-  o_hsync <= '0';
-  o_vsync <= '0';
+  -- Right now we just output some random values by addressing all the RAM.
+  process(i_clk, i_rst)
+  begin
+    if i_rst = '1' then
+      s_dummy_adr <= (others => '0');
+      o_r <= (others => '0');
+      o_g <= (others => '0');
+      o_b <= (others => '0');
+      o_active <= '0';
+      o_hsync <= '0';
+      o_vsync <= '0';
+    elsif rising_edge(i_clk) then
+      s_dummy_adr <= s_next_dummy_adr;
+      o_r <= i_read_dat(23 downto 16);
+      o_g <= i_read_dat(15 downto 8);
+      o_b <= i_read_dat(7 downto 0);
+      o_active <= i_read_dat(31);
+      o_hsync <= i_read_dat(25);
+      o_vsync <= i_read_dat(24);
+    end if;
+  end process;
+
+  o_read_adr <= s_dummy_adr;
+
+  -- Calculate the next dummy address.
+  s_next_dummy_adr <= std_logic_vector(unsigned(s_dummy_adr) + 1);
 end rtl;
