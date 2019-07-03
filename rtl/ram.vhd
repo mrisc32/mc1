@@ -18,12 +18,15 @@
 ----------------------------------------------------------------------------------------------------
 
 ----------------------------------------------------------------------------------------------------
--- This is a single-ported RAM module with the following properties:
---   * Wishbone B4 pipelined interface.
+-- This is a dual-ported RAM module with the following properties:
 --   * Configurable size (2^N words).
 --   * 32-bit data width.
---   * Byte enable / select for write operations.
---   * Single cycle read/write operation.
+--   * Port A:
+--     - Wishbone B4 pipelined interface.
+--     - Byte enable / select for write operations.
+--     - Single cycle read/write operation.
+--   * Port B:
+--     - Read-only (no byte enable)
 --   * Synthesizes to BRAM (tested on Intel Arria II, Cyclone IV, Cyclone V, Cyclone 10, MAX 10).
 ----------------------------------------------------------------------------------------------------
 
@@ -68,6 +71,7 @@ architecture rtl of ram is
   signal s_byte_array_2 : T_BYTE_ARRAY;
   signal s_byte_array_3 : T_BYTE_ARRAY;
 begin
+  -- Port A
   process(i_wb_clk)
     variable v_adr : integer range 0 to C_NUM_WORDS-1;
     variable v_is_valid_request : std_logic;
@@ -106,9 +110,22 @@ begin
     end if;
   end process;
 
+  -- Port B
+  process(i_read_clk)
+    variable v_adr : integer range 0 to C_NUM_WORDS-1;
+  begin
+    if rising_edge(i_wb_clk) then
+      -- Get the address.
+      v_adr := to_integer(unsigned(i_read_adr));
+
+      -- We always read.
+      o_read_dat(7 downto 0) <= s_byte_array_0(v_adr);
+      o_read_dat(15 downto 8) <= s_byte_array_1(v_adr);
+      o_read_dat(23 downto 16) <= s_byte_array_2(v_adr);
+      o_read_dat(31 downto 24) <= s_byte_array_3(v_adr);
+    end if;
+  end process;
+
   -- We never stall - we're that fast ;-)
   o_wb_stall <= '0';
-
-  -- TODO(m): Implement the second read port.
-  o_read_dat <= (others => '0');
 end rtl;
