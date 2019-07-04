@@ -56,7 +56,36 @@ end video;
 architecture rtl of video is
   signal s_dummy_adr : std_logic_vector(ADR_BITS-1 downto 0);
   signal s_next_dummy_adr : std_logic_vector(ADR_BITS-1 downto 0);
+
+  signal s_x_pos : std_logic_vector(10 downto 0);
+  signal s_y_pos : std_logic_vector(10 downto 0);
+  signal s_pixel_phase : std_logic;
 begin
+  -- Instantiate the raster control unit.
+  rcu_1: entity work.vid_raster
+    generic map (
+      WIDTH => WIDTH,
+      HEIGHT => HEIGHT,
+      FRONT_PORCH_H => FRONT_PORCH_H,
+      SYNC_WIDTH_H => SYNC_WIDTH_H,
+      BACK_PORCH_H => BACK_PORCH_H,
+      FRONT_PORCH_V => FRONT_PORCH_V,
+      SYNC_WIDTH_V => SYNC_WIDTH_V,
+      BACK_PORCH_V => BACK_PORCH_V,
+      COORD_BITS => 11
+    )
+    port map(
+      i_rst => i_rst,
+      i_clk => i_clk,
+      o_x_pos => s_x_pos,
+      o_y_pos => s_y_pos,
+      o_hsync => o_hsync,
+      o_vsync => o_vsync,
+      o_active => o_active,
+      o_pixel_phase => s_pixel_phase
+    );
+
+  -- Frame buffer read-out.
   -- TODO(m): Implement me!
   -- Right now we just output some random values by addressing all the RAM.
   process(i_clk, i_rst)
@@ -66,17 +95,11 @@ begin
       o_r <= (others => '0');
       o_g <= (others => '0');
       o_b <= (others => '0');
-      o_active <= '0';
-      o_hsync <= '0';
-      o_vsync <= '0';
     elsif rising_edge(i_clk) then
       s_dummy_adr <= s_next_dummy_adr;
       o_r <= i_read_dat(23 downto 16);
       o_g <= i_read_dat(15 downto 8);
       o_b <= i_read_dat(7 downto 0);
-      o_active <= i_read_dat(31);
-      o_hsync <= i_read_dat(25);
-      o_vsync <= i_read_dat(24);
     end if;
   end process;
 
