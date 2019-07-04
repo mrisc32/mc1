@@ -65,10 +65,18 @@ end ram;
 architecture rtl of ram is
   signal s_is_valid_wb_request : std_logic;
   signal s_we_a : std_logic;
+  signal s_we_a_0 : std_logic;
+  signal s_we_a_1 : std_logic;
+  signal s_we_a_2 : std_logic;
+  signal s_we_a_3 : std_logic;
 begin
   -- Wishbone control logic.
   s_is_valid_wb_request <= i_wb_cyc and i_wb_stb;
   s_we_a <= s_is_valid_wb_request and i_wb_we;
+  s_we_a_0 <= s_we_a and i_wb_sel(0);
+  s_we_a_1 <= s_we_a and i_wb_sel(1);
+  s_we_a_2 <= s_we_a and i_wb_sel(2);
+  s_we_a_3 <= s_we_a and i_wb_sel(3);
 
   -- We always ack and never stall - we're that fast ;-)
   process(i_wb_clk)
@@ -87,7 +95,7 @@ begin
     )
     port map (
       i_clk_a => i_wb_clk,
-      i_we_a => s_we_a,
+      i_we_a => s_we_a_0,
       i_adr_a => i_wb_adr,
       i_data_a => i_wb_dat(7 downto 0),
       o_data_a => o_wb_dat(7 downto 0),
@@ -106,7 +114,7 @@ begin
     )
     port map (
       i_clk_a => i_wb_clk,
-      i_we_a => s_we_a,
+      i_we_a => s_we_a_1,
       i_adr_a => i_wb_adr,
       i_data_a => i_wb_dat(15 downto 8),
       o_data_a => o_wb_dat(15 downto 8),
@@ -125,7 +133,7 @@ begin
     )
     port map (
       i_clk_a => i_wb_clk,
-      i_we_a => s_we_a,
+      i_we_a => s_we_a_2,
       i_adr_a => i_wb_adr,
       i_data_a => i_wb_dat(23 downto 16),
       o_data_a => o_wb_dat(23 downto 16),
@@ -144,7 +152,7 @@ begin
     )
     port map (
       i_clk_a => i_wb_clk,
-      i_we_a => s_we_a,
+      i_we_a => s_we_a_3,
       i_adr_a => i_wb_adr,
       i_data_a => i_wb_dat(31 downto 24),
       o_data_a => o_wb_dat(31 downto 24),
