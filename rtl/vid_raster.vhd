@@ -34,14 +34,15 @@ entity vid_raster is
     SYNC_WIDTH_V : positive := 5;
     BACK_PORCH_V : positive := 20;
 
-    COORD_BITS : positive := 11  -- Number of bits required for representing an x or y coordinate.
+    X_COORD_BITS : positive := 11;  -- Number of bits required for representing an x coordinate.
+    Y_COORD_BITS : positive := 10   -- Number of bits required for representing an y coordinate.
   );
   port(
     i_rst : in std_logic;
     i_clk : in std_logic;
 
-    o_x_pos : out std_logic_vector(COORD_BITS-1 downto 0);
-    o_y_pos : out std_logic_vector(COORD_BITS-1 downto 0);
+    o_x_pos : out std_logic_vector(X_COORD_BITS-1 downto 0);
+    o_y_pos : out std_logic_vector(Y_COORD_BITS-1 downto 0);
 
     o_hsync : out std_logic;
     o_vsync : out std_logic;
@@ -52,11 +53,18 @@ entity vid_raster is
 end vid_raster;
 
 architecture rtl of vid_raster is
-  constant C_X_END : positive := WIDTH + FRONT_PORCH_H + SYNC_WIDTH_H + BACK_PORCH_H;
-  constant C_Y_END : positive := HEIGHT + FRONT_PORCH_V + SYNC_WIDTH_V + BACK_PORCH_V;
+  constant C_X_SYNC_START : positive := FRONT_PORCH_H;
+  constant C_X_SYNC_END : positive := FRONT_PORCH_H + SYNC_WIDTH_H;
+  constant C_X_ACTIVE_START : positive := FRONT_PORCH_H + SYNC_WIDTH_H + BACK_PORCH_H;
+  constant C_X_ACTIVE_END : positive := FRONT_PORCH_H + SYNC_WIDTH_H + BACK_PORCH_H + WIDTH;
 
-  signal s_x_pos : unsigned(COORD_BITS-1 downto 0);
-  signal s_y_pos : unsigned(COORD_BITS-1 downto 0);
+  constant C_Y_SYNC_START : positive := FRONT_PORCH_V;
+  constant C_Y_SYNC_END : positive := FRONT_PORCH_V + SYNC_WIDTH_V;
+  constant C_Y_ACTIVE_START : positive := FRONT_PORCH_V + SYNC_WIDTH_V + BACK_PORCH_V;
+  constant C_Y_ACTIVE_END : positive := FRONT_PORCH_V + SYNC_WIDTH_V + BACK_PORCH_V + HEIGHT;
+
+  signal s_x_pos : unsigned(X_COORD_BITS-1 downto 0);
+  signal s_y_pos : unsigned(Y_COORD_BITS-1 downto 0);
   signal s_hsync : std_logic;
   signal s_vsync : std_logic;
   signal s_hactive : std_logic;
@@ -64,8 +72,8 @@ architecture rtl of vid_raster is
   signal s_pixel_phase : std_logic;
 begin
   process(i_clk, i_rst)
-    variable v_x_pos : unsigned(COORD_BITS-1 downto 0);
-    variable v_y_pos : unsigned(COORD_BITS-1 downto 0);
+    variable v_x_pos : unsigned(X_COORD_BITS-1 downto 0);
+    variable v_y_pos : unsigned(Y_COORD_BITS-1 downto 0);
     variable v_hsync : std_logic;
     variable v_vsync : std_logic;
     variable v_hactive : std_logic;
@@ -76,8 +84,8 @@ begin
       s_x_pos <= (others => '0');
       s_hsync <= '0';
       s_vsync <= '0';
-      s_hactive <= '1';
-      s_vactive <= '1';
+      s_hactive <= '0';
+      s_vactive <= '0';
       s_pixel_phase <= '0';
     elsif rising_edge(i_clk) then
       -- We only update the raster state on every second clock cycle, since
@@ -90,34 +98,34 @@ begin
         v_hactive := s_hactive;
         v_vactive := s_vactive;
 
-        if v_x_pos = C_X_END then
+        if v_x_pos = C_X_ACTIVE_END then
           -- End of line reached. Restart the horizontal raster.
-          v_x_pos := to_unsigned(0, COORD_BITS);
-          v_hactive := '1';
+          v_x_pos := to_unsigned(0, X_COORD_BITS);
+          v_hactive := '0';
 
-          if v_y_pos = C_Y_END then
+          if v_y_pos = C_Y_ACTIVE_END then
             -- End of frame reached. Restart the vertical raster.
-            v_y_pos := to_unsigned(0, COORD_BITS);
-            v_vactive := '1';
+            v_y_pos := to_unsigned(0, Y_COORD_BITS);
+            v_vactive := '0';
           else
-            if v_y_pos = HEIGHT then
-              v_vactive := '0';
-            elsif v_y_pos = HEIGHT + FRONT_PORCH_V then
+            if v_y_pos = C_Y_SYNC_START then
               v_vsync := '1';
-            elsif v_y_pos = HEIGHT + FRONT_PORCH_V + SYNC_WIDTH_V then
+            elsif v_y_pos = C_Y_SYNC_END then
               v_vsync := '0';
+            elsif v_y_pos = C_Y_ACTIVE_START then
+              v_vactive := '1';
             end if;
-            v_y_pos := v_y_pos + to_unsigned(1, COORD_BITS);
+            v_y_pos := v_y_pos + to_unsigned(1, Y_COORD_BITS);
           end if;
         else
-          if v_x_pos = WIDTH then
-            v_hactive := '0';
-          elsif v_x_pos = WIDTH + FRONT_PORCH_H then
+          if v_x_pos = C_X_SYNC_START then
             v_hsync := '1';
-          elsif v_x_pos = WIDTH + FRONT_PORCH_H + SYNC_WIDTH_H then
+          elsif v_x_pos = C_X_SYNC_END then
             v_hsync := '0';
+          elsif v_x_pos = C_X_ACTIVE_START then
+            v_hactive := '1';
           end if;
-          v_x_pos := v_x_pos + to_unsigned(1, COORD_BITS);
+          v_x_pos := v_x_pos + to_unsigned(1, X_COORD_BITS);
         end if;
 
         -- Update the state signals.

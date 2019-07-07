@@ -58,7 +58,7 @@ architecture rtl of video is
   signal s_next_dummy_adr : std_logic_vector(ADR_BITS-1 downto 0);
 
   signal s_x_pos : std_logic_vector(10 downto 0);
-  signal s_y_pos : std_logic_vector(10 downto 0);
+  signal s_y_pos : std_logic_vector(9 downto 0);
   signal s_pixel_phase : std_logic;
 begin
   -- Instantiate the raster control unit.
@@ -72,7 +72,8 @@ begin
       FRONT_PORCH_V => FRONT_PORCH_V,
       SYNC_WIDTH_V => SYNC_WIDTH_V,
       BACK_PORCH_V => BACK_PORCH_V,
-      COORD_BITS => 11
+      X_COORD_BITS => s_x_pos'length,
+      Y_COORD_BITS => s_y_pos'length
     )
     port map(
       i_rst => i_rst,
