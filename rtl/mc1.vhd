@@ -63,7 +63,6 @@ architecture rtl of mc1 is
   signal s_video_r : std_logic_vector(7 downto 0);
   signal s_video_g : std_logic_vector(7 downto 0);
   signal s_video_b : std_logic_vector(7 downto 0);
-  signal s_video_active : std_logic;
   signal s_video_hsync : std_logic;
   signal s_video_vsync : std_logic;
 begin
@@ -129,7 +128,6 @@ begin
       o_g => s_video_g,
       o_b => s_video_b,
 
-      o_active => s_video_active,
       o_hsync => s_video_hsync,
       o_vsync => s_video_vsync
     );

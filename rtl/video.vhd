@@ -47,18 +47,29 @@ entity video is
     o_g : out std_logic_vector(7 downto 0);
     o_b : out std_logic_vector(7 downto 0);
 
-    o_active : out std_logic;
     o_hsync : out std_logic;
     o_vsync : out std_logic
   );
 end video;
 
 architecture rtl of video is
-  signal s_dummy_adr : std_logic_vector(ADR_BITS-1 downto 0);
-  signal s_next_dummy_adr : std_logic_vector(ADR_BITS-1 downto 0);
+  -- TODO(m): Make this configurable.
+  constant C_FRAMEBUFFER0_START : unsigned(ADR_BITS-1 downto 0) := to_unsigned(32768, ADR_BITS);
+  constant C_FRAMEBUFFER1_START : unsigned(ADR_BITS-1 downto 0) := to_unsigned(49152, ADR_BITS);
 
-  signal s_x_pos : std_logic_vector(10 downto 0);
-  signal s_y_pos : std_logic_vector(9 downto 0);
+  signal s_layer0_adr : unsigned(ADR_BITS-1 downto 0);
+  signal s_layer0_byte_no : unsigned(1 downto 0);
+  signal s_layer1_adr : unsigned(ADR_BITS-1 downto 0);
+  signal s_layer1_byte_no : unsigned(1 downto 0);
+
+  signal s_layer0_word : std_logic_vector(31 downto 0);
+  signal s_layer1_word : std_logic_vector(31 downto 0);
+
+  signal s_raster_x : std_logic_vector(10 downto 0);
+  signal s_raster_y : std_logic_vector(9 downto 0);
+  signal s_hsync : std_logic;
+  signal s_vsync : std_logic;
+  signal s_active : std_logic;
   signal s_pixel_phase : std_logic;
 begin
   -- Instantiate the raster control unit.
@@ -72,40 +83,67 @@ begin
       FRONT_PORCH_V => FRONT_PORCH_V,
       SYNC_WIDTH_V => SYNC_WIDTH_V,
       BACK_PORCH_V => BACK_PORCH_V,
-      X_COORD_BITS => s_x_pos'length,
-      Y_COORD_BITS => s_y_pos'length
+      X_COORD_BITS => s_raster_x'length,
+      Y_COORD_BITS => s_raster_y'length
     )
     port map(
       i_rst => i_rst,
       i_clk => i_clk,
-      o_x_pos => s_x_pos,
-      o_y_pos => s_y_pos,
-      o_hsync => o_hsync,
-      o_vsync => o_vsync,
-      o_active => o_active,
+      o_x_pos => s_raster_x,
+      o_y_pos => s_raster_y,
+      o_hsync => s_hsync,
+      o_vsync => s_vsync,
+      o_active => s_active,
       o_pixel_phase => s_pixel_phase
     );
 
-  -- Frame buffer read-out.
-  -- TODO(m): Implement me!
-  -- Right now we just output some random values by addressing all the RAM.
-  process(i_clk, i_rst)
+  -- Video memory read logic.
+  -- TODO(m): This is a hard-coded, simplified version. Implement a proper VCU.
+  process(i_clk)
   begin
-    if i_rst = '1' then
-      s_dummy_adr <= (others => '0');
-      o_r <= (others => '0');
-      o_g <= (others => '0');
-      o_b <= (others => '0');
-    elsif rising_edge(i_clk) then
-      s_dummy_adr <= s_next_dummy_adr;
-      o_r <= i_read_dat(23 downto 16);
-      o_g <= i_read_dat(15 downto 8);
-      o_b <= i_read_dat(7 downto 0);
+    if rising_edge(i_clk) then
+      if s_vsync = '1' then
+        s_layer0_adr <= C_FRAMEBUFFER0_START;
+        s_layer0_byte_no <= to_unsigned(0, s_layer0_byte_no'length);
+        s_layer1_adr <= C_FRAMEBUFFER1_START;
+        s_layer1_byte_no <= to_unsigned(0, s_layer1_byte_no'length);
+      elsif s_active = '1' then
+        -- Update the pixel read addresses.
+        if s_pixel_phase = '1' then
+          if s_layer0_byte_no = 2x"3" then
+            s_layer0_adr <= s_layer0_adr + to_unsigned(1, ADR_BITS);
+          end if;
+          s_layer0_byte_no <= s_layer0_byte_no + to_unsigned(1, s_layer0_byte_no'length);
+          if s_layer1_byte_no = 2x"3" then
+            s_layer1_adr <= s_layer1_adr + to_unsigned(1, ADR_BITS);
+          end if;
+          s_layer1_byte_no <= s_layer1_byte_no + to_unsigned(1, s_layer1_byte_no'length);
+        end if;
+      end if;
     end if;
   end process;
 
-  o_read_adr <= s_dummy_adr;
+  -- RAM read logic: Layer 0 and 1 are read alternating on every second clock cycle.
+  process(i_clk)
+  begin
+    if rising_edge(i_clk) then
+      if s_pixel_phase = '0' then
+        o_read_adr <= std_logic_vector(s_layer0_adr);
+        s_layer1_word <= i_read_dat;
+      else
+        o_read_adr <= std_logic_vector(s_layer1_adr);
+        s_layer0_word <= i_read_dat;
+      end if;
+    end if;
+  end process;
 
-  -- Calculate the next dummy address.
-  s_next_dummy_adr <= std_logic_vector(unsigned(s_dummy_adr) + 1);
+  -- Layer combine logic.
+  -- TODO(m): Implement me!
+  -- HACK!!!!
+  o_r <= s_layer0_word(24 downto 17);
+  o_g <= s_layer0_word(14 downto 7);
+  o_b <= s_layer0_word(7 downto 0);
+
+  o_hsync <= s_hsync;
+  o_vsync <= s_vsync;
 end rtl;
