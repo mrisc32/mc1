@@ -165,10 +165,17 @@ begin
     );
 
   -- Internal ROM.
-  -- TODO(m): Implement me!
-  s_rom_dat <= (others => '0');
-  s_rom_ack <= '0';
-  s_rom_stall <= '0';
+  rom_1: entity work.rom
+    port map (
+      i_clk => i_cpu_clk,
+
+      i_wb_cyc => s_rom_cyc,
+      i_wb_stb => s_rom_stb,
+      i_wb_adr => s_rom_adr,
+      o_wb_dat => s_rom_dat,
+      o_wb_ack => s_rom_ack,
+      o_wb_stall => s_rom_stall
+    );
   s_rom_err <= '0';
 
   -- Internal RAM.
