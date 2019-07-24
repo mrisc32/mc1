@@ -1,0 +1,67 @@
+----------------------------------------------------------------------------------------------------
+-- Copyright (c) 2019 Marcus Geelnard
+--
+-- This software is provided 'as-is', without any express or implied warranty. In no event will the
+-- authors be held liable for any damages arising from the use of this software.
+--
+-- Permission is granted to anyone to use this software for any purpose, including commercial
+-- applications, and to alter it and redistribute it freely, subject to the following restrictions:
+--
+--  1. The origin of this software must not be misrepresented; you must not claim that you wrote
+--     the original software. If you use this software in a product, an acknowledgment in the
+--     product documentation would be appreciated but is not required.
+--
+--  2. Altered source versions must be plainly marked as such, and must not be misrepresented as
+--     being the original software.
+--
+--  3. This notice may not be removed or altered from any source distribution.
+----------------------------------------------------------------------------------------------------
+
+----------------------------------------------------------------------------------------------------
+-- This is a single-ported ROM (Wishbone B4 pipelined interface).
+----------------------------------------------------------------------------------------------------
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.std_logic_arith.all;
+
+entity rom is
+  port(
+    -- Control signals.
+    i_clk : in std_logic;
+
+    -- Wishbone memory interface (b4 pipelined slave).
+    -- See: https://cdn.opencores.org/downloads/wbspec_b4.pdf
+    i_wb_cyc : in std_logic;
+    i_wb_stb : in std_logic;
+    i_wb_adr : in std_logic_vector(31 downto 2);
+    o_wb_dat : out std_logic_vector(31 downto 0);
+    o_wb_ack : out std_logic;
+    o_wb_stall : out std_logic
+  );
+end rom;
+
+architecture rtl of rom is
+  constant C_ADDR_BITS : positive := ${ADDR_BITS};
+  constant C_ROM_SIZE : positive := 2**C_ADDR_BITS;
+
+  type T_ROM_ARRAY is array (0 to C_ROM_SIZE-1) of std_logic_vector(31 downto 0);
+  constant C_ROM_ARRAY : T_ROM_ARRAY := (
+${DATA}
+  );
+
+  signal s_is_valid_wb_request : std_logic;
+begin
+  -- Wishbone control logic.
+  s_is_valid_wb_request <= i_wb_cyc and i_wb_stb;
+
+  -- We always ack and never stall - we're that fast ;-)
+  process(i_clk)
+  begin
+    if rising_edge(i_clk) then
+      o_wb_dat <= C_ROM_ARRAY(conv_integer(unsigned(i_wb_adr(C_ADDR_BITS+1 downto 2))));
+      o_wb_ack <= s_is_valid_wb_request;
+    end if;
+  end process;
+  o_wb_stall <= '0';
+end rtl;

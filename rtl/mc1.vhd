@@ -57,7 +57,28 @@ architecture rtl of mc1 is
   signal s_cpu_stall : std_logic;
   signal s_cpu_err : std_logic;
 
-  -- Video logic memory interface.
+  -- ROM memory interface (Wishbone B4 pipelined slave).
+  signal s_rom_cyc : std_logic;
+  signal s_rom_stb : std_logic;
+  signal s_rom_adr : std_logic_vector(31 downto 2);
+  signal s_rom_dat : std_logic_vector(31 downto 0);
+  signal s_rom_ack : std_logic;
+  signal s_rom_stall : std_logic;
+  signal s_rom_err : std_logic;
+
+  -- Internal RAM memory interface (Wishbone B4 pipelined slave).
+  signal s_ram_cyc : std_logic;
+  signal s_ram_stb : std_logic;
+  signal s_ram_adr : std_logic_vector(31 downto 2);
+  signal s_ram_dat_w : std_logic_vector(31 downto 0);
+  signal s_ram_we : std_logic;
+  signal s_ram_sel : std_logic_vector(3 downto 0);
+  signal s_ram_dat : std_logic_vector(31 downto 0);
+  signal s_ram_ack : std_logic;
+  signal s_ram_stall : std_logic;
+  signal s_ram_err : std_logic;
+
+  -- Video logic signals.
   signal s_video_adr : std_logic_vector(C_LOG2_RAM_SIZE-1 downto 0);
   signal s_video_dat : std_logic_vector(31 downto 0);
   signal s_video_r : std_logic_vector(7 downto 0);
@@ -66,7 +87,9 @@ architecture rtl of mc1 is
   signal s_video_hsync : std_logic;
   signal s_video_vsync : std_logic;
 begin
-  -- Instantiate the CPU core.
+  --------------------------------------------------------------------------------------------------
+  -- CPU core
+  --------------------------------------------------------------------------------------------------
   mrisc32_core_1: entity work.core
     port map (
       i_clk => i_cpu_clk,
@@ -85,7 +108,77 @@ begin
       i_wb_err => s_cpu_err
     );
 
-  -- Instantiate the Wishbone memory subsystem.
+  --------------------------------------------------------------------------------------------------
+  -- Wishbone memory subsystem
+  --------------------------------------------------------------------------------------------------
+  memory_mux_1: entity work.memory_mux
+    port map (
+      i_rst => i_cpu_rst,
+      i_clk => i_cpu_clk,
+
+      -- Wishbone master interface from the CPU.
+      i_wb_cyc => s_cpu_cyc,
+      i_wb_stb => s_cpu_stb,
+      i_wb_adr => s_cpu_adr,
+      i_wb_dat => s_cpu_dat_w,
+      i_wb_we => s_cpu_we,
+      i_wb_sel => s_cpu_sel,
+      o_wb_dat => s_cpu_dat,
+      o_wb_ack => s_cpu_ack,
+      o_wb_stall => s_cpu_stall,
+      o_wb_err => s_cpu_err,
+
+      -- Wishbone slave interface 0: ROM.
+      o_wb_cyc_0 => s_rom_cyc,
+      o_wb_stb_0 => s_rom_stb,
+      o_wb_adr_0 => s_rom_adr,
+      i_wb_dat_0 => s_rom_dat,
+      i_wb_ack_0 => s_rom_ack,
+      i_wb_stall_0 => s_rom_stall,
+      i_wb_err_0 => s_rom_err,
+
+      -- Wishbone slave interface 1: Internal RAM.
+      o_wb_cyc_1 => s_ram_cyc,
+      o_wb_stb_1 => s_ram_stb,
+      o_wb_adr_1 => s_ram_adr,
+      o_wb_dat_1 => s_ram_dat_w,
+      o_wb_we_1 => s_ram_we,
+      o_wb_sel_1 => s_ram_sel,
+      i_wb_dat_1 => s_ram_dat,
+      i_wb_ack_1 => s_ram_ack,
+      i_wb_stall_1 => s_ram_stall,
+      i_wb_err_1 => s_ram_err,
+
+      -- External RAM interface
+      -- TODO(m): Implement me!
+      i_wb_dat_2 => (others => '0'),
+      i_wb_ack_2 => '0',
+      i_wb_stall_2 => '0',
+      i_wb_err_2 => '0',
+
+      -- Memory mapped I/O interface.
+      -- TODO(m): Implement me!
+      i_wb_dat_3 => (others => '0'),
+      i_wb_ack_3 => '0',
+      i_wb_stall_3 => '0',
+      i_wb_err_3 => '0'
+    );
+
+  -- Internal ROM.
+  rom_1: entity work.rom
+    port map (
+      i_clk => i_cpu_clk,
+
+      i_wb_cyc => s_rom_cyc,
+      i_wb_stb => s_rom_stb,
+      i_wb_adr => s_rom_adr,
+      o_wb_dat => s_rom_dat,
+      o_wb_ack => s_rom_ack,
+      o_wb_stall => s_rom_stall
+    );
+  s_rom_err <= '0';
+
+  -- Internal RAM.
   ram_1: entity work.ram
     generic map (
       ADR_BITS => C_LOG2_RAM_SIZE
@@ -95,24 +188,26 @@ begin
 
       -- CPU interface.
       i_wb_clk => i_cpu_clk,
-      i_wb_cyc => s_cpu_cyc,
-      i_wb_stb => s_cpu_stb,
-      i_wb_adr => s_cpu_adr(C_LOG2_RAM_SIZE+1 downto 2),
-      i_wb_dat => s_cpu_dat_w,
-      i_wb_we => s_cpu_we,
-      i_wb_sel => s_cpu_sel,
-      o_wb_dat => s_cpu_dat,
-      o_wb_ack => s_cpu_ack,
-      o_wb_stall => s_cpu_stall,
+      i_wb_cyc => s_ram_cyc,
+      i_wb_stb => s_ram_stb,
+      i_wb_adr => s_ram_adr(C_LOG2_RAM_SIZE+1 downto 2),
+      i_wb_dat => s_ram_dat_w,
+      i_wb_we => s_ram_we,
+      i_wb_sel => s_ram_sel,
+      o_wb_dat => s_ram_dat,
+      o_wb_ack => s_ram_ack,
+      o_wb_stall => s_ram_stall,
 
       -- Video interface.
       i_read_clk => i_vga_clk,
       i_read_adr => s_video_adr,
       o_read_dat => s_video_dat
     );
-  s_cpu_err <= '0';
+  s_ram_err <= '0';
 
-  -- Instantiate the video logic.
+  --------------------------------------------------------------------------------------------------
+  -- Video logic
+  --------------------------------------------------------------------------------------------------
   video_1: entity work.video
     generic map (
       ADR_BITS => C_LOG2_RAM_SIZE
