@@ -59,18 +59,14 @@ architecture rtl of video is
 
   signal s_layer0_adr : unsigned(ADR_BITS-1 downto 0);
   signal s_layer0_byte_no : unsigned(1 downto 0);
-  signal s_layer1_adr : unsigned(ADR_BITS-1 downto 0);
-  signal s_layer1_byte_no : unsigned(1 downto 0);
 
   signal s_layer0_word : std_logic_vector(31 downto 0);
-  signal s_layer1_word : std_logic_vector(31 downto 0);
 
   signal s_raster_x : std_logic_vector(10 downto 0);
   signal s_raster_y : std_logic_vector(9 downto 0);
   signal s_hsync : std_logic;
   signal s_vsync : std_logic;
   signal s_active : std_logic;
-  signal s_pixel_phase : std_logic;
 begin
   -- Instantiate the raster control unit.
   rcu_1: entity work.vid_raster
@@ -93,8 +89,7 @@ begin
       o_y_pos => s_raster_y,
       o_hsync => s_hsync,
       o_vsync => s_vsync,
-      o_active => s_active,
-      o_pixel_phase => s_pixel_phase
+      o_active => s_active
     );
 
   -- Video memory read logic.
@@ -105,35 +100,22 @@ begin
       if s_vsync = '1' then
         s_layer0_adr <= C_FRAMEBUFFER0_START;
         s_layer0_byte_no <= to_unsigned(0, s_layer0_byte_no'length);
-        s_layer1_adr <= C_FRAMEBUFFER1_START;
-        s_layer1_byte_no <= to_unsigned(0, s_layer1_byte_no'length);
       elsif s_active = '1' then
         -- Update the pixel read addresses.
-        if s_pixel_phase = '1' then
-          if s_layer0_byte_no = 2x"3" then
-            s_layer0_adr <= s_layer0_adr + to_unsigned(1, ADR_BITS);
-          end if;
-          s_layer0_byte_no <= s_layer0_byte_no + to_unsigned(1, s_layer0_byte_no'length);
-          if s_layer1_byte_no = 2x"3" then
-            s_layer1_adr <= s_layer1_adr + to_unsigned(1, ADR_BITS);
-          end if;
-          s_layer1_byte_no <= s_layer1_byte_no + to_unsigned(1, s_layer1_byte_no'length);
+        if s_layer0_byte_no = 2x"3" then
+          s_layer0_adr <= s_layer0_adr + to_unsigned(1, ADR_BITS);
         end if;
+        s_layer0_byte_no <= s_layer0_byte_no + to_unsigned(1, s_layer0_byte_no'length);
       end if;
     end if;
   end process;
 
-  -- RAM read logic: Layer 0 and 1 are read alternating on every second clock cycle.
+  -- RAM read logic.
   process(i_clk)
   begin
     if rising_edge(i_clk) then
-      if s_pixel_phase = '0' then
-        o_read_adr <= std_logic_vector(s_layer0_adr);
-        s_layer1_word <= i_read_dat;
-      else
-        o_read_adr <= std_logic_vector(s_layer1_adr);
-        s_layer0_word <= i_read_dat;
-      end if;
+      o_read_adr <= std_logic_vector(s_layer0_adr);
+      s_layer0_word <= i_read_dat;
     end if;
   end process;
 

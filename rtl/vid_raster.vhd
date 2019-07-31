@@ -47,8 +47,7 @@ entity vid_raster is
     o_hsync : out std_logic;
     o_vsync : out std_logic;
 
-    o_active : out std_logic;
-    o_pixel_phase : out std_logic
+    o_active : out std_logic
   );
 end vid_raster;
 
@@ -69,7 +68,6 @@ architecture rtl of vid_raster is
   signal s_vsync : std_logic;
   signal s_hactive : std_logic;
   signal s_vactive : std_logic;
-  signal s_pixel_phase : std_logic;
 begin
   process(i_clk, i_rst)
     variable v_x_pos : unsigned(X_COORD_BITS-1 downto 0);
@@ -86,59 +84,51 @@ begin
       s_vsync <= '0';
       s_hactive <= '0';
       s_vactive <= '0';
-      s_pixel_phase <= '0';
     elsif rising_edge(i_clk) then
-      -- We only update the raster state on every second clock cycle, since
-      -- each pixel is two clock cycles wide.
-      if s_pixel_phase = '1' then
-        v_x_pos := s_x_pos;
-        v_y_pos := s_y_pos;
-        v_hsync := s_hsync;
-        v_vsync := s_vsync;
-        v_hactive := s_hactive;
-        v_vactive := s_vactive;
+      v_x_pos := s_x_pos;
+      v_y_pos := s_y_pos;
+      v_hsync := s_hsync;
+      v_vsync := s_vsync;
+      v_hactive := s_hactive;
+      v_vactive := s_vactive;
 
-        if v_x_pos = C_X_ACTIVE_END then
-          -- End of line reached. Restart the horizontal raster.
-          v_x_pos := to_unsigned(0, X_COORD_BITS);
-          v_hactive := '0';
+      if v_x_pos = C_X_ACTIVE_END then
+        -- End of line reached. Restart the horizontal raster.
+        v_x_pos := to_unsigned(0, X_COORD_BITS);
+        v_hactive := '0';
 
-          if v_y_pos = C_Y_ACTIVE_END then
-            -- End of frame reached. Restart the vertical raster.
-            v_y_pos := to_unsigned(0, Y_COORD_BITS);
-            v_vactive := '0';
-          else
-            if v_y_pos = C_Y_SYNC_START then
-              v_vsync := '1';
-            elsif v_y_pos = C_Y_SYNC_END then
-              v_vsync := '0';
-            elsif v_y_pos = C_Y_ACTIVE_START then
-              v_vactive := '1';
-            end if;
-            v_y_pos := v_y_pos + to_unsigned(1, Y_COORD_BITS);
-          end if;
+        if v_y_pos = C_Y_ACTIVE_END then
+          -- End of frame reached. Restart the vertical raster.
+          v_y_pos := to_unsigned(0, Y_COORD_BITS);
+          v_vactive := '0';
         else
-          if v_x_pos = C_X_SYNC_START then
-            v_hsync := '1';
-          elsif v_x_pos = C_X_SYNC_END then
-            v_hsync := '0';
-          elsif v_x_pos = C_X_ACTIVE_START then
-            v_hactive := '1';
+          if v_y_pos = C_Y_SYNC_START then
+            v_vsync := '1';
+          elsif v_y_pos = C_Y_SYNC_END then
+            v_vsync := '0';
+          elsif v_y_pos = C_Y_ACTIVE_START then
+            v_vactive := '1';
           end if;
-          v_x_pos := v_x_pos + to_unsigned(1, X_COORD_BITS);
+          v_y_pos := v_y_pos + to_unsigned(1, Y_COORD_BITS);
         end if;
-
-        -- Update the state signals.
-        s_x_pos <= v_x_pos;
-        s_y_pos <= v_y_pos;
-        s_hsync <= v_hsync;
-        s_vsync <= v_vsync;
-        s_hactive <= v_hactive;
-        s_vactive <= v_vactive;
+      else
+        if v_x_pos = C_X_SYNC_START then
+          v_hsync := '1';
+        elsif v_x_pos = C_X_SYNC_END then
+          v_hsync := '0';
+        elsif v_x_pos = C_X_ACTIVE_START then
+          v_hactive := '1';
+        end if;
+        v_x_pos := v_x_pos + to_unsigned(1, X_COORD_BITS);
       end if;
 
-      -- Next pixel phase...
-      s_pixel_phase <= not s_pixel_phase;
+      -- Update the state signals.
+      s_x_pos <= v_x_pos;
+      s_y_pos <= v_y_pos;
+      s_hsync <= v_hsync;
+      s_vsync <= v_vsync;
+      s_hactive <= v_hactive;
+      s_vactive <= v_vactive;
     end if;
   end process;
 
@@ -148,5 +138,4 @@ begin
   o_hsync <= s_hsync;
   o_vsync <= s_vsync;
   o_active <= s_hactive and s_vactive;
-  o_pixel_phase <= s_pixel_phase;
 end rtl;

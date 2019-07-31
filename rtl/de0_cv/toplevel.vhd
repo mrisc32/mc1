@@ -113,10 +113,12 @@ begin
       -- The CPU clock frequency.
       OUTPUT_CLOCK_FREQUENCY0 => "70.0 MHz",
 
-      -- Pixel frequency for HD 1280x720 @ 60 Hz = 74.250 MHz
-      -- We run the VGA logic at twice that frequency (rounded to the nearest
-      -- valid frequency that the PLL can generate).
-      OUTPUT_CLOCK_FREQUENCY1 => "148.75 MHz"
+      -- Pixel frequency for HD 1280x720 @ 60 Hz = 74.250 MHz, rounded to the
+      -- nearest valid frequency that the PLL can generate: 74.375 MHz (60.1 FPS).
+      -- (60 Hz: 74.250 MHz, 59.94 Hz: 74.17575 MHz)
+      -- TODO(m): Run the VGA logic at twice that frequency (rounded to
+      -- 148.75 MHz), in order to enable two layers.
+      OUTPUT_CLOCK_FREQUENCY1 => "74.375 MHz"
     )
     port map
     (
