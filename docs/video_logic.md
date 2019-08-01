@@ -63,8 +63,8 @@ Each video control register (VCR) is 24 bits wide.
 | Reg | Name | Description |
 |-----|------|-------------|
 | 0   | ADDR | Row start address (word address = byte address / 4)<br>Default: 0x000000 |
-| 1   | XSTRT | X start coordinate (unsigned fixed point, 8.16 bits)<br>Default: 0x000000 |
-| 2   | XINCR | X coordinate increment (unsigned fixed point, 8.16 bits)<br>Default: 0x004000 (0.25) |
+| 1   | XOFFS | X coordinate offset (signed fixed point, 8.16 bits)<br>Default: 0x000000 |
+| 2   | XINCR | X coordinate increment (signed fixed point, 8.16 bits)<br>Default: 0x004000 (0.25) |
 | 3   | HSTRT | Horizontal screen start position<br>Default: 0 |
 | 4   | HSTOP | Horizontal screen stop position<br>Default: 0 |
 | 5   | CMODE | Color mode:<br>0 = 32 bpp<br>1 = 16 bpp<br>2 = 8 bpp (default)<br>3 = 4 bpp<br>4 = 2 bpp<br>5 = 1 bpp |
