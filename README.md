@@ -21,14 +21,15 @@ The CPU and the video logic has access to the same internal RAM ([FPGA block RAM
   * Interrupt signals from the video logic (e.g. VSYNC), once interrupt logic has been added to the MRISC32.
 * Video:
   * On-chip framebuffer (size is limited by the available device BRAM).
+  * 1280x720 (HD) native resolution (compile-time configurable), with programmable lower virtual resolutions (e.g. 320x180 and 640x360).
   * 8-bit palette graphics (256 color palette, each with 24-bit RGB color resolution + 8-bit alpha).
-    * Possibly other modes too (e.g. 1-bit and 4-bit) to enable higher resolutions with limited memory.
-  * Two image planes (the top layer is alpha-blended on top of the bottom layer).
-  * 1280x720 (HD) native resolution (compile-time configurable), with programmable lower virtual resolutions (e.g. 320x180).
+  * Lower bit depth modes (e.g. 1-bit and 4-bit) to enable higher resolutions with limited memory.
+  * Full color modes (32-bit and 16-bit).
   * A simple programmable raster-synchronized video controller that enables raster effects, e.g:
     * Per-line color palette updates (e.g. for [raster bars](https://en.wikipedia.org/wiki/Raster_bar)).
     * Per-line image memory location updates (can be used for controlling the vertical resolution, or for more funky dynamic effects).
     * Per-line resolution and video mode control.
+  * Two image planes (the top layer is alpha-blended on top of the bottom layer).
 * Audio:
   * Some sort of high quality audio DMA with a delta-sigma DAC.
 * Memory:
