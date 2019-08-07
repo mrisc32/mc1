@@ -67,6 +67,16 @@ architecture rtl of video is
   signal s_hsync : std_logic;
   signal s_vsync : std_logic;
   signal s_active : std_logic;
+
+  signal s_reg_write_enable : std_logic;
+  signal s_reg_write_addr : std_logic_vector(2 downto 0);
+  signal s_reg_write_data : std_logic_vector(23 downto 0);
+  signal s_reg_ADDR : std_logic_vector(23 downto 0);
+  signal s_reg_XOFFS : std_logic_vector(23 downto 0);
+  signal s_reg_XINCR : std_logic_vector(23 downto 0);
+  signal s_reg_HSTRT : std_logic_vector(23 downto 0);
+  signal s_reg_HSTOP : std_logic_vector(23 downto 0);
+  signal s_reg_VMODE : std_logic_vector(23 downto 0);
 begin
   -- Instantiate the raster control unit.
   rcu_1: entity work.vid_raster
@@ -91,6 +101,34 @@ begin
       o_vsync => s_vsync,
       o_active => s_active
     );
+
+  -- Instantiate the video control registers.
+  vcr_1: entity work.vid_regs
+    port map(
+      i_rst => i_rst,
+      i_clk => i_clk,
+      i_write_enable => s_reg_write_enable,
+      i_write_addr => s_reg_write_addr,
+      i_write_data => s_reg_write_data,
+      o_reg_ADDR => s_reg_ADDR,
+      o_reg_XOFFS => s_reg_XOFFS,
+      o_reg_XINCR => s_reg_XINCR,
+      o_reg_HSTRT => s_reg_HSTRT,
+      o_reg_HSTOP => s_reg_HSTOP,
+      o_reg_VMODE => s_reg_VMODE
+    );
+
+  -- Video control program.
+  -- TODO(m): Implement me!
+  s_reg_write_enable <= '0';
+  s_reg_write_addr <= (others => '0');
+  s_reg_write_data <= (others => '0');
+  -- s_reg_ADDR
+  -- s_reg_XOFFS
+  -- s_reg_XINCR
+  -- s_reg_HSTRT
+  -- s_reg_HSTOP
+  -- s_reg_VMODE
 
   -- Video memory read logic.
   -- TODO(m): This is a hard-coded, simplified version. Implement a proper VCU.
