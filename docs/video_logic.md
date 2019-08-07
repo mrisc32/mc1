@@ -40,7 +40,7 @@ The SETREG command is encoded as follows:
 
 | Bits  | Description            |
 |-------|------------------------|
-| 29-24 | Register number (0-15) |
+| 29-24 | Register number (0-63) |
 |  23-0 | 24-bit value           |
 
 ### SETPAL
@@ -67,5 +67,5 @@ Each video control register (VCR) is 24 bits wide.
 | 2   | XINCR | X coordinate increment (signed fixed point, 8.16 bits)<br>Default: 0x004000 (0.25) |
 | 3   | HSTRT | Horizontal screen start position<br>Default: 0 |
 | 4   | HSTOP | Horizontal screen stop position<br>Default: 0 |
-| 5   | CMODE | Color mode:<br>0 = 32 bpp<br>1 = 16 bpp<br>2 = 8 bpp (default)<br>3 = 4 bpp<br>4 = 2 bpp<br>5 = 1 bpp |
+| 5   | VMODE | Video mode:<br>0 = RGBA8888 (32 bpp)<br>1 = RGBA5551 (16 bpp)<br>2 = PAL8 (8 bpp, default)<br>3 = PAL4 (4 bpp)<br>4 = PAL2 (2 bpp)<br>5 = PAL1 (1 bpp) |
 
