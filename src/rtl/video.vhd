@@ -66,11 +66,17 @@ architecture rtl of video is
   signal s_raster_y : std_logic_vector(9 downto 0);
   signal s_hsync : std_logic;
   signal s_vsync : std_logic;
+  signal s_restart_frame : std_logic;
   signal s_active : std_logic;
 
-  signal s_reg_write_enable : std_logic;
-  signal s_reg_write_addr : std_logic_vector(2 downto 0);
-  signal s_reg_write_data : std_logic_vector(23 downto 0);
+  signal s_vcpp_mem_read_addr : std_logic_vector(23 downto 0);
+  signal s_vcpp_mem_data : std_logic_vector(31 downto 0);
+  signal s_vcpp_mem_ack : std_logic;
+  signal s_vcpp_reg_write_enable : std_logic;
+  signal s_vcpp_pal_write_enable : std_logic;
+  signal s_vcpp_write_addr : std_logic_vector(7 downto 0);
+  signal s_vcpp_write_data : std_logic_vector(31 downto 0);
+
   signal s_reg_ADDR : std_logic_vector(23 downto 0);
   signal s_reg_XOFFS : std_logic_vector(23 downto 0);
   signal s_reg_XINCR : std_logic_vector(23 downto 0);
@@ -78,9 +84,6 @@ architecture rtl of video is
   signal s_reg_HSTOP : std_logic_vector(23 downto 0);
   signal s_reg_VMODE : std_logic_vector(23 downto 0);
 
-  signal s_pal_write_enable : std_logic;
-  signal s_pal_write_addr : std_logic_vector(7 downto 0);
-  signal s_pal_write_data : std_logic_vector(31 downto 0);
   signal s_pal_read_addr : std_logic_vector(7 downto 0);
   signal s_pal_read_data : std_logic_vector(31 downto 0);
 begin
@@ -105,7 +108,27 @@ begin
       o_y_pos => s_raster_y,
       o_hsync => s_hsync,
       o_vsync => s_vsync,
+      o_restart_frame => s_restart_frame,
       o_active => s_active
+    );
+
+  -- Instantiate the video control program processor.
+  vcpp_1: entity work.vid_vcpp
+    generic map (
+      Y_COORD_BITS => s_raster_y'length
+    )
+    port map(
+      i_rst => i_rst,
+      i_clk => i_clk,
+      i_restart_frame => s_restart_frame,
+      i_raster_y => s_raster_y,
+      o_mem_read_addr => s_vcpp_mem_read_addr,
+      i_mem_data => s_vcpp_mem_data,
+      i_mem_ack => s_vcpp_mem_ack,
+      o_reg_write_enable => s_vcpp_reg_write_enable,
+      o_pal_write_enable => s_vcpp_pal_write_enable,
+      o_write_addr => s_vcpp_write_addr,
+      o_write_data => s_vcpp_write_data
     );
 
   -- Instantiate the video control registers.
@@ -113,9 +136,9 @@ begin
     port map(
       i_rst => i_rst,
       i_clk => i_clk,
-      i_write_enable => s_reg_write_enable,
-      i_write_addr => s_reg_write_addr,
-      i_write_data => s_reg_write_data,
+      i_write_enable => s_vcpp_reg_write_enable,
+      i_write_addr => s_vcpp_write_addr(2 downto 0),
+      i_write_data => s_vcpp_write_data(23 downto 0),
       o_reg_ADDR => s_reg_ADDR,
       o_reg_XOFFS => s_reg_XOFFS,
       o_reg_XINCR => s_reg_XINCR,
@@ -129,31 +152,21 @@ begin
     port map(
       i_rst => i_rst,
       i_clk => i_clk,
-      i_write_enable => s_pal_write_enable,
-      i_write_addr => s_pal_write_addr,
-      i_write_data => s_pal_write_data,
+      i_write_enable => s_vcpp_pal_write_enable,
+      i_write_addr => s_vcpp_write_addr,
+      i_write_data => s_vcpp_write_data,
       i_read_addr => s_pal_read_addr,
       o_read_data => s_pal_read_data
     );
 
-  -- Video control program.
-  -- TODO(m): Implement me!
-  s_reg_write_enable <= '0';
-  s_reg_write_addr <= (others => '0');
-  s_reg_write_data <= (others => '0');
+  -- Video memory read logic.
+  -- TODO(m): This is a hard-coded, simplified version. Implement a proper VCU.
   -- s_reg_ADDR
   -- s_reg_XOFFS
   -- s_reg_XINCR
   -- s_reg_HSTRT
   -- s_reg_HSTOP
   -- s_reg_VMODE
-  s_pal_write_enable <= '0';
-  s_pal_write_addr <= (others => '0');
-  s_pal_write_data <= (others => '0');
-  s_pal_read_addr <= (others => '0');
-
-  -- Video memory read logic.
-  -- TODO(m): This is a hard-coded, simplified version. Implement a proper VCU.
   process(i_clk)
   begin
     if rising_edge(i_clk) then
@@ -171,20 +184,34 @@ begin
   end process;
 
   -- RAM read logic.
+  -- TODO(m): The address, data & ack logic needs to be adjusted for correct
+  -- clock cycle behavior.
   process(i_clk)
   begin
     if rising_edge(i_clk) then
-      o_read_adr <= std_logic_vector(s_layer0_adr);
-      s_layer0_word <= i_read_dat;
+      if s_active = '1' then
+        o_read_adr <= std_logic_vector(s_layer0_adr);
+        s_layer0_word <= i_read_dat;
+        s_vcpp_mem_ack <= '0';
+      else
+        o_read_adr <= s_vcpp_mem_read_addr(ADR_BITS-1 downto 0);
+        s_vcpp_mem_data <= i_read_dat;
+        s_vcpp_mem_ack <= '1';
+      end if;
     end if;
   end process;
 
-  -- Layer combine logic.
+  -- RGB output logic.
   -- TODO(m): Implement me!
-  -- HACK!!!!
-  o_r <= s_layer0_word(24 downto 17);
-  o_g <= s_layer0_word(14 downto 7);
-  o_b <= s_layer0_word(7 downto 0);
+  -- HACK: Consume data from different parts to fool the synthesis tool to
+  -- avoid removing dead code!
+  s_pal_read_addr <= s_layer0_word(31 downto 30) &
+                     s_layer0_word(23 downto 22) & 
+                     s_layer0_word(15 downto 14) & 
+                     s_layer0_word(7 downto 6);
+  o_r <= s_reg_ADDR(0) & s_reg_XOFFS(1) & s_pal_read_data(24 downto 19);
+  o_g <= s_reg_XINCR(2) & s_reg_HSTRT(3) & s_pal_read_data(14 downto 9);
+  o_b <= s_reg_HSTOP(4) & s_reg_VMODE(5) & s_pal_read_data(7 downto 2);
 
   o_hsync <= s_hsync;
   o_vsync <= s_vsync;

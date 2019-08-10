@@ -35,7 +35,7 @@ entity vid_raster is
     BACK_PORCH_V : positive := 20;
 
     X_COORD_BITS : positive := 11;  -- Number of bits required for representing an x coordinate.
-    Y_COORD_BITS : positive := 10   -- Number of bits required for representing an y coordinate.
+    Y_COORD_BITS : positive := 10   -- Number of bits required for representing a y coordinate.
   );
   port(
     i_rst : in std_logic;
@@ -46,6 +46,7 @@ entity vid_raster is
 
     o_hsync : out std_logic;
     o_vsync : out std_logic;
+    o_restart_frame : out std_logic;
 
     o_active : out std_logic
   );
@@ -66,6 +67,7 @@ architecture rtl of vid_raster is
   signal s_y_pos : unsigned(Y_COORD_BITS-1 downto 0);
   signal s_hsync : std_logic;
   signal s_vsync : std_logic;
+  signal s_restart_frame : std_logic;
   signal s_hactive : std_logic;
   signal s_vactive : std_logic;
 begin
@@ -74,6 +76,7 @@ begin
     variable v_y_pos : unsigned(Y_COORD_BITS-1 downto 0);
     variable v_hsync : std_logic;
     variable v_vsync : std_logic;
+    variable v_restart_frame : std_logic;
     variable v_hactive : std_logic;
     variable v_vactive : std_logic;
   begin
@@ -82,6 +85,7 @@ begin
       s_x_pos <= (others => '0');
       s_hsync <= '0';
       s_vsync <= '0';
+      s_restart_frame <= '1';
       s_hactive <= '0';
       s_vactive <= '0';
     elsif rising_edge(i_clk) then
@@ -89,6 +93,7 @@ begin
       v_y_pos := s_y_pos;
       v_hsync := s_hsync;
       v_vsync := s_vsync;
+      v_restart_frame := '0';
       v_hactive := s_hactive;
       v_vactive := s_vactive;
 
@@ -101,6 +106,7 @@ begin
           -- End of frame reached. Restart the vertical raster.
           v_y_pos := to_unsigned(0, Y_COORD_BITS);
           v_vactive := '0';
+          v_restart_frame := '1';
         else
           if v_y_pos = C_Y_SYNC_START then
             v_vsync := '1';
@@ -127,6 +133,7 @@ begin
       s_y_pos <= v_y_pos;
       s_hsync <= v_hsync;
       s_vsync <= v_vsync;
+      s_restart_frame <= v_restart_frame;
       s_hactive <= v_hactive;
       s_vactive <= v_vactive;
     end if;
@@ -137,5 +144,6 @@ begin
   o_y_pos <= std_logic_vector(s_y_pos);
   o_hsync <= s_hsync;
   o_vsync <= s_vsync;
+  o_restart_frame <= s_restart_frame;
   o_active <= s_hactive and s_vactive;
 end rtl;
