@@ -9,7 +9,7 @@ The program is started during the vertical blanking interval, and continues to
 exectue until the next vertical blanking interval.
 
 To mark the end of a program, issue a `WAIT` command that waits for a line
-that will never be displayed (e.g. `WAIT 65535`).
+that will never be displayed (e.g. `WAIT 32767`).
 
 
 ## Video control commands
@@ -20,19 +20,19 @@ The two most significant bits give the command, according to:
 
 | Code (bin) | Command | Description                                 |
 |------------|---------|---------------------------------------------|
-| 00         | WAIT    | Wait until the given raster line is reached |
-| 01         | SETREG  | Set the value of a video control register   |
-| 10         | SETPAL  | Set the palette                             |
-| 11         | -       | (reserved)                                  |
+| 00         | -       | NOP (reserved)                              |
+| 01         | WAIT    | Wait until the given raster line is reached |
+| 10         | SETREG  | Set the value of a video control register   |
+| 11         | SETPAL  | Set the palette                             |
 
 ### WAIT
 
 The WAIT command is encoded as follows:
 
-| Bits  | Description        |
-|-------|--------------------|
-| 29-16 | (unused)           |
-|  15-0 | Raster line number |
+| Bits  | Description                        |
+|-------|------------------------------------|
+| 29-16 | (unused)                           |
+|  15-0 | Raster line number (-32768..32767) |
 
 ### SETREG
 
@@ -47,13 +47,13 @@ The SETREG command is encoded as follows:
 
 The SETPAL command is encoded as follows:
 
-| Bits  | Description                  |
-|-------|------------------------------|
-| 29-16 | (unused)                     |
-|  15-8 | First palette entry (0-255)  |
-|   7-0 | Number of entries, N (0-255) |
+| Bits  | Description                      |
+|-------|----------------------------------|
+| 29-16 | (unused)                         |
+|  15-8 | First palette entry (0-255)      |
+|   7-0 | Number of entries - 1, N (0-255) |
 
-After the SETPAL command, N number of 32-bit RGBA color values follow in the VCP stream.
+After the SETPAL command, N+1 number of 32-bit RGBA color values follow in the VCP stream.
 
 
 ## Video control registers
