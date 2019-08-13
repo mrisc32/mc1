@@ -77,6 +77,12 @@ architecture rtl of video is
   signal s_reg_HSTRT : std_logic_vector(23 downto 0);
   signal s_reg_HSTOP : std_logic_vector(23 downto 0);
   signal s_reg_VMODE : std_logic_vector(23 downto 0);
+
+  signal s_pal_write_enable : std_logic;
+  signal s_pal_write_addr : std_logic_vector(7 downto 0);
+  signal s_pal_write_data : std_logic_vector(31 downto 0);
+  signal s_pal_read_addr : std_logic_vector(7 downto 0);
+  signal s_pal_read_data : std_logic_vector(31 downto 0);
 begin
   -- Instantiate the raster control unit.
   rcu_1: entity work.vid_raster
@@ -118,6 +124,18 @@ begin
       o_reg_VMODE => s_reg_VMODE
     );
 
+  -- Instantiate the video palette.
+  palette_1: entity work.vid_palette
+    port map(
+      i_rst => i_rst,
+      i_clk => i_clk,
+      i_write_enable => s_pal_write_enable,
+      i_write_addr => s_pal_write_addr,
+      i_write_data => s_pal_write_data,
+      i_read_addr => s_pal_read_addr,
+      o_read_data => s_pal_read_data
+    );
+
   -- Video control program.
   -- TODO(m): Implement me!
   s_reg_write_enable <= '0';
@@ -129,6 +147,10 @@ begin
   -- s_reg_HSTRT
   -- s_reg_HSTOP
   -- s_reg_VMODE
+  s_pal_write_enable <= '0';
+  s_pal_write_addr <= (others => '0');
+  s_pal_write_data <= (others => '0');
+  s_pal_read_addr <= (others => '0');
 
   -- Video memory read logic.
   -- TODO(m): This is a hard-coded, simplified version. Implement a proper VCU.
