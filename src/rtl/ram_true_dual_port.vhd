@@ -18,13 +18,14 @@
 ----------------------------------------------------------------------------------------------------
 
 ----------------------------------------------------------------------------------------------------
--- This is a true dual-port RAM implementation that should infer block RAM:s in FPGA:s.
+-- This is a true dual-port RAM implementation that should infer block RAM:s in FPGA:s. It only
+-- supports writing on port A - port B is read only.
 -- Inspired by: https://danstrother.com/2010/09/11/inferring-rams-in-fpgas/
 ----------------------------------------------------------------------------------------------------
  
 library ieee;
 use ieee.std_logic_1164.all;
-use ieee.std_logic_unsigned.all;
+use ieee.numeric_std.all;
  
 entity ram_true_dual_port is
   generic(
@@ -41,9 +42,7 @@ entity ram_true_dual_port is
      
     -- Port B
     i_clk_b : in std_logic;
-    i_we_b : in std_logic;
     i_adr_b : in std_logic_vector(ADR_BITS-1 downto 0);
-    i_data_b : in std_logic_vector(DATA_BITS-1 downto 0);
     o_data_b : out std_logic_vector(DATA_BITS-1 downto 0)
   );
 end ram_true_dual_port;
@@ -55,22 +54,19 @@ begin
   -- Port A
   process(i_clk_a)
   begin
-    if i_clk_a'event and i_clk_a = '1' then
+    if rising_edge(i_clk_a) then
       if i_we_a = '1' then
-        v_mem(conv_integer(i_adr_a)) := i_data_a;
+        v_mem(to_integer(unsigned(i_adr_a))) := i_data_a;
       end if;
-      o_data_a <= v_mem(conv_integer(i_adr_a));
+      o_data_a <= v_mem(to_integer(unsigned(i_adr_a)));
     end if;
   end process;
  
   -- Port B
   process(i_clk_b)
   begin
-    if i_clk_b'event and i_clk_b = '1' then
-      if i_we_b = '1' then
-        v_mem(conv_integer(i_adr_b)) := i_data_b;
-      end if;
-      o_data_b <= v_mem(conv_integer(i_adr_b));
+    if rising_edge(i_clk_b) then
+      o_data_b <= v_mem(to_integer(unsigned(i_adr_b)));
     end if;
   end process;
 end rtl;

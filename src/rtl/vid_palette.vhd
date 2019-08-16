@@ -19,6 +19,7 @@
 
 library ieee;
 use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
 
 ----------------------------------------------------------------------------------------------------
 -- Video color palette memory.
@@ -39,24 +40,18 @@ entity vid_palette is
 end vid_palette;
 
 architecture rtl of vid_palette is
+  type T_MEM is array (255 downto 0) of std_logic_vector(31 downto 0);
+  signal s_mem : T_MEM;
 begin
-  -- Note: We could use a simple dual port memory here, but this should hopefully
-  -- be reduced to that by the synthesis tool anyway.
-  ram_tdp_0: entity work.ram_true_dual_port
-    generic map (
-      DATA_BITS => 32,
-      ADR_BITS => 8
-    )
-    port map (
-      i_clk_a => i_clk,
-      i_we_a => i_write_enable,
-      i_adr_a => i_write_addr,
-      i_data_a => i_write_data,
-
-      i_clk_b => i_clk,
-      i_we_b => '0',
-      i_adr_b => i_read_addr,
-      i_data_b => (others => '0'),
-      o_data_b => o_read_data
-    );
+  -- The palette memory is a simple dual port memory (should synthesize to BRAM
+  -- in an FPGA).
+  process(i_clk)
+  begin
+    if rising_edge(i_clk) then
+      if i_write_enable = '1' then
+        s_mem(to_integer(unsigned(i_write_addr))) <= i_write_data;
+      end if;
+      o_read_data <= s_mem(to_integer(unsigned(i_read_addr)));
+    end if;
+  end process;
 end rtl;

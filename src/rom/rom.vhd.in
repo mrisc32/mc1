@@ -23,7 +23,7 @@
 
 library ieee;
 use ieee.std_logic_1164.all;
-use ieee.std_logic_arith.all;
+use ieee.numeric_std.all;
 
 entity rom is
   port(
@@ -59,7 +59,7 @@ begin
   process(i_clk)
   begin
     if rising_edge(i_clk) then
-      o_wb_dat <= C_ROM_ARRAY(conv_integer(unsigned(i_wb_adr(C_ADDR_BITS+1 downto 2))));
+      o_wb_dat <= C_ROM_ARRAY(to_integer(unsigned(i_wb_adr(C_ADDR_BITS+1 downto 2))));
       o_wb_ack <= s_is_valid_wb_request;
     end if;
   end process;

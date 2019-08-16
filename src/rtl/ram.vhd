@@ -101,9 +101,7 @@ begin
       o_data_a => o_wb_dat(7 downto 0),
 
       i_clk_b => i_read_clk,
-      i_we_b => '0',
       i_adr_b => i_read_adr,
-      i_data_b => (others => '0'),
       o_data_b => o_read_dat(7 downto 0)
     );
 
@@ -120,9 +118,7 @@ begin
       o_data_a => o_wb_dat(15 downto 8),
 
       i_clk_b => i_read_clk,
-      i_we_b => '0',
       i_adr_b => i_read_adr,
-      i_data_b => (others => '0'),
       o_data_b => o_read_dat(15 downto 8)
     );
 
@@ -139,9 +135,7 @@ begin
       o_data_a => o_wb_dat(23 downto 16),
 
       i_clk_b => i_read_clk,
-      i_we_b => '0',
       i_adr_b => i_read_adr,
-      i_data_b => (others => '0'),
       o_data_b => o_read_dat(23 downto 16)
     );
 
@@ -158,9 +152,7 @@ begin
       o_data_a => o_wb_dat(31 downto 24),
 
       i_clk_b => i_read_clk,
-      i_we_b => '0',
       i_adr_b => i_read_adr,
-      i_data_b => (others => '0'),
       o_data_b => o_read_dat(31 downto 24)
     );
 end rtl;
