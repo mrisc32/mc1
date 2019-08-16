@@ -5,12 +5,13 @@ def main():
     # Create VUnit instance by parsing command line arguments
     vu = VUnit.from_argv()
     
-    # Create library 'lib'
+    # Create library 'lib' containing all the test benches...
     lib = vu.add_library("lib")
-    
-    # Add all files ending in _tb.vhd in current working directory to library
     lib.add_source_files("test/*_tb.vhd")
-    
+
+    # ...and all the DUT:s.
+    lib.add_source_files("rtl/vid_vcpp.vhd")
+
     # Run vunit function
     vu.main()
 
