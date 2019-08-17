@@ -54,15 +54,6 @@ entity video is
 end video;
 
 architecture rtl of video is
-  -- TODO(m): Make this configurable.
-  constant C_FRAMEBUFFER0_START : unsigned(ADR_BITS-1 downto 0) := to_unsigned(32768, ADR_BITS);
-  constant C_FRAMEBUFFER1_START : unsigned(ADR_BITS-1 downto 0) := to_unsigned(49152, ADR_BITS);
-
-  signal s_layer0_adr : unsigned(ADR_BITS-1 downto 0);
-  signal s_layer0_byte_no : unsigned(1 downto 0);
-
-  signal s_layer0_word : std_logic_vector(31 downto 0);
-
   signal s_raster_x : std_logic_vector(10 downto 0);
   signal s_raster_y : std_logic_vector(9 downto 0);
   signal s_hsync : std_logic;
@@ -80,8 +71,11 @@ architecture rtl of video is
 
   signal s_regs : T_VID_REGS;
 
-  signal s_pal_read_addr : std_logic_vector(7 downto 0);
-  signal s_pal_read_data : std_logic_vector(31 downto 0);
+  signal s_pix_mem_read_en : std_logic;
+  signal s_pix_mem_read_addr : std_logic_vector(23 downto 0);
+  signal s_pix_pal_addr : std_logic_vector(7 downto 0);
+  signal s_pix_pal_data : std_logic_vector(31 downto 0);
+  signal s_pix_color : std_logic_vector(31 downto 0);
 begin
   -- Instantiate the raster control unit.
   rcu_1: entity work.vid_raster
@@ -146,27 +140,27 @@ begin
       i_write_enable => s_vcpp_pal_write_enable,
       i_write_addr => s_vcpp_write_addr,
       i_write_data => s_vcpp_write_data,
-      i_read_addr => s_pal_read_addr,
-      o_read_data => s_pal_read_data
+      i_read_addr => s_pix_pal_addr,
+      o_read_data => s_pix_pal_data
     );
 
-  -- Video memory read logic.
-  -- TODO(m): This is a hard-coded, simplified version. Implement a proper VCU.
-  process(i_clk)
-  begin
-    if rising_edge(i_clk) then
-      if s_vsync = '1' then
-        s_layer0_adr <= C_FRAMEBUFFER0_START;
-        s_layer0_byte_no <= to_unsigned(0, s_layer0_byte_no'length);
-      elsif s_active = '1' then
-        -- Update the pixel read addresses.
-        if s_layer0_byte_no = 2x"3" then
-          s_layer0_adr <= s_layer0_adr + to_unsigned(1, ADR_BITS);
-        end if;
-        s_layer0_byte_no <= s_layer0_byte_no + to_unsigned(1, s_layer0_byte_no'length);
-      end if;
-    end if;
-  end process;
+  -- Instantiate the pixel pipeline.
+  pixel_pipe_1: entity work.vid_pixel
+    generic map (
+      X_COORD_BITS => s_raster_x'length
+    )
+    port map(
+      i_rst => i_rst,
+      i_clk => i_clk,
+      i_raster_x => s_raster_x,
+      o_mem_read_en => s_pix_mem_read_en,
+      o_mem_read_addr => s_pix_mem_read_addr,
+      i_mem_data => i_read_dat,
+      o_pal_addr => s_pix_pal_addr,
+      i_pal_data => s_pix_pal_data,
+      i_regs => s_regs,
+      o_color => s_pix_color
+    );
 
   -- RAM read logic.
   -- TODO(m): The address, data & ack logic needs to be adjusted for correct
@@ -174,9 +168,8 @@ begin
   process(i_clk)
   begin
     if rising_edge(i_clk) then
-      if s_active = '1' then
-        o_read_adr <= std_logic_vector(s_layer0_adr);
-        s_layer0_word <= i_read_dat;
+      if s_pix_mem_read_en = '1' then
+        o_read_adr <= s_pix_mem_read_addr(ADR_BITS-1 downto 0);
         s_vcpp_mem_ack <= '0';
       else
         o_read_adr <= s_vcpp_mem_read_addr(ADR_BITS-1 downto 0);
@@ -186,17 +179,10 @@ begin
     end if;
   end process;
 
-  -- RGB output logic.
-  -- TODO(m): Implement me!
-  -- HACK: Consume data from different parts to fool the synthesis tool to
-  -- avoid removing dead code!
-  s_pal_read_addr <= s_layer0_word(31 downto 30) &
-                     s_layer0_word(23 downto 22) & 
-                     s_layer0_word(15 downto 14) & 
-                     s_layer0_word(7 downto 6);
-  o_r <= s_regs.ADDR(0) & s_regs.XOFFS(1) & s_pal_read_data(24 downto 19);
-  o_g <= s_regs.XINCR(2) & s_regs.HSTRT(3) & s_pal_read_data(14 downto 9);
-  o_b <= s_regs.HSTOP(4) & s_regs.CMODE(5) & s_pal_read_data(7 downto 2);
+  -- RGB output from the pixel pipeline.
+  o_r <= s_pix_color(31 downto 24);
+  o_g <= s_pix_color(23 downto 16);
+  o_b <= s_pix_color(15 downto 8);
 
   o_hsync <= s_hsync;
   o_vsync <= s_vsync;
