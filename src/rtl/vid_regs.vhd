@@ -19,6 +19,7 @@
 
 library ieee;
 use ieee.std_logic_1164.all;
+use work.vid_types.all;
 
 ----------------------------------------------------------------------------------------------------
 -- Video control registers.
@@ -33,12 +34,7 @@ entity vid_regs is
     i_write_addr : in std_logic_vector(2 downto 0);
     i_write_data : in std_logic_vector(23 downto 0);
 
-    o_reg_ADDR : out std_logic_vector(23 downto 0);
-    o_reg_XOFFS : out std_logic_vector(23 downto 0);
-    o_reg_XINCR : out std_logic_vector(23 downto 0);
-    o_reg_HSTRT : out std_logic_vector(23 downto 0);
-    o_reg_HSTOP : out std_logic_vector(23 downto 0);
-    o_reg_VMODE : out std_logic_vector(23 downto 0)
+    o_regs : out T_VID_REGS
   );
 end vid_regs;
 
@@ -48,21 +44,21 @@ architecture rtl of vid_regs is
   constant C_DEFAULT_XINCR : std_logic_vector(23 downto 0) := x"004000";
   constant C_DEFAULT_HSTRT : std_logic_vector(23 downto 0) := x"000000";
   constant C_DEFAULT_HSTOP : std_logic_vector(23 downto 0) := x"000000";
-  constant C_DEFAULT_VMODE : std_logic_vector(23 downto 0) := x"000002";
+  constant C_DEFAULT_CMODE : std_logic_vector(23 downto 0) := x"000002";
 
   signal s_reg_ADDR : std_logic_vector(23 downto 0);
   signal s_reg_XOFFS : std_logic_vector(23 downto 0);
   signal s_reg_XINCR : std_logic_vector(23 downto 0);
   signal s_reg_HSTRT : std_logic_vector(23 downto 0);
   signal s_reg_HSTOP : std_logic_vector(23 downto 0);
-  signal s_reg_VMODE : std_logic_vector(23 downto 0);
+  signal s_reg_CMODE : std_logic_vector(23 downto 0);
 
   signal s_next_ADDR : std_logic_vector(23 downto 0);
   signal s_next_XOFFS : std_logic_vector(23 downto 0);
   signal s_next_XINCR : std_logic_vector(23 downto 0);
   signal s_next_HSTRT : std_logic_vector(23 downto 0);
   signal s_next_HSTOP : std_logic_vector(23 downto 0);
-  signal s_next_VMODE : std_logic_vector(23 downto 0);
+  signal s_next_CMODE : std_logic_vector(23 downto 0);
 begin
   -- Write logic.
   s_next_ADDR <= i_write_data when i_write_enable = '1' and i_write_addr = "000" else
@@ -75,8 +71,8 @@ begin
                   s_reg_HSTRT;
   s_next_HSTOP <= i_write_data when i_write_enable = '1' and i_write_addr = "011" else
                   s_reg_HSTOP;
-  s_next_VMODE <= i_write_data when i_write_enable = '1' and i_write_addr = "100" else
-                  s_reg_VMODE;
+  s_next_CMODE <= i_write_data when i_write_enable = '1' and i_write_addr = "100" else
+                  s_reg_CMODE;
 
   -- Clocked registers.
   process(i_clk, i_rst)
@@ -87,22 +83,22 @@ begin
       s_reg_XINCR <= C_DEFAULT_XINCR;
       s_reg_HSTRT <= C_DEFAULT_HSTRT;
       s_reg_HSTOP <= C_DEFAULT_HSTOP;
-      s_reg_VMODE <= C_DEFAULT_VMODE;
+      s_reg_CMODE <= C_DEFAULT_CMODE;
     elsif rising_edge(i_clk) then
       s_reg_ADDR <= s_next_ADDR;
       s_reg_XOFFS <= s_next_XOFFS;
       s_reg_XINCR <= s_next_XINCR;
       s_reg_HSTRT <= s_next_HSTRT;
       s_reg_HSTOP <= s_next_HSTOP;
-      s_reg_VMODE <= s_next_VMODE;
+      s_reg_CMODE <= s_next_CMODE;
     end if;
   end process;
 
   -- Outputs.
-  o_reg_ADDR <= s_reg_ADDR;
-  o_reg_XOFFS <= s_reg_XOFFS;
-  o_reg_XINCR <= s_reg_XINCR;
-  o_reg_HSTRT <= s_reg_HSTRT;
-  o_reg_HSTOP <= s_reg_HSTOP;
-  o_reg_VMODE <= s_reg_VMODE;
+  o_regs.ADDR <= s_reg_ADDR;
+  o_regs.XOFFS <= s_reg_XOFFS;
+  o_regs.XINCR <= s_reg_XINCR;
+  o_regs.HSTRT <= s_reg_HSTRT;
+  o_regs.HSTOP <= s_reg_HSTOP;
+  o_regs.CMODE <= s_reg_CMODE;
 end rtl;

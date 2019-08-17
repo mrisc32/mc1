@@ -20,6 +20,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use work.vid_types.all;
 
 entity video is
   generic(
@@ -77,12 +78,7 @@ architecture rtl of video is
   signal s_vcpp_write_addr : std_logic_vector(7 downto 0);
   signal s_vcpp_write_data : std_logic_vector(31 downto 0);
 
-  signal s_reg_ADDR : std_logic_vector(23 downto 0);
-  signal s_reg_XOFFS : std_logic_vector(23 downto 0);
-  signal s_reg_XINCR : std_logic_vector(23 downto 0);
-  signal s_reg_HSTRT : std_logic_vector(23 downto 0);
-  signal s_reg_HSTOP : std_logic_vector(23 downto 0);
-  signal s_reg_VMODE : std_logic_vector(23 downto 0);
+  signal s_regs : T_VID_REGS;
 
   signal s_pal_read_addr : std_logic_vector(7 downto 0);
   signal s_pal_read_data : std_logic_vector(31 downto 0);
@@ -139,12 +135,7 @@ begin
       i_write_enable => s_vcpp_reg_write_enable,
       i_write_addr => s_vcpp_write_addr(2 downto 0),
       i_write_data => s_vcpp_write_data(23 downto 0),
-      o_reg_ADDR => s_reg_ADDR,
-      o_reg_XOFFS => s_reg_XOFFS,
-      o_reg_XINCR => s_reg_XINCR,
-      o_reg_HSTRT => s_reg_HSTRT,
-      o_reg_HSTOP => s_reg_HSTOP,
-      o_reg_VMODE => s_reg_VMODE
+      o_regs => s_regs
     );
 
   -- Instantiate the video palette.
@@ -161,12 +152,6 @@ begin
 
   -- Video memory read logic.
   -- TODO(m): This is a hard-coded, simplified version. Implement a proper VCU.
-  -- s_reg_ADDR
-  -- s_reg_XOFFS
-  -- s_reg_XINCR
-  -- s_reg_HSTRT
-  -- s_reg_HSTOP
-  -- s_reg_VMODE
   process(i_clk)
   begin
     if rising_edge(i_clk) then
@@ -209,9 +194,9 @@ begin
                      s_layer0_word(23 downto 22) & 
                      s_layer0_word(15 downto 14) & 
                      s_layer0_word(7 downto 6);
-  o_r <= s_reg_ADDR(0) & s_reg_XOFFS(1) & s_pal_read_data(24 downto 19);
-  o_g <= s_reg_XINCR(2) & s_reg_HSTRT(3) & s_pal_read_data(14 downto 9);
-  o_b <= s_reg_HSTOP(4) & s_reg_VMODE(5) & s_pal_read_data(7 downto 2);
+  o_r <= s_regs.ADDR(0) & s_regs.XOFFS(1) & s_pal_read_data(24 downto 19);
+  o_g <= s_regs.XINCR(2) & s_regs.HSTRT(3) & s_pal_read_data(14 downto 9);
+  o_b <= s_regs.HSTOP(4) & s_regs.CMODE(5) & s_pal_read_data(7 downto 2);
 
   o_hsync <= s_hsync;
   o_vsync <= s_vsync;
