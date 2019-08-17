@@ -65,14 +65,16 @@ begin
         X"00000000",  -- NOP
         X"80123456",  -- SETREG 0, 0x123456
         X"83f65432",  -- SETREG 3, 0xf65432
-        X"40000003",  -- WAIT 0x3
+        X"40000003",  -- WAIT 0x0003
         X"82999999",  -- SETREG 2, 0x999999
         X"40000005",  -- WAIT 0x5
         X"c0000902",  -- SETPAL 9, 2
-        X"12345678",  --   PAL #9: 0x12345678
+        X"12345678",  --   PAL #9:  0x12345678
         X"aabbccdd",  --   PAL #10: 0xaabbccdd
         X"77665544",  --   PAL #11: 0x77665544
         X"00000000",  -- NOP
+        X"c0000000",  -- SETPAL 0, 0
+        X"baadbeef",  --   PAL #0:  0xbaadbeef
         X"00000000",  -- NOP
         X"00000000",  -- NOP
         X"00000000",  -- NOP
@@ -123,6 +125,14 @@ begin
         (
           '0', X"1", '1',
           X"000004", '1', '0', X"03", X"00f65432"
+        ),
+        (
+          '0', X"2", '0',
+          X"000004", '0', '0', X"00", X"00000000"
+        ),
+        (
+          '0', X"2", '0',
+          X"000004", '0', '0', X"00", X"00000000"
         ),
         (
           '0', X"2", '1',
@@ -178,7 +188,7 @@ begin
         ),
         (
           '1', X"0", '1',
-          X"000000", '0', '0', X"00", X"00000000"
+          X"000000", '0', '1', X"00", X"baadbeef"
         ),
         (
           '0', X"1", '1',
@@ -218,7 +228,8 @@ begin
       s_mem_ack <= patterns(i).mem_ack;
 
       -- Read the memory.
-      s_mem_data <= program(to_integer(unsigned(s_mem_read_addr)));
+      s_mem_data <= program(to_integer(unsigned(s_mem_read_addr))) when patterns(i).mem_ack = '1' else
+                    X"ffffffff";
 
       -- Wait for the result to be produced.
       wait for 0.5 us;

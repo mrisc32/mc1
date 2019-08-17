@@ -156,8 +156,8 @@ begin
     elsif rising_edge(i_clk) then
       if s_stall_if = '0' then
         s_if_data <= i_mem_data;
-        s_if_is_valid_instr <= i_mem_ack and not i_restart_frame;
       end if;
+      s_if_is_valid_instr <= i_mem_ack and not i_restart_frame;
     end if;
   end process;
 
