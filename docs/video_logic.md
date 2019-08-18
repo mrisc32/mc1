@@ -67,5 +67,5 @@ Each video control register (VCR) is 24 bits wide.
 | 2   | XINCR | X coordinate increment (signed fixed point, 8.16 bits)<br>Default: 0x004000 (0.25) |
 | 3   | HSTRT | Horizontal screen start position<br>Default: 0 |
 | 4   | HSTOP | Horizontal screen stop position<br>Default: 0 |
-| 5   | VMODE | Video mode:<br>0 = RGBA8888 (32 bpp)<br>1 = RGBA5551 (16 bpp)<br>2 = PAL8 (8 bpp, default)<br>3 = PAL4 (4 bpp)<br>4 = PAL2 (2 bpp)<br>5 = PAL1 (1 bpp) |
+| 5   | CMODE | Color mode:<br>0 = RGBA8888 (32 bpp)<br>1 = RGBA5551 (16 bpp)<br>2 = PAL8 (8 bpp, default)<br>3 = PAL4 (4 bpp)<br>4 = PAL2 (2 bpp)<br>5 = PAL1 (1 bpp) |
 
