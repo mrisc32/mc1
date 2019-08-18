@@ -54,6 +54,12 @@ entity video is
 end video;
 
 architecture rtl of video is
+  -- Number of cycles to delay the sync output signals, due to the pipeline delay
+  -- of the pixel pipeline.
+  constant C_SYNC_DELAY : positive := 5;
+  signal s_hsync_delayed : std_logic_vector(C_SYNC_DELAY-1 downto 0);
+  signal s_vsync_delayed : std_logic_vector(C_SYNC_DELAY-1 downto 0);
+
   signal s_raster_x : std_logic_vector(11 downto 0);
   signal s_raster_y : std_logic_vector(10 downto 0);
   signal s_hsync : std_logic;
@@ -188,8 +194,22 @@ begin
   o_b <= s_pix_color(15 downto 8);
 
   -- Horizontal and vertical sync signal outputs.
-  -- TODO(m): These need to be cycle-delayed in order to be in sync with
-  -- the color output from the pixel pipeline.
-  o_hsync <= s_hsync;
-  o_vsync <= s_vsync;
+  -- These need to be cycle-delayed in order to be in sync with the color
+  -- output from the pixel pipeline.
+  process(i_clk, i_rst)
+  begin
+    if i_rst = '1' then
+      s_hsync_delayed <= (others => '0');
+      s_vsync_delayed <= (others => '0');
+    elsif rising_edge(i_clk) then
+      s_hsync_delayed(0) <= s_hsync;
+      s_vsync_delayed(0) <= s_vsync;
+      for k in 1 to C_SYNC_DELAY-1 loop
+        s_hsync_delayed(k) <= s_hsync_delayed(k-1);
+        s_vsync_delayed(k) <= s_vsync_delayed(k-1);
+      end loop;
+    end if;
+  end process;
+  o_hsync <= s_hsync_delayed(C_SYNC_DELAY-1);
+  o_vsync <= s_vsync_delayed(C_SYNC_DELAY-1);
 end rtl;
