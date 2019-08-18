@@ -93,7 +93,7 @@ architecture rtl of vid_pixel is
   constant C_CMODE_PAL2 : std_logic_vector(3 downto 0) := 4X"4";
   constant C_CMODE_PAL1 : std_logic_vector(3 downto 0) := 4X"5";
 
-  signal s_xc_hpos : unsigned(23 downto 0);
+  signal s_xc_hpos : signed(23 downto 0);
   signal s_xc_next_active : std_logic;
   signal s_xc_active : std_logic;
   signal s_xc_next_pos : std_logic_vector(C_FP_BITS-1 downto 0);
@@ -133,11 +133,11 @@ architecture rtl of vid_pixel is
   signal s_palf_next_data : std_logic_vector(31 downto 0);
   signal s_palf_data : std_logic_vector(31 downto 0);
 
-  function xcoord_to_unsigned24(x: std_logic_vector) return unsigned is
-    variable v_result : unsigned(23 downto 0);
+  function xcoord_to_signed24(x: std_logic_vector) return signed is
+    variable v_result : signed(23 downto 0);
   begin
-    v_result(23 downto X_COORD_BITS) := (others => '0');
-    v_result(X_COORD_BITS-1 downto 0) := unsigned(x);
+    v_result(23 downto X_COORD_BITS) := (others => x(X_COORD_BITS-1));
+    v_result(X_COORD_BITS-1 downto 0) := signed(x);
     return v_result;
   end;
 
@@ -176,15 +176,15 @@ begin
   -----------------------------------------------------------------------------
 
   -- Determine if we're in the active region (i.e. between HSTRT and HSTOP).
-  s_xc_hpos <= xcoord_to_unsigned24(i_raster_x);
-  s_xc_next_active <= '1' when s_xc_hpos >= unsigned(i_regs.HSTRT) and
-                               s_xc_hpos <  unsigned(i_regs.HSTOP) else
+  s_xc_hpos <= xcoord_to_signed24(i_raster_x);
+  s_xc_next_active <= '1' when s_xc_hpos >= signed(i_regs.HSTRT) and
+                               s_xc_hpos <  signed(i_regs.HSTOP) else
                       '0';
 
   -- Increment the x coordinate.
   s_xc_pos_plus_incr <= std_logic_vector(unsigned(s_xc_pos) +
                                          unsigned(fp24_to_fp32(i_regs.XINCR)));
-  s_xc_next_pos <= fp24_to_fp32(i_regs.XOFFS) when unsigned(i_raster_x) = to_unsigned(0, X_COORD_BITS) else
+  s_xc_next_pos <= fp24_to_fp32(i_regs.XOFFS) when s_xc_hpos = signed(i_regs.HSTRT) else
                    s_xc_pos_plus_incr when s_xc_next_active = '1' else
                    s_xc_pos;
 

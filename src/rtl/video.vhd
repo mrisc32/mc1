@@ -54,8 +54,8 @@ entity video is
 end video;
 
 architecture rtl of video is
-  signal s_raster_x : std_logic_vector(10 downto 0);
-  signal s_raster_y : std_logic_vector(9 downto 0);
+  signal s_raster_x : std_logic_vector(11 downto 0);
+  signal s_raster_y : std_logic_vector(10 downto 0);
   signal s_hsync : std_logic;
   signal s_vsync : std_logic;
   signal s_restart_frame : std_logic;

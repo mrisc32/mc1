@@ -34,8 +34,8 @@ entity vid_raster is
     SYNC_WIDTH_V : positive := 5;
     BACK_PORCH_V : positive := 20;
 
-    X_COORD_BITS : positive := 11;  -- Number of bits required for representing an x coordinate.
-    Y_COORD_BITS : positive := 10   -- Number of bits required for representing a y coordinate.
+    X_COORD_BITS : positive := 12;  -- Number of bits required for representing an x coordinate.
+    Y_COORD_BITS : positive := 11   -- Number of bits required for representing a y coordinate.
   );
   port(
     i_rst : in std_logic;
@@ -51,23 +51,23 @@ entity vid_raster is
 end vid_raster;
 
 architecture rtl of vid_raster is
-  constant C_X_SYNC_START : positive := FRONT_PORCH_H;
-  constant C_X_SYNC_END : positive := FRONT_PORCH_H + SYNC_WIDTH_H;
-  constant C_X_END : positive := FRONT_PORCH_H + SYNC_WIDTH_H + BACK_PORCH_H + WIDTH;
+  constant C_X_SYNC_START : integer := FRONT_PORCH_H;
+  constant C_X_SYNC_END : integer := FRONT_PORCH_H + SYNC_WIDTH_H;
+  constant C_X_END : integer := FRONT_PORCH_H + SYNC_WIDTH_H + BACK_PORCH_H + WIDTH;
 
-  constant C_Y_SYNC_START : positive := FRONT_PORCH_V;
-  constant C_Y_SYNC_END : positive := FRONT_PORCH_V + SYNC_WIDTH_V;
-  constant C_Y_END : positive := FRONT_PORCH_V + SYNC_WIDTH_V + BACK_PORCH_V + HEIGHT;
+  constant C_Y_SYNC_START : integer := FRONT_PORCH_V;
+  constant C_Y_SYNC_END : integer := FRONT_PORCH_V + SYNC_WIDTH_V;
+  constant C_Y_END : integer := FRONT_PORCH_V + SYNC_WIDTH_V + BACK_PORCH_V + HEIGHT;
 
-  signal s_x_pos : unsigned(X_COORD_BITS-1 downto 0);
-  signal s_y_pos : unsigned(Y_COORD_BITS-1 downto 0);
+  signal s_x_pos : signed(X_COORD_BITS-1 downto 0);
+  signal s_y_pos : signed(Y_COORD_BITS-1 downto 0);
   signal s_hsync : std_logic;
   signal s_vsync : std_logic;
   signal s_restart_frame : std_logic;
 begin
   process(i_clk, i_rst)
-    variable v_x_pos : unsigned(X_COORD_BITS-1 downto 0);
-    variable v_y_pos : unsigned(Y_COORD_BITS-1 downto 0);
+    variable v_x_pos : signed(X_COORD_BITS-1 downto 0);
+    variable v_y_pos : signed(Y_COORD_BITS-1 downto 0);
     variable v_hsync : std_logic;
     variable v_vsync : std_logic;
     variable v_restart_frame : std_logic;
@@ -87,11 +87,11 @@ begin
 
       if v_x_pos = C_X_END then
         -- End of line reached. Restart the horizontal raster.
-        v_x_pos := to_unsigned(0, X_COORD_BITS);
+        v_x_pos := to_signed(0, X_COORD_BITS);
 
         if v_y_pos = C_Y_END then
           -- End of frame reached. Restart the vertical raster.
-          v_y_pos := to_unsigned(0, Y_COORD_BITS);
+          v_y_pos := to_signed(0, Y_COORD_BITS);
           v_restart_frame := '1';
         else
           if v_y_pos = C_Y_SYNC_START then
@@ -99,7 +99,7 @@ begin
           elsif v_y_pos = C_Y_SYNC_END then
             v_vsync := '0';
           end if;
-          v_y_pos := v_y_pos + to_unsigned(1, Y_COORD_BITS);
+          v_y_pos := v_y_pos + to_signed(1, Y_COORD_BITS);
         end if;
       else
         if v_x_pos = C_X_SYNC_START then
@@ -107,7 +107,7 @@ begin
         elsif v_x_pos = C_X_SYNC_END then
           v_hsync := '0';
         end if;
-        v_x_pos := v_x_pos + to_unsigned(1, X_COORD_BITS);
+        v_x_pos := v_x_pos + to_signed(1, X_COORD_BITS);
       end if;
 
       -- Update the state signals.

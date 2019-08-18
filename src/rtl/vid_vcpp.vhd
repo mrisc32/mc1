@@ -113,6 +113,14 @@ architecture rtl of vid_vcpp is
   signal s_id_write_addr : std_logic_vector(7 downto 0);
   signal s_id_next_write_data : std_logic_vector(31 downto 0);
   signal s_id_write_data : std_logic_vector(31 downto 0);
+
+  function ycoord_to_signed16(x: std_logic_vector) return std_logic_vector is
+    variable v_result : std_logic_vector(15 downto 0);
+  begin
+    v_result(15 downto Y_COORD_BITS) := (others => x(Y_COORD_BITS-1));
+    v_result(Y_COORD_BITS-1 downto 0) := x;
+    return v_result;
+  end;
 begin
   -----------------------------------------------------------------------------
   -- PC
@@ -180,7 +188,7 @@ begin
                         s_id_prev_is_wait_instr when s_if_is_valid_instr = '0' else
                         s_id_is_new_valid_instr when s_id_instr = C_INSTR_WAIT else
                         '0';
-  s_id_is_waiting <= s_id_is_wait_instr when s_if_data(Y_COORD_BITS-1 downto 0) /= i_raster_y else '0';
+  s_id_is_waiting <= s_id_is_wait_instr when s_if_data(15 downto 0) /= ycoord_to_signed16(i_raster_y) else '0';
 
   -- SETREG: Decode register write operations.
   s_id_is_setreg_instr <= s_id_is_new_valid_instr when s_id_instr = C_INSTR_SETREG else '0';
