@@ -1,0 +1,21 @@
+; -*- mode: vcpasm; tab-width: 4; indent-tabs-mode: nil; -*-
+;-----------------------------------------------------------------------------
+; This is a test program for video_tb.
+;-----------------------------------------------------------------------------
+
+    ; Video registers
+    .set    ADDR, 0
+    .set    XOFFS, 1
+    .set    XINCR, 2
+    .set    HSTRT, 3
+    .set    HSTOP, 4
+    .set    CMODE, 5
+
+    ; CMODE constants
+    .set    CM_RGBA8888, 0
+    .set    CM_RGBA5551, 1
+    .set    CM_PAL8, 2
+    .set    CM_PAL4, 3
+    .set    CM_PAL2, 4
+    .set    CM_PAL1, 5
+
