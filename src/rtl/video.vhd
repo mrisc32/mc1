@@ -59,7 +59,6 @@ architecture rtl of video is
   signal s_hsync : std_logic;
   signal s_vsync : std_logic;
   signal s_restart_frame : std_logic;
-  signal s_active : std_logic;
 
   signal s_vcpp_mem_read_addr : std_logic_vector(23 downto 0);
   signal s_vcpp_mem_data : std_logic_vector(31 downto 0);
@@ -98,8 +97,7 @@ begin
       o_y_pos => s_raster_y,
       o_hsync => s_hsync,
       o_vsync => s_vsync,
-      o_restart_frame => s_restart_frame,
-      o_active => s_active
+      o_restart_frame => s_restart_frame
     );
 
   -- Instantiate the video control program processor.
