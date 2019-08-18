@@ -61,7 +61,7 @@ architecture rtl of video is
   signal s_restart_frame : std_logic;
 
   signal s_vcpp_mem_read_addr : std_logic_vector(23 downto 0);
-  signal s_vcpp_mem_data : std_logic_vector(31 downto 0);
+  signal s_prev_is_vcpp_mem_req : std_logic;
   signal s_vcpp_mem_ack : std_logic;
   signal s_vcpp_reg_write_enable : std_logic;
   signal s_vcpp_pal_write_enable : std_logic;
@@ -111,7 +111,7 @@ begin
       i_restart_frame => s_restart_frame,
       i_raster_y => s_raster_y,
       o_mem_read_addr => s_vcpp_mem_read_addr,
-      i_mem_data => s_vcpp_mem_data,
+      i_mem_data => i_read_dat,
       i_mem_ack => s_vcpp_mem_ack,
       o_reg_write_enable => s_vcpp_reg_write_enable,
       o_pal_write_enable => s_vcpp_pal_write_enable,
@@ -160,19 +160,24 @@ begin
       o_color => s_pix_color
     );
 
-  -- RAM read logic.
-  -- TODO(m): The address, data & ack logic needs to be adjusted for correct
-  -- clock cycle behavior.
-  process(i_clk)
+  -- RAM read logic - only one entity may access RAM during each clock cycle.
+  process(i_clk, i_rst)
   begin
-    if rising_edge(i_clk) then
+    if i_rst = '1' then
+      o_read_adr <= (others => '0');
+      s_vcpp_mem_ack <= '0';
+      s_prev_is_vcpp_mem_req <= '0';
+    elsif rising_edge(i_clk) then
+      -- Respond with an ack to VCPP if the previous cycle was a VCPP read cycle.
+      s_vcpp_mem_ack <= s_prev_is_vcpp_mem_req;
+
+      -- The pixel pipe has priority over the VCPP.
       if s_pix_mem_read_en = '1' then
         o_read_adr <= s_pix_mem_read_addr(ADR_BITS-1 downto 0);
-        s_vcpp_mem_ack <= '0';
+        s_prev_is_vcpp_mem_req <= '0';
       else
         o_read_adr <= s_vcpp_mem_read_addr(ADR_BITS-1 downto 0);
-        s_vcpp_mem_data <= i_read_dat;
-        s_vcpp_mem_ack <= '1';
+        s_prev_is_vcpp_mem_req <= '1';
       end if;
     end if;
   end process;
@@ -182,6 +187,9 @@ begin
   o_g <= s_pix_color(23 downto 16);
   o_b <= s_pix_color(15 downto 8);
 
+  -- Horizontal and vertical sync signal outputs.
+  -- TODO(m): These need to be cycle-delayed in order to be in sync with
+  -- the color output from the pixel pipeline.
   o_hsync <= s_hsync;
   o_vsync <= s_vsync;
 end rtl;
