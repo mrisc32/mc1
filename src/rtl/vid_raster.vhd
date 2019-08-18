@@ -51,13 +51,15 @@ entity vid_raster is
 end vid_raster;
 
 architecture rtl of vid_raster is
-  constant C_X_SYNC_START : integer := FRONT_PORCH_H;
-  constant C_X_SYNC_END : integer := FRONT_PORCH_H + SYNC_WIDTH_H;
-  constant C_X_END : integer := FRONT_PORCH_H + SYNC_WIDTH_H + BACK_PORCH_H + WIDTH;
+  constant C_X_START : integer := -(FRONT_PORCH_H + SYNC_WIDTH_H + BACK_PORCH_H);
+  constant C_X_SYNC_START : integer := -(SYNC_WIDTH_H + BACK_PORCH_H);
+  constant C_X_SYNC_END : integer := -BACK_PORCH_H;
+  constant C_X_END : integer := WIDTH;
 
-  constant C_Y_SYNC_START : integer := FRONT_PORCH_V;
-  constant C_Y_SYNC_END : integer := FRONT_PORCH_V + SYNC_WIDTH_V;
-  constant C_Y_END : integer := FRONT_PORCH_V + SYNC_WIDTH_V + BACK_PORCH_V + HEIGHT;
+  constant C_Y_START : integer := -(FRONT_PORCH_V + SYNC_WIDTH_V + BACK_PORCH_V);
+  constant C_Y_SYNC_START : integer := -(SYNC_WIDTH_V + BACK_PORCH_V);
+  constant C_Y_SYNC_END : integer := -BACK_PORCH_V;
+  constant C_Y_END : integer := HEIGHT;
 
   signal s_x_pos : signed(X_COORD_BITS-1 downto 0);
   signal s_y_pos : signed(Y_COORD_BITS-1 downto 0);
@@ -87,11 +89,11 @@ begin
 
       if v_x_pos = C_X_END then
         -- End of line reached. Restart the horizontal raster.
-        v_x_pos := to_signed(0, X_COORD_BITS);
+        v_x_pos := to_signed(C_X_START, X_COORD_BITS);
 
         if v_y_pos = C_Y_END then
           -- End of frame reached. Restart the vertical raster.
-          v_y_pos := to_signed(0, Y_COORD_BITS);
+          v_y_pos := to_signed(C_Y_START, Y_COORD_BITS);
           v_restart_frame := '1';
         else
           if v_y_pos = C_Y_SYNC_START then
