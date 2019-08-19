@@ -37,13 +37,11 @@ VCP_SIZE  = 1024 * 4
 FB_START  = VCP_START + VCP_SIZE
 
 init_video:
-    ldhi    s9, #VCP_START@hi
-    add     s9, s9, #VCP_START@lo   ; s9 = start of Video Control Program
+    add     sp, sp, #-4
+    stw     vl, sp, #0
 
-    ldhi    s10, #FB_START@hi
-    add     s10, s9, #FB_START@lo   ; s10 = start of frame buffer
-
-    mov     s11, s9
+    ldhi    s11, #VCP_START@hi
+    add     s11, s11, #VCP_START@lo   ; s11 = start of Video Control Program
 
     ; VCP prologue.
     ldhi    s12, #0x81000000@hi     ; SETREG XOFFS, 0x00.0000
@@ -103,7 +101,17 @@ init_video:
     stw     s12, s11, #0
 
     ; Clear the frame buffer.
-    ; TODO(m): Implement me!
+    ldhi    s9, #FB_START@hi
+    add     s9, s9, #FB_START@lo    ; s9 = start of frame buffer
+    cpuid   s10, z, z               ; s10 = max vector length
+    ldi     s11, #320 * 180 / 4     ; s11 = number of words
+4$:
+    min     vl, s10, s11
+    sub     s11, s11, vl
+    stw     vz, s9, #4              ; Store zeroes to the frame buffer
+    ldea    s9, s9, vl * 4
+    bnz     s11, 4$
 
+    ldw     vl, sp, #0
+    add     sp, sp, #4
     j       lr
-
