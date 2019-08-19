@@ -6,6 +6,8 @@ This is a hobby SoC computer intended for FPGA:s, based on the [MRISC32](https:/
 
 *This is work in progress*
 
+![MC1 diagram](docs/mc1-diagram.png)
+
 The artchitecture is inspired by graphics oriented computers from the 1980s, such as the [Amiga](https://en.wikipedia.org/wiki/Amiga), and the goal is to make a simple computer that is fun to program.
 
 The CPU is a full MRISC32, with support for floating point and vector operations.
