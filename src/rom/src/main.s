@@ -1,10 +1,16 @@
 ; -*- mode: mr32asm; tab-width: 4; indent-tabs-mode: nil; -*-
 ; ----------------------------------------------------------------------------
-; This file contains the common startup code. It defines _start, which does
-; some initialization and then calls main.
+; This is the main boot program.
 ; ----------------------------------------------------------------------------
 
 .include "config.inc"
+
+VCP_START = RAM_START
+VCP_SIZE  = 1024 * 4
+FB_START  = VCP_START + VCP_SIZE
+FB_WIDTH  = 320
+FB_HEIGHT = 180
+
 
     .text
 
@@ -21,7 +27,8 @@ main:
     ; Init video.
     jl      pc, #init_video@pc
 
-    ; TODO(m): Implement me!
+    ; Draw something to the screen.
+    jl      pc, #draw@pc
 
     ldw     lr, sp, #0
     add     sp, sp, #4
@@ -31,10 +38,6 @@ main:
 ; ----------------------------------------------------------------------------
 ; Init video.
 ; ----------------------------------------------------------------------------
-
-VCP_START = RAM_START
-VCP_SIZE  = 1024 * 4
-FB_START  = VCP_START + VCP_SIZE
 
 init_video:
     add     sp, sp, #-4
@@ -91,8 +94,8 @@ init_video:
     stw     s2, s11, #4             ; SETREG ADDR, ...
     add     s11, s11, #8
 3$:
-    add     s1, s1, #4              ; Increment WAIT line (vertical resolution)
-    add     s2, s2, #320            ; Increment row address (horizontal stride)
+    add     s1, s1, #720/FB_HEIGHT  ; Increment WAIT line (vertical resolution)
+    add     s2, s2, #FB_WIDTH       ; Increment row address (horizontal stride)
     slt     s13, s1, #720
     bs      s13, 2$
 
@@ -102,15 +105,44 @@ init_video:
 
     ; Clear the frame buffer.
     ldhi    s9, #FB_START@hi
-    add     s9, s9, #FB_START@lo    ; s9 = start of frame buffer
-    cpuid   s10, z, z               ; s10 = max vector length
-    ldi     s11, #320 * 180 / 4     ; s11 = number of words
+    add     s9, s9, #FB_START@lo                ; s9 = start of frame buffer
+    cpuid   s10, z, z                           ; s10 = max vector length
+    ldi     s11, #(FB_WIDTH * FB_HEIGHT) / 4    ; s11 = number of words
 4$:
     min     vl, s10, s11
     sub     s11, s11, vl
-    stw     vz, s9, #4              ; Store zeroes to the frame buffer
+    stw     vz, s9, #4              ; Store zeroes in the frame buffer
     ldea    s9, s9, vl * 4
     bnz     s11, 4$
+
+    ldw     vl, sp, #0
+    add     sp, sp, #4
+    j       lr
+
+
+; ----------------------------------------------------------------------------
+; Draw something to the frame buffer.
+; ----------------------------------------------------------------------------
+
+draw:
+    add     sp, sp, #-4
+    stw     vl, sp, #0
+
+    ldhi    s9, #FB_START@hi
+    add     s9, s9, #FB_START@lo        ; s9 = start of frame buffer
+    ldi     s10, #FB_HEIGHT
+1$:
+    ldi     s11, #FB_WIDTH
+2$:
+    add     s1, s10, s11                ; Calculate a color for this pixel
+    stb     s1, s9, #0
+
+    add     s9, s9, #1
+    add     s11, s11, #-1
+    bnz     s11, 2$
+
+    add     s10, s10, #-1
+    bnz     s10, 1$
 
     ldw     vl, sp, #0
     add     sp, sp, #4
