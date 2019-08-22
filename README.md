@@ -1,6 +1,6 @@
 # MC1
 
-This is a hobby SoC computer intended for FPGA:s, based on the [MRISC32](https://github.com/mbitsnbites/mrisc32) soft microprocessor.
+This is a compact computer intended for FPGA:s, based on the [MRISC32-A1](https://github.com/mbitsnbites/mrisc32) soft microprocessor.
 
 ## Architecture
 
@@ -8,39 +8,54 @@ This is a hobby SoC computer intended for FPGA:s, based on the [MRISC32](https:/
 
 ![MC1 diagram](docs/mc1-diagram.png)
 
-The artchitecture is inspired by graphics oriented computers from the 1980s, such as the [Amiga](https://en.wikipedia.org/wiki/Amiga), and the goal is to make a simple computer that is fun to program.
+The artchitecture is based around a tightly integrated and flexible video subsystem, which shares memory with the CPU.
+
+The shared video RAM has two memory ports - one dedicated to the CPU and one dedicated to the video logic. This enables single-cycle access for both, and the CPU and the video logic can run at different frequencies.
+
+### CPU
 
 The CPU is a full MRISC32, with support for floating point and vector operations.
 
-Additionally there is video/VGA logic that is capable of displaying color graphics.
+Connected to the CPU are on-chip ROM and RAM memories. The ROM holds the boot code (in lack of external flash memory or similar, it contains the entire program/system code). Furthermore, external RAM (such as DRAM or SRAM) can be accessed, provided that a suitable Wishbone compatible memory controller is added (depending on which FPGA board you are targeting).
 
-The CPU and the video logic has access to the same internal RAM ([FPGA block RAM](https://www.nandland.com/articles/block-ram-in-fpga.html)) - each with its own dedicated memory port.
+### Video
+
+The video logic produces 24-bit RGB output and horizontal and vertical sync signals in 1280x720 (720p), suitable for VGA, DVI and HDMI interfaces, for instance.
+
+One key feature of the video logic is that it has a programmable video control processor that runs in sync with the raster signals, making it possible to get the most out of limited memory resources while offloading the CPU for certain tasks.
+
+Examples of things that a video control program can accomplish are:
+* Control things like the vertical and horizontal resolution and the color mode on a per-line basis.
+* Control the color palette (in palette color modes) on a per-line basis.
+* Vertical and horizontal mirroring.
+* Vertical repeating of patterns.
+
+This means that it is possible to mix resolutions and color modes in a single frame, and you can fill the screen with rich colors and high resolution content even with very limited video RAM resources.
+
+The pixel pipeline of the video logic supports the following color modes:
+* 32-bit true color (RGBA8888).
+* 16-bit true color (RGBA5551).
+* 8-bit palette (256 colors).
+* 4-bit palette (16 colors).
+* 2-bit palette (4 colors).
+* 1-bit palette (2 colors).
+
+## Operating system
+
+No operating system is planned at this point. There will most likely be libraries of helper routines for certain tasks (e.g. I/O).
 
 ## Planned features
 
+The following things are not yet implemented, but planned:
+
 * CPU:
-  * A single MRISC32 core.
   * Interrupt signals from the video logic (e.g. VSYNC), once interrupt logic has been added to the MRISC32.
 * Video:
-  * On-chip framebuffer (size is limited by the available device BRAM).
-  * 1280x720 (HD) native resolution (compile-time configurable), with programmable lower virtual resolutions (e.g. 320x180 and 640x360).
-  * 8-bit palette graphics (256 color palette, each with 24-bit RGB color resolution + 8-bit alpha).
-  * Lower bit depth modes (e.g. 1-bit and 4-bit) to enable higher resolutions with limited memory.
-  * Full color modes (32-bit and 16-bit).
-  * A simple programmable raster-synchronized video controller that enables raster effects, e.g:
-    * Per-line color palette updates (e.g. for [raster bars](https://en.wikipedia.org/wiki/Raster_bar)).
-    * Per-line image memory location updates (can be used for controlling the vertical resolution, or for more funky dynamic effects).
-    * Per-line resolution and video mode control.
   * Two image planes (the top layer is alpha-blended on top of the bottom layer).
 * Audio:
-  * Some sort of high quality audio DMA with a delta-sigma DAC.
+  * Some sort of high quality audio DMA, integrated with the video logic (sharing the same RAM read port).
 * Memory:
-  * On-chip BRAM is used for all time critical / real time RAM duties (including the video framebuffer).
-  * On-chip ROM (BRAM) is used for the boot program (initially the entire program will reside here).
-  * Support for off-chip RAM (e.g. DRAM or SRAM) may be added later - perhaps with an on-chip L2 cache.
+  * Support for off-chip RAM (e.g. DRAM or SRAM) - perhaps with an on-chip L2 cache.
 * I/O:
-  * Initially the only I/O will be the VGA port (video output).
-  * For debugging/control, simple FPGA board I/O such as buttons and leds may be memory mapped into the CPU address space.
-  * In the future, a Micro SD interface may be added to read programs and data, and perhaps an interface for mouse/keyboard (e.g. PS/2).
-* Operating system:
-  * Not really - perhaps a library of helper routines that can be linked to your program (e.g. for I/O and simple memory allocation routines).
+  * For debugging/control, simple FPGA board I/O such as buttons and leds will be memory mapped into the CPU address space.
+  * A Micro SD interface may be added to read programs and data, and perhaps an interface for mouse/keyboard (e.g. PS/2).
