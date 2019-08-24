@@ -1,6 +1,6 @@
-# MC1
+![MC1 logo](docs/mc1-logo.png)
 
-This is a compact computer intended for FPGA:s, based on the [MRISC32-A1](https://github.com/mbitsnbites/mrisc32) soft microprocessor.
+MC1 is a compact computer intended for FPGA:s, based on the [MRISC32-A1](https://github.com/mbitsnbites/mrisc32) soft microprocessor.
 
 ## Architecture
 
@@ -14,7 +14,7 @@ The shared video RAM has two memory ports - one dedicated to the CPU and one ded
 
 ### CPU
 
-The CPU is a full MRISC32, with support for floating point and vector operations.
+The CPU is a full MRISC32-A1, with support for floating point and vector operations.
 
 Connected to the CPU are on-chip ROM and RAM memories. The ROM holds the boot code (in lack of external flash memory or similar, it contains the entire program/system code). Furthermore, external RAM (such as DRAM or SRAM) can be accessed, provided that a suitable Wishbone compatible memory controller is added (depending on which FPGA board you are targeting).
 
