@@ -132,18 +132,18 @@ begin
   -- Reset logic - synchronize the reset signal to the different clock domains.
   s_global_async_rst <= (not RESET_N) or (not s_pll_locked);
 
-  reset_conditioner_cpu: entity work.synchronizer
+  reset_conditioner_cpu: entity work.reset_conditioner
     port map (
       i_clk => s_cpu_clk,
-      i_d => s_global_async_rst,
-      o_q => s_cpu_rst
+      i_async_rst => s_global_async_rst,
+      o_rst => s_cpu_rst
     );
 
-  reset_conditioner_vga: entity work.synchronizer
+  reset_conditioner_vga: entity work.reset_conditioner
     port map (
       i_clk => s_vga_clk,
-      i_d => s_global_async_rst,
-      o_q => s_vga_rst
+      i_async_rst => s_global_async_rst,
+      o_rst => s_vga_rst
     );
 
   -- Instantiate the MC1 machine.
