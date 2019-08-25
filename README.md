@@ -4,8 +4,6 @@ MC1 is a compact computer intended for FPGA:s, based on the [MRISC32-A1](https:/
 
 ## Architecture
 
-*This is work in progress*
-
 ![MC1 diagram](docs/mc1-diagram.png)
 
 The artchitecture is based around a tightly integrated and flexible video subsystem, which shares memory with the CPU.
@@ -26,7 +24,7 @@ One key feature of the video logic is that it has a programmable video control p
 
 Examples of things that a video control program can accomplish are:
 * Control things like the vertical and horizontal resolution and the color mode on a per-line basis.
-* Control the color palette (in palette color modes) on a per-line basis.
+* Control the color palette on a per-line basis.
 * Vertical and horizontal mirroring.
 * Vertical repeating of patterns.
 
