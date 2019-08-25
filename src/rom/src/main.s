@@ -75,9 +75,9 @@ init_video:
     ; s1 = WAIT for line (start with line 0)
     ldhi    s1, #0x40000000@hi
 
-    ; s2 = SETREG ADDR, FB_START/4
-    ldhi    s2, #(0x80000000 + (FB_START/4))@hi
-    add     s2, s2, #(0x80000000 + (FB_START/4))@lo
+    ; s2 = SETREG ADDR, (FB_START - RAM_START)/4
+    ldhi    s2, #(0x80000000 + ((FB_START - RAM_START)/4))@hi
+    add     s2, s2, #(0x80000000 + ((FB_START - RAM_START)/4))@lo
 
     ; First line.
     stw     s1, s11, #0                 ; WAIT   ...
@@ -95,7 +95,7 @@ init_video:
     add     s11, s11, #8
 3$:
     add     s1, s1, #720/FB_HEIGHT  ; Increment WAIT line (vertical resolution)
-    add     s2, s2, #FB_WIDTH       ; Increment row address (horizontal stride)
+    add     s2, s2, #FB_WIDTH/4     ; Increment row address (horizontal stride)
     slt     s13, s1, #720
     bs      s13, 2$
 
