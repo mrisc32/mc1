@@ -38,6 +38,8 @@ The pixel pipeline of the video logic supports the following color modes:
 * 2-bit palette (4 colors).
 * 1-bit palette (2 colors).
 
+For more details, see the [video logic documentation](docs/video_logic.md).
+
 ## Operating system
 
 No operating system is planned at this point. There will most likely be libraries of helper routines for certain tasks (e.g. I/O).
