@@ -20,10 +20,66 @@ The two most significant bits give the command, according to:
 
 | Code (bin) | Command | Description                                 |
 |------------|---------|---------------------------------------------|
-| 00         | -       | (reserved)                                  |
+| 00         | JUMP    | Program flow control (NOP, JMP, JSR, RTS)   |
 | 01         | WAIT    | Wait until the given raster line is reached |
 | 10         | SETREG  | Set the value of a video control register   |
 | 11         | SETPAL  | Set the palette                             |
+
+### JUMP
+
+The JUMP command is in fact one of four sub-commands: NOP, JMP, JSR or RTS.
+
+#### NOP
+
+The NOP command is encoded as follows:
+
+| Bits  | Description            |
+|-------|------------------------|
+| 29-26 | (unused)               |
+| 25-24 | 00                     |
+|  27-0 | (unused)               |
+
+The NOP instruction does nothing (except advancing the program pointer to the next instruction).
+
+#### JMP
+
+The JMP command is encoded as follows:
+
+| Bits  | Description            |
+|-------|------------------------|
+| 29-26 | (unused)               |
+| 25-24 | 01                     |
+|  23-0 | Target address         |
+
+The JMP jumps to the given target address (without affecting the internal call stack).
+
+#### JSR
+
+The JSR command is encoded as follows:
+
+| Bits  | Description            |
+|-------|------------------------|
+| 29-26 | (unused)               |
+| 25-24 | 10                     |
+|  23-0 | Target address         |
+
+The JSR command pushes the address to the next instruction onto the internal call stack, and then jumps to the given target address.
+
+Note: The internal call stack is implemented as a circular buffer with 16 entries.
+
+#### RTS
+
+The RTS command is encoded as follows:
+
+| Bits  | Description            |
+|-------|------------------------|
+| 29-26 | (unused)               |
+| 25-24 | 11                     |
+| 23-0  | (unused)               |
+
+The RTS command pops an instruction address from the top of the internal call stack, and jumps to that address.
+
+Note: Since the stack is never reset, issuing an RTS command without a matching JSR command will result in undefined behaviour.
 
 ### WAIT
 
@@ -40,10 +96,8 @@ The SETREG command is encoded as follows:
 
 | Bits  | Description            |
 |-------|------------------------|
-| 29-24 | Register number (0-62) |
+| 29-24 | Register number (0-63) |
 |  23-0 | 24-bit value           |
-
-Note: There is no register 63. Writing to register 63 is a no-operation. Thus, `0xbf000000` is in effect the way to encode a NOP (no-operation) instruction.
 
 ### SETPAL
 

@@ -64,9 +64,16 @@ architecture rtl of vid_vcpp is
   constant C_VCP_START_ADDRESS : T_ADDR := 24x"0";
 
   subtype T_INSTR is std_logic_vector(1 downto 0);
+  constant C_INSTR_JUMP : T_INSTR := "00";
   constant C_INSTR_WAIT : T_INSTR := "01";
   constant C_INSTR_SETREG : T_INSTR := "10";
   constant C_INSTR_SETPAL : T_INSTR := "11";
+
+  subtype T_JUMP_SUB_INSTR is std_logic_vector(1 downto 0);
+  constant C_INSTR_NOP : T_JUMP_SUB_INSTR := "00";
+  constant C_INSTR_JMP : T_JUMP_SUB_INSTR := "01";
+  constant C_INSTR_JSR : T_JUMP_SUB_INSTR := "10";
+  constant C_INSTR_RTS : T_JUMP_SUB_INSTR := "11";
 
   -- PC signals
   signal s_stall_pc : std_logic;
@@ -78,10 +85,19 @@ architecture rtl of vid_vcpp is
   signal s_stall_if : std_logic;
   signal s_if_data : std_logic_vector(31 downto 0);
   signal s_if_is_valid_instr : std_logic;
+  signal s_if_pc_plus_1 : T_ADDR;
 
   -- ID/EX signals
   signal s_id_instr : T_INSTR;
   signal s_id_is_new_valid_instr : std_logic;
+
+  signal s_id_is_jump_instr : std_logic;
+  signal s_id_jump_sub_instr : T_JUMP_SUB_INSTR;
+  signal s_id_do_stack_push : std_logic;
+  signal s_id_do_stack_pop : std_logic;
+  signal s_id_return_addr_from_stack : T_ADDR;
+  signal s_id_jump_target : T_ADDR;
+  signal s_id_apply_jump_target : std_logic;
 
   signal s_id_is_wait_instr : std_logic;
   signal s_id_prev_is_wait_instr : std_logic;
@@ -131,6 +147,7 @@ begin
 
   -- Select which address to read from.
   s_pc_read_addr <= C_VCP_START_ADDRESS when i_restart_frame = '1' else
+                    s_id_jump_target when s_id_apply_jump_target = '1' else
                     s_pc_prev_read_addr when s_stall_pc = '1' else
                     s_pc_prev_read_addr_plus_1;
 
@@ -160,11 +177,13 @@ begin
     if i_rst = '1' then
       s_if_data <= (others => '0');
       s_if_is_valid_instr <= '0';
+      s_if_pc_plus_1 <= (others => '0');
     elsif rising_edge(i_clk) then
       if s_stall_if = '0' then
         s_if_data <= i_mem_data;
+        s_if_pc_plus_1 <= s_pc_prev_read_addr_plus_1;
       end if;
-      s_if_is_valid_instr <= i_mem_ack and not i_restart_frame;
+      s_if_is_valid_instr <= i_mem_ack and not (i_restart_frame or s_id_apply_jump_target);
     end if;
   end process;
 
@@ -178,9 +197,32 @@ begin
   -- into two pipeline stages.
   -----------------------------------------------------------------------------
 
+  -- Instantiate the VCPP call stack.
+  stack: entity work.vid_vcpp_stack
+    port map(
+      i_rst => i_rst,
+      i_clk => i_clk,
+      i_push => s_id_do_stack_push,
+      i_pop => s_id_do_stack_pop,
+      i_data => s_if_pc_plus_1,
+      o_data => s_id_return_addr_from_stack
+    );
+
   -- Decode the instruction.
   s_id_instr <= s_if_data(31 downto 30);
   s_id_is_new_valid_instr <= s_if_is_valid_instr and not s_id_is_pal_data;
+
+  -- JUMP: Jump to or return from subroutine.
+  s_id_is_jump_instr <= '0' when i_restart_frame = '1' else
+                        s_id_is_new_valid_instr when s_id_instr = C_INSTR_JUMP else
+                        '0';
+  s_id_jump_sub_instr <= s_if_data(25 downto 24);
+  s_id_do_stack_push <= s_id_is_jump_instr when s_id_jump_sub_instr = C_INSTR_JSR else '0';
+  s_id_do_stack_pop <= s_id_is_jump_instr when s_id_jump_sub_instr = C_INSTR_RTS else '0';
+
+  -- Determine the next jump target address, and whether or not to perform the jump.
+  s_id_jump_target <= s_id_return_addr_from_stack when s_id_do_stack_pop = '1' else s_if_data(23 downto 0);
+  s_id_apply_jump_target <= s_id_is_jump_instr when s_id_jump_sub_instr /= C_INSTR_NOP else '0';
 
   -- WAIT: Should we wait (stall)?
   s_id_is_wait_instr <= '0' when i_restart_frame = '1' else
@@ -190,10 +232,7 @@ begin
   s_id_is_waiting <= s_id_is_wait_instr when s_if_data(15 downto 0) /= ycoord_to_signed16(i_raster_y) else '0';
 
   -- SETREG: Decode register write operations.
-  -- Note: Writing to register 63 is a no-operation, so 0xbf000000 is the
-  -- primary way to encode a NOP instruction.
-  s_id_is_setreg_instr <= s_id_is_new_valid_instr when s_id_instr = C_INSTR_SETREG and
-                                                       s_if_data(29 downto 24) /= "111111" else '0';
+  s_id_is_setreg_instr <= s_id_is_new_valid_instr when s_id_instr = C_INSTR_SETREG else '0';
   s_id_reg_addr <= "00" & s_if_data(29 downto 24);
   s_id_reg_data <= "00000000" & s_if_data(23 downto 0);
 

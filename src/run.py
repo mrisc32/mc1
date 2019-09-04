@@ -11,6 +11,7 @@ def main():
 
     # ...and all the DUT:s.
     lib.add_source_files("rtl/vid_vcpp.vhd")
+    lib.add_source_files("rtl/vid_vcpp_stack.vhd")
 
     # Run vunit function
     vu.main()
