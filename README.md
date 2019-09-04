@@ -8,7 +8,7 @@ MC1 is a compact computer intended for FPGA:s, based on the [MRISC32-A1](https:/
 
 The artchitecture is based around a tightly integrated and flexible video subsystem, which shares memory with the CPU.
 
-The shared video RAM has two memory ports - one dedicated to the CPU and one dedicated to the video logic. This enables single-cycle access for both, and the CPU and the video logic can run at different frequencies.
+The shared video RAM (VRAM) has two memory ports - one dedicated to the CPU and one dedicated to the video logic. This enables single-cycle access for both, and the CPU and the video logic can run at different frequencies.
 
 ### CPU
 

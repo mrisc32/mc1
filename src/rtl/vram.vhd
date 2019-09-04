@@ -18,7 +18,8 @@
 ----------------------------------------------------------------------------------------------------
 
 ----------------------------------------------------------------------------------------------------
--- This is a dual-ported RAM module with the following properties:
+-- This is a dual-ported RAM module that implements the internal video RAM. It has the following
+-- properties:
 --   * Configurable size (2^N words).
 --   * 32-bit data width.
 --   * Port A:
@@ -27,14 +28,14 @@
 --     - Single cycle read/write operation.
 --   * Port B:
 --     - Read-only (no byte enable)
---   * Synthesizes to BRAM (tested on Intel Arria II, Cyclone IV, Cyclone V, Cyclone 10, MAX 10).
+--   * Synthesizes to BRAM
 ----------------------------------------------------------------------------------------------------
 
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-entity ram is
+entity vram is
   generic(
     ADR_BITS : positive := 10  -- 2**10 = 1024 words
   );
@@ -60,9 +61,9 @@ entity ram is
     i_read_adr : in std_logic_vector(ADR_BITS-1 downto 0);
     o_read_dat : out std_logic_vector(31 downto 0)
   );
-end ram;
+end vram;
 
-architecture rtl of ram is
+architecture rtl of vram is
   signal s_is_valid_wb_request : std_logic;
   signal s_we_a : std_logic;
   signal s_we_a_0 : std_logic;

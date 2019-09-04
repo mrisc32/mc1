@@ -42,8 +42,8 @@ entity mc1 is
 end mc1;
 
 architecture rtl of mc1 is
-  -- RAM size (log2 of number of 32-bit words).
-  constant C_LOG2_RAM_SIZE : positive := 16;
+  -- VRAM size (log2 of number of 32-bit words).
+  constant C_LOG2_VRAM_SIZE : positive := 16;
 
   -- CPU memory interface (Wishbone B4 pipelined master).
   signal s_cpu_cyc : std_logic;
@@ -66,20 +66,20 @@ architecture rtl of mc1 is
   signal s_rom_stall : std_logic;
   signal s_rom_err : std_logic;
 
-  -- Internal RAM memory interface (Wishbone B4 pipelined slave).
-  signal s_ram_cyc : std_logic;
-  signal s_ram_stb : std_logic;
-  signal s_ram_adr : std_logic_vector(31 downto 2);
-  signal s_ram_dat_w : std_logic_vector(31 downto 0);
-  signal s_ram_we : std_logic;
-  signal s_ram_sel : std_logic_vector(3 downto 0);
-  signal s_ram_dat : std_logic_vector(31 downto 0);
-  signal s_ram_ack : std_logic;
-  signal s_ram_stall : std_logic;
-  signal s_ram_err : std_logic;
+  -- Internal VRAM memory interface (Wishbone B4 pipelined slave).
+  signal s_vram_cyc : std_logic;
+  signal s_vram_stb : std_logic;
+  signal s_vram_adr : std_logic_vector(31 downto 2);
+  signal s_vram_dat_w : std_logic_vector(31 downto 0);
+  signal s_vram_we : std_logic;
+  signal s_vram_sel : std_logic_vector(3 downto 0);
+  signal s_vram_dat : std_logic_vector(31 downto 0);
+  signal s_vram_ack : std_logic;
+  signal s_vram_stall : std_logic;
+  signal s_vram_err : std_logic;
 
   -- Video logic signals.
-  signal s_video_adr : std_logic_vector(C_LOG2_RAM_SIZE-1 downto 0);
+  signal s_video_adr : std_logic_vector(C_LOG2_VRAM_SIZE-1 downto 0);
   signal s_video_dat : std_logic_vector(31 downto 0);
   signal s_video_r : std_logic_vector(7 downto 0);
   signal s_video_g : std_logic_vector(7 downto 0);
@@ -137,17 +137,17 @@ begin
       i_wb_stall_0 => s_rom_stall,
       i_wb_err_0 => s_rom_err,
 
-      -- Wishbone slave interface 1: Internal RAM.
-      o_wb_cyc_1 => s_ram_cyc,
-      o_wb_stb_1 => s_ram_stb,
-      o_wb_adr_1 => s_ram_adr,
-      o_wb_dat_1 => s_ram_dat_w,
-      o_wb_we_1 => s_ram_we,
-      o_wb_sel_1 => s_ram_sel,
-      i_wb_dat_1 => s_ram_dat,
-      i_wb_ack_1 => s_ram_ack,
-      i_wb_stall_1 => s_ram_stall,
-      i_wb_err_1 => s_ram_err,
+      -- Wishbone slave interface 1: Internal VRAM.
+      o_wb_cyc_1 => s_vram_cyc,
+      o_wb_stb_1 => s_vram_stb,
+      o_wb_adr_1 => s_vram_adr,
+      o_wb_dat_1 => s_vram_dat_w,
+      o_wb_we_1 => s_vram_we,
+      o_wb_sel_1 => s_vram_sel,
+      i_wb_dat_1 => s_vram_dat,
+      i_wb_ack_1 => s_vram_ack,
+      i_wb_stall_1 => s_vram_stall,
+      i_wb_err_1 => s_vram_err,
 
       -- External RAM interface
       -- TODO(m): Implement me!
@@ -178,39 +178,39 @@ begin
     );
   s_rom_err <= '0';
 
-  -- Internal RAM.
-  ram_1: entity work.ram
+  -- Internal VRAM.
+  vram_1: entity work.vram
     generic map (
-      ADR_BITS => C_LOG2_RAM_SIZE
+      ADR_BITS => C_LOG2_VRAM_SIZE
     )
     port map (
       i_rst => i_cpu_rst,
 
       -- CPU interface.
       i_wb_clk => i_cpu_clk,
-      i_wb_cyc => s_ram_cyc,
-      i_wb_stb => s_ram_stb,
-      i_wb_adr => s_ram_adr(C_LOG2_RAM_SIZE+1 downto 2),
-      i_wb_dat => s_ram_dat_w,
-      i_wb_we => s_ram_we,
-      i_wb_sel => s_ram_sel,
-      o_wb_dat => s_ram_dat,
-      o_wb_ack => s_ram_ack,
-      o_wb_stall => s_ram_stall,
+      i_wb_cyc => s_vram_cyc,
+      i_wb_stb => s_vram_stb,
+      i_wb_adr => s_vram_adr(C_LOG2_VRAM_SIZE+1 downto 2),
+      i_wb_dat => s_vram_dat_w,
+      i_wb_we => s_vram_we,
+      i_wb_sel => s_vram_sel,
+      o_wb_dat => s_vram_dat,
+      o_wb_ack => s_vram_ack,
+      o_wb_stall => s_vram_stall,
 
       -- Video interface.
       i_read_clk => i_vga_clk,
       i_read_adr => s_video_adr,
       o_read_dat => s_video_dat
     );
-  s_ram_err <= '0';
+  s_vram_err <= '0';
 
   --------------------------------------------------------------------------------------------------
   -- Video logic
   --------------------------------------------------------------------------------------------------
   video_1: entity work.video
     generic map (
-      ADR_BITS => C_LOG2_RAM_SIZE
+      ADR_BITS => C_LOG2_VRAM_SIZE
     )
     port map (
       i_rst => i_vga_rst,

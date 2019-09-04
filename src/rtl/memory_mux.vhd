@@ -22,7 +22,7 @@
 --
 -- The two most significant bits of the address dictates which interface will be addressed:
 --  - 00000000 - 3fffffff  Interface 0 (1 GiB, e.g. ROM)
---  - 40000000 - 7fffffff  Interface 1 (1 GiB, e.g. internal shared RAM)
+--  - 40000000 - 7fffffff  Interface 1 (1 GiB, e.g. internal shared VRAM)
 --  - 80000000 - bfffffff  Interface 2 (1 GiB, e.g. external RAM)
 --  - c0000000 - ffffffff  Interface 3 (1 GiB, e.g. memory mapped I/O)
 ----------------------------------------------------------------------------------------------------

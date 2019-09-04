@@ -166,7 +166,7 @@ begin
       o_color => s_pix_color
     );
 
-  -- RAM read logic - only one entity may access RAM during each clock cycle.
+  -- VRAM read logic - only one entity may access VRAM during each clock cycle.
   process(i_clk, i_rst)
   begin
     if i_rst = '1' then

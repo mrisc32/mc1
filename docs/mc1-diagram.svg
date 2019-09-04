@@ -14,7 +14,7 @@
    viewBox="0 0 317.50002 174.62502"
    version="1.1"
    id="svg8"
-   inkscape:version="0.92.3 (2405546, 2018-03-11)"
+   inkscape:version="0.92.4 (5da689c313, 2019-01-14)"
    sodipodi:docname="mc1-diagram.svg"
    inkscape:export-filename="/tmp/mc1-diagram.png"
    inkscape:export-xdpi="102.4"
@@ -29,15 +29,15 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="0.7"
-     inkscape:cx="624.219"
-     inkscape:cy="319.02852"
+     inkscape:cx="615.94596"
+     inkscape:cy="309.59788"
      inkscape:document-units="mm"
-     inkscape:current-layer="layer1"
+     inkscape:current-layer="g1156"
      showgrid="false"
      units="px"
      inkscape:window-width="1920"
-     inkscape:window-height="960"
-     inkscape:window-x="0"
+     inkscape:window-height="1070"
+     inkscape:window-x="1920"
      inkscape:window-y="27"
      inkscape:window-maximized="1"
      inkscape:measure-start="1025.29,142.815"
@@ -50,7 +50,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -112,7 +112,7 @@
              width="400.02048"
              id="rect823-1-7-7" /></flowRegion><flowPara
            style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:24px;font-family:Sawasdee;-inkscape-font-specification:'Sawasdee, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:center;writing-mode:lr-tb;text-anchor:middle"
-           id="flowPara864-9-1">RAM</flowPara></flowRoot>    </g>
+           id="flowPara864-9-1">VRAM</flowPara></flowRoot>    </g>
     <g
        id="g1266"
        transform="translate(-11.46998,-48.080712)">
