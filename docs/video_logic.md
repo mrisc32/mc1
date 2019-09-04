@@ -20,7 +20,7 @@ The two most significant bits give the command, according to:
 
 | Code (bin) | Command | Description                                 |
 |------------|---------|---------------------------------------------|
-| 00         | -       | NOP (reserved)                              |
+| 00         | -       | (reserved)                                  |
 | 01         | WAIT    | Wait until the given raster line is reached |
 | 10         | SETREG  | Set the value of a video control register   |
 | 11         | SETPAL  | Set the palette                             |
@@ -40,8 +40,10 @@ The SETREG command is encoded as follows:
 
 | Bits  | Description            |
 |-------|------------------------|
-| 29-24 | Register number (0-63) |
+| 29-24 | Register number (0-62) |
 |  23-0 | 24-bit value           |
+
+Note: There is no register 63. Writing to register 63 is a no-operation. Thus, `0xbf000000` is in effect the way to encode a NOP (no-operation) instruction.
 
 ### SETPAL
 

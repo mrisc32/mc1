@@ -62,7 +62,7 @@ begin
     -- The VCPP program.
     type program_array is array (natural range <>) of std_logic_vector(31 downto 0);
     constant program : program_array := (
-        X"00000000",  -- NOP
+        X"bf000000",  -- NOP
         X"80123456",  -- SETREG 0, 0x123456
         X"83f65432",  -- SETREG 3, 0xf65432
         X"40000003",  -- WAIT 0x0003
@@ -72,14 +72,14 @@ begin
         X"12345678",  --   PAL #9:  0x12345678
         X"aabbccdd",  --   PAL #10: 0xaabbccdd
         X"77665544",  --   PAL #11: 0x77665544
-        X"00000000",  -- NOP
+        X"bf000000",  -- NOP
         X"c0000000",  -- SETPAL 0, 0
         X"baadbeef",  --   PAL #0:  0xbaadbeef
-        X"00000000",  -- NOP
-        X"00000000",  -- NOP
-        X"00000000",  -- NOP
-        X"00000000",  -- NOP
-        X"00000000"   -- NOP
+        X"bf000000",  -- NOP
+        X"bf000000",  -- NOP
+        X"bf000000",  -- NOP
+        X"bf000000",  -- NOP
+        X"bf000000"   -- NOP
     );
 
     -- The patterns to apply.

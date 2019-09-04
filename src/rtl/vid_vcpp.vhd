@@ -64,7 +64,6 @@ architecture rtl of vid_vcpp is
   constant C_VCP_START_ADDRESS : T_ADDR := 24x"0";
 
   subtype T_INSTR is std_logic_vector(1 downto 0);
-  constant C_INSTR_NOP : T_INSTR := "00";
   constant C_INSTR_WAIT : T_INSTR := "01";
   constant C_INSTR_SETREG : T_INSTR := "10";
   constant C_INSTR_SETPAL : T_INSTR := "11";
@@ -191,7 +190,10 @@ begin
   s_id_is_waiting <= s_id_is_wait_instr when s_if_data(15 downto 0) /= ycoord_to_signed16(i_raster_y) else '0';
 
   -- SETREG: Decode register write operations.
-  s_id_is_setreg_instr <= s_id_is_new_valid_instr when s_id_instr = C_INSTR_SETREG else '0';
+  -- Note: Writing to register 63 is a no-operation, so 0xbf000000 is the
+  -- primary way to encode a NOP instruction.
+  s_id_is_setreg_instr <= s_id_is_new_valid_instr when s_id_instr = C_INSTR_SETREG and
+                                                       s_if_data(29 downto 24) /= "111111" else '0';
   s_id_reg_addr <= "00" & s_if_data(29 downto 24);
   s_id_reg_data <= "00000000" & s_if_data(23 downto 0);
 
