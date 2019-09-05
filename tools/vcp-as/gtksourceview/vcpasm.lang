@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ Language definition for MC1 VCP assembler language.
+ https://github.com/mbitsnbites/mc1
+
+ Copyright (c) 2019 Marcus Geelnard
+
+ This software is provided 'as-is', without any express or implied warranty. In no event will the
+ authors be held liable for any damages arising from the use of this software.
+
+ Permission is granted to anyone to use this software for any purpose, including commercial
+ applications, and to alter it and redistribute it freely, subject to the following restrictions:
+
+  1. The origin of this software must not be misrepresented; you must not claim that you wrote
+     the original software. If you use this software in a product, an acknowledgment in the
+     product documentation would be appreciated but is not required.
+
+  2. Altered source versions must be plainly marked as such, and must not be misrepresented as
+     being the original software.
+
+  3. This notice may not be removed or altered from any source distribution.
+-->
+<language id="vcpasm" _name="MC1 VCP Assembly Language" version="2.0" _section="Source">
+
+  <metadata>
+    <property name="globs">*.vcp</property>
+    <property name="line-comment-start">(;)</property>
+    <property name="block-comment-start">/*</property>
+    <property name="block-comment-end">*/</property>
+  </metadata>
+
+  <styles>
+    <style id="comment"           name="Comment"               map-to="def:comment"/>
+    <style id="string"            name="String"                map-to="def:string"/>
+    <style id="instruction"       name="Instruction"           map-to="def:keyword"/>
+    <style id="data"              name="Data Type"             map-to="def:preprocessor"/>
+    <style id="directive"         name="Assembler Directive"   map-to="def:preprocessor"/>
+    <style id="label"             name="Label"/>
+    <style id="constant"          name="Constant"              map-to="def:constant"/>
+  </styles>
+
+  <default-regex-options case-sensitive="false"/>
+
+  <definitions>
+    <context id="comment" style-ref="comment" end-at-line-end="true" class="comment" class-disabled="no-spell-check">
+      <start>(;)</start>
+      <include>
+        <context ref="def:in-comment"/>
+      </include>
+    </context>
+
+    <context id="string" style-ref="string" class="string" class-disabled="no-spell-check">
+      <start>"</start>
+      <end>"</end>
+    </context>
+
+    <context id="hexadecimal" style-ref="constant">
+      <match extended="true">
+        (?&lt;![\w\.])
+        0[xX][a-fA-F0-9]+
+        (?![\w\.])
+      </match>
+    </context>
+
+    <context id="binary" style-ref="constant">
+      <match extended="true">
+        (?&lt;![\w\.])
+        0[bB][01]+
+        (?![\w\.])
+      </match>
+    </context>
+
+    <!-- Decimal with optional floating point -->
+    <context id="decimal" style-ref="constant">
+      <match extended="true">
+        (?&lt;![\w\.])
+        -?(0|[1-9][0-9]*)(\.[0-9]+)?([eE]-?[1-9][0-9]*)?
+        (?![\w\.])
+      </match>
+    </context>
+
+    <context id="instruction" style-ref="instruction">
+      <!-- Integer arithemtic / logic -->
+      <keyword>nop</keyword>
+      <keyword>jmp</keyword>
+      <keyword>jsr</keyword>
+      <keyword>rts</keyword>
+      <keyword>wait</keyword>
+      <keyword>setreg</keyword>
+      <keyword>setpal</keyword>
+    </context>
+
+    <context id="label" style-ref="label">
+      <match>[a-zA-Z_][a-zA-Z0-9_]*</match>
+    </context>
+
+    <context id="data" style-ref="data">
+      <match>\.(word|lerp)</match>
+    </context>
+
+    <context id="directive" style-ref="directive">
+      <match>\.(add|endr|global|org|rept|set)</match>
+    </context>
+
+    <context id="vcpasm" class="no-spell-check">
+      <include>
+        <context ref="comment"/>
+        <context ref="string"/>
+        <context ref="hexadecimal"/>
+        <context ref="binary"/>
+        <context ref="decimal"/>
+        <context ref="instruction"/>
+        <context ref="data"/>
+        <context ref="directive"/>
+        <context ref="label"/>
+      </include>
+    </context>
+
+  </definitions>
+</language>

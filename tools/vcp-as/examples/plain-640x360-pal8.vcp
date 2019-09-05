@@ -1,0 +1,62 @@
+; -*- mode: vcpasm; tab-width: 4; indent-tabs-mode: nil; -*-
+;-----------------------------------------------------------------------------
+; This is an example VCP. It is more or less the minimal required program for
+; setting up a 640x360 display with a 256 color palette.
+;-----------------------------------------------------------------------------
+
+    ; Video registers
+    .set    ADDR, 0
+    .set    XOFFS, 1
+    .set    XINCR, 2
+    .set    HSTRT, 3
+    .set    HSTOP, 4
+    .set    CMODE, 5
+
+    ; CMODE constants
+    .set    CM_RGBA8888, 0
+    .set    CM_RGBA5551, 1
+    .set    CM_PAL8, 2
+    .set    CM_PAL4, 3
+    .set    CM_PAL2, 4
+    .set    CM_PAL1, 5
+
+    ; Set the program start address
+    .org    0x000100
+
+main:
+    ; Display nothing
+    setreg  HSTRT, 0
+    setreg  HSTOP, 0
+
+    ; Set the video mode
+    setreg  XOFFS, 0x000000
+    setreg  XINCR, 0x008000   ; 640 pixels/row
+    setreg  CMODE, CM_PAL8
+
+    ; Set the palette
+    jsr     load_palette_a
+
+    ; Activate video output starting at row 0.
+    wait    0
+    setreg  HSTOP, 1280
+
+    ; Generate video addresses for all rows.
+    .set    row, 0
+    .set    row_addr, 0x001000
+    .rept   360
+      wait    row
+      setreg  ADDR, row_addr
+      .add    row, 2
+      .add    row_addr, 160   ; Row stride
+    .endr
+
+    ; End of program
+    wait    32767
+
+load_palette_a:
+    ; Load a palette with 256 colors.
+    setpal  0, 255
+    .word   0xff00ff00
+    .lerp   0x01010101, 0xffffffff, 255
+    rts
+
