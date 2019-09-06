@@ -44,10 +44,10 @@ main:
     .set    row, 0
     .set    row_addr, 0x001000
     .rept   360
-      wait    row
-      setreg  ADDR, row_addr
-      .add    row, 2
-      .add    row_addr, 160   ; Row stride
+        wait    row
+        setreg  ADDR, row_addr
+        .add    row, 2
+        .add    row_addr, 160   ; Row stride
     .endr
 
     ; End of program

@@ -110,7 +110,8 @@ def translate_command(cmd, args):
 
 def translate_code(statements):
     labels = {}
-    code = []
+    words = []
+    start = None
 
     # We do two passes:
     #  1st pass: Collect labels (i.e. their memory addresses)
@@ -132,6 +133,8 @@ def translate_code(statements):
                         labels[label] = pc
                 elif cmd == ".org":
                     pc = eval_expr(args[0], labels, symbols)
+                    if not start:
+                        start = pc
                 elif cmd == ".set":
                     symbols[args[0]] = eval_expr(args[1], labels, symbols)
                     pass
@@ -141,16 +144,16 @@ def translate_code(statements):
                 elif cmd == ".word":
                     for arg in args:
                         if not first_pass:
-                            code.append(eval_expr(arg, labels, symbols))
+                            words.append(eval_expr(arg, labels, symbols))
                         pc = pc + 1
                 elif cmd == ".lerp":
                     first = eval_expr(args[0], labels, symbols)
                     last = eval_expr(args[1], labels, symbols)
                     count = eval_expr(args[2], labels, symbols)
-                    words = lerp(first, last, count)
+                    lerp_words = lerp(first, last, count)
                     if not first_pass:
-                        code.extend(words)
-                    pc = pc + len(words)
+                        words.extend(lerp_words)
+                    pc = pc + len(lerp_words)
                 elif cmd == ".rept":
                     if rept_start:
                         raise Exception("Nested .rept statements are not allowed")
@@ -170,7 +173,7 @@ def translate_code(statements):
                     raise Exception(f"Unrecognized directive: {cmd}")
                 else:
                     if not first_pass:
-                        code.append(translate_command(cmd, eval_args(args, labels, symbols)))
+                        words.append(translate_command(cmd, eval_args(args, labels, symbols)))
                     pc = pc + 1
 
                 statement_no = statement_no + 1
@@ -179,7 +182,7 @@ def translate_code(statements):
                 print(f"line {line}: Parse error:", sys.exc_info())
                 sys.exit(1)
 
-    return code
+    return { "words": words, "start": start }
 
 
 def write_asm(output_file, code, vcp_file):
@@ -189,16 +192,18 @@ def write_asm(output_file, code, vcp_file):
         f.write(f"; Assembled by vcp-as\n\n")
         f.write(f"    .data\n\n")
         f.write(f"    .global vcp_program\n")
+        f.write(f"    .global vcp_program_start\n")
         f.write(f"    .global vcp_program_words\n\n")
-        f.write(f"vcp_program_words = {len(code)}\n\n")
+        f.write(f"vcp_program_start = {code['start']:#08x}\n")
+        f.write(f"vcp_program_words = {len(code['words'])}\n\n")
         f.write(f"vcp_program:\n")
-        for word in code:
+        for word in code["words"]:
             f.write(f"    .word   {word:#010x}\n")
 
 
 def write_bin(output_file, code):
     with open(output_file, mode="wb") as f:
-        for word in code:
+        for word in code["words"]:
             f.write(struct.pack("<I", word))
 
 
