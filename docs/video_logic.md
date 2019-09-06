@@ -2,7 +2,8 @@
 
 ## Video control program
 
-A video control program (VCP) is a sequence of video control commands.
+A video control program (VCP) is a sequence of video control commands. See
+the [VCP examples](../tools/vcp-as/examples) for what a VCP can look like.
 
 The only way to alter the color palette or any of the video control registers
 is via a VCP.
