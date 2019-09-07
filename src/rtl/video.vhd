@@ -66,6 +66,7 @@ architecture rtl of video is
   signal s_vsync : std_logic;
   signal s_restart_frame : std_logic;
 
+  signal s_vcpp_mem_read_en : std_logic;
   signal s_vcpp_mem_read_addr : std_logic_vector(23 downto 0);
   signal s_next_vcpp_mem_ack : std_logic;
   signal s_vcpp_mem_ack : std_logic;
@@ -118,6 +119,7 @@ begin
       i_clk => i_clk,
       i_restart_frame => s_restart_frame,
       i_raster_y => s_raster_y,
+      o_mem_read_en => s_vcpp_mem_read_en,
       o_mem_read_addr => s_vcpp_mem_read_addr,
       i_mem_data => i_read_dat,
       i_mem_ack => s_vcpp_mem_ack,
@@ -188,9 +190,13 @@ begin
         o_read_adr <= s_pix_mem_read_addr(ADR_BITS-1 downto 0);
         s_next_vcpp_mem_ack <= '0';
         s_next_pix_mem_ack <= '1';
-      else
+      elsif s_vcpp_mem_read_en = '1' then
         o_read_adr <= s_vcpp_mem_read_addr(ADR_BITS-1 downto 0);
         s_next_vcpp_mem_ack <= '1';
+        s_next_pix_mem_ack <= '0';
+      else
+        o_read_adr <= (others => '0');
+        s_next_vcpp_mem_ack <= '0';
         s_next_pix_mem_ack <= '0';
       end if;
     end if;

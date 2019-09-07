@@ -47,6 +47,7 @@ entity vid_vcpp is
     i_restart_frame : in std_logic;
     i_raster_y : in std_logic_vector(Y_COORD_BITS-1 downto 0);
 
+    o_mem_read_en : out std_logic;
     o_mem_read_addr : out std_logic_vector(23 downto 0);
     i_mem_data : in std_logic_vector(31 downto 0);
     i_mem_ack : in std_logic;
@@ -77,13 +78,17 @@ architecture rtl of vid_vcpp is
 
   -- PC signals
   signal s_stall_pc : std_logic;
+  signal s_pc_read_en : std_logic;
   signal s_pc_read_addr : T_ADDR;
   signal s_pc_prev_read_addr : T_ADDR;
   signal s_pc_prev_read_addr_plus_1 : T_ADDR;
+  signal s_pc_expect_ack : std_logic;
 
   -- IF signals
   signal s_stall_if : std_logic;
+  signal s_if_have_data : std_logic;
   signal s_if_data : std_logic_vector(31 downto 0);
+  signal s_if_have_cached_data : std_logic;
   signal s_if_is_valid_instr : std_logic;
   signal s_if_pc_plus_1 : T_ADDR;
 
@@ -151,6 +156,12 @@ begin
                     s_pc_prev_read_addr when s_stall_pc = '1' else
                     s_pc_prev_read_addr_plus_1;
 
+  -- Do we need to send a read request to the memory (i.e. are we requesting a
+  -- new word)?
+  s_pc_read_en <= '1' when (i_restart_frame = '1' or s_id_apply_jump_target = '1') else
+                  '0' when (s_stall_pc = '1' and s_if_have_data = '1') else
+                  '1';
+
   -- PC registers.
   process(i_clk, i_rst)
   begin
@@ -158,12 +169,15 @@ begin
       -- TODO(m): We should really disable the pipeline altogether until we
       -- get the first i_restart_frame.
       s_pc_prev_read_addr <= C_VCP_START_ADDRESS;
+      s_pc_expect_ack <= '0';
     elsif rising_edge(i_clk) then
       s_pc_prev_read_addr <= s_pc_read_addr;
+      s_pc_expect_ack <= s_pc_read_en;
     end if;
   end process;
 
   -- Outputs.
+  o_mem_read_en <= s_pc_read_en;
   o_mem_read_addr <= s_pc_read_addr;
 
 
@@ -171,24 +185,31 @@ begin
   -- IF
   -----------------------------------------------------------------------------
 
+  -- Do we have the data that we need?
+  s_if_have_data <= i_mem_ack when s_pc_expect_ack = '1' else s_if_have_cached_data;
+
   -- IF registers.
   process(i_clk, i_rst)
   begin
     if i_rst = '1' then
       s_if_data <= (others => '0');
+      s_if_have_cached_data <= '0';
       s_if_is_valid_instr <= '0';
       s_if_pc_plus_1 <= (others => '0');
     elsif rising_edge(i_clk) then
       if s_stall_if = '0' then
-        s_if_data <= i_mem_data;
+        if i_mem_ack = '1' then
+          s_if_data <= i_mem_data;
+        end if;
+        s_if_have_cached_data <= s_if_have_data;
         s_if_pc_plus_1 <= s_pc_prev_read_addr_plus_1;
       end if;
-      s_if_is_valid_instr <= i_mem_ack and not (i_restart_frame or s_id_apply_jump_target);
+      s_if_is_valid_instr <= s_if_have_data and not (i_restart_frame or s_id_apply_jump_target);
     end if;
   end process;
 
   -- Stall PC?
-  s_stall_pc <= (not i_mem_ack) or s_stall_if;
+  s_stall_pc <= (not s_if_have_data) or s_stall_if;
 
 
   -----------------------------------------------------------------------------
