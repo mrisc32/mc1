@@ -67,7 +67,7 @@ architecture rtl of video is
   signal s_restart_frame : std_logic;
 
   signal s_vcpp_mem_read_addr : std_logic_vector(23 downto 0);
-  signal s_prev_is_vcpp_mem_req : std_logic;
+  signal s_next_vcpp_mem_ack : std_logic;
   signal s_vcpp_mem_ack : std_logic;
   signal s_vcpp_reg_write_enable : std_logic;
   signal s_vcpp_pal_write_enable : std_logic;
@@ -78,6 +78,8 @@ architecture rtl of video is
 
   signal s_pix_mem_read_en : std_logic;
   signal s_pix_mem_read_addr : std_logic_vector(23 downto 0);
+  signal s_next_pix_mem_ack : std_logic;
+  signal s_pix_mem_ack : std_logic;
   signal s_pix_pal_addr : std_logic_vector(7 downto 0);
   signal s_pix_pal_data : std_logic_vector(31 downto 0);
   signal s_pix_color : std_logic_vector(31 downto 0);
@@ -160,6 +162,7 @@ begin
       o_mem_read_en => s_pix_mem_read_en,
       o_mem_read_addr => s_pix_mem_read_addr,
       i_mem_data => i_read_dat,
+      i_mem_ack => s_pix_mem_ack,
       o_pal_addr => s_pix_pal_addr,
       i_pal_data => s_pix_pal_data,
       i_regs => s_regs,
@@ -172,18 +175,23 @@ begin
     if i_rst = '1' then
       o_read_adr <= (others => '0');
       s_vcpp_mem_ack <= '0';
-      s_prev_is_vcpp_mem_req <= '0';
+      s_pix_mem_ack <= '0';
+      s_next_vcpp_mem_ack <= '0';
+      s_next_pix_mem_ack <= '0';
     elsif rising_edge(i_clk) then
-      -- Respond with an ack to VCPP if the previous cycle was a VCPP read cycle.
-      s_vcpp_mem_ack <= s_prev_is_vcpp_mem_req;
+      -- Respond with an ack to the relevant unit.
+      s_vcpp_mem_ack <= s_next_vcpp_mem_ack;
+      s_pix_mem_ack <= s_next_pix_mem_ack;
 
       -- The pixel pipe has priority over the VCPP.
       if s_pix_mem_read_en = '1' then
         o_read_adr <= s_pix_mem_read_addr(ADR_BITS-1 downto 0);
-        s_prev_is_vcpp_mem_req <= '0';
+        s_next_vcpp_mem_ack <= '0';
+        s_next_pix_mem_ack <= '1';
       else
         o_read_adr <= s_vcpp_mem_read_addr(ADR_BITS-1 downto 0);
-        s_prev_is_vcpp_mem_req <= '1';
+        s_next_vcpp_mem_ack <= '1';
+        s_next_pix_mem_ack <= '0';
       end if;
     end if;
   end process;

@@ -68,6 +68,7 @@ entity vid_pixel is
     o_mem_read_en : out std_logic;
     o_mem_read_addr : out std_logic_vector(23 downto 0);
     i_mem_data : in std_logic_vector(31 downto 0);
+    i_mem_ack : in std_logic;
 
     -- Palette interface.
     o_pal_addr : out std_logic_vector(7 downto 0);
@@ -108,6 +109,8 @@ architecture rtl of vid_pixel is
   signal s_pa_offs_1 : std_logic_vector(23 downto 0);
   signal s_pa_offs : std_logic_vector(23 downto 0);
   signal s_pa_addr : std_logic_vector(23 downto 0);
+  signal s_pa_prev_addr : std_logic_vector(23 downto 0);
+  signal s_pa_addr_is_new : std_logic;
   signal s_pa_next_shift_32 : std_logic_vector(4 downto 0);
   signal s_pa_next_shift_16 : std_logic_vector(4 downto 0);
   signal s_pa_next_shift_8 : std_logic_vector(4 downto 0);
@@ -203,6 +206,8 @@ begin
 
   -----------------------------------------------------------------------------
   -- PIXADDR
+  -- TODO(m): If we need to run at higher clock frequencies, split this stage
+  -- into two pipeline stages.
   -----------------------------------------------------------------------------
 
   -- Determine the offset, taking into account the bits-per-pixel as a shift.
@@ -232,6 +237,13 @@ begin
   -- Calculate the memory address.
   s_pa_addr <= std_logic_vector(unsigned(i_regs.ADDR) + unsigned(s_pa_offs));
 
+  -- Is this the same address as for the previous cycle?
+  -- The largest possible address delta between two pixels is 256, so we only
+  -- need to compare the 9 least significant bits of the address.
+  -- Note: We assume that there are no wait-states from the memory, so we do
+  -- not have to consider whether or not we got an ACK for the last request.
+  s_pa_addr_is_new <= '1' when s_pa_addr(8 downto 0) /= s_pa_prev_addr(8 downto 0) else '0';
+
   -- Determine the bit shift amount.
   s_pa_next_shift_32 <= "00000";
   s_pa_next_shift_16 <= s_xc_pos(16 downto 16) & "0000";
@@ -251,9 +263,8 @@ begin
         (others => '-') when others;
 
   -- Outputs to the memory read interface.
-  -- TODO(m): Add a single-word cache to reduce the number of memory accesses.
   o_mem_read_addr <= s_pa_addr;
-  o_mem_read_en <= s_xc_active;
+  o_mem_read_en <= s_xc_active and s_pa_addr_is_new;
 
   -- PIXADDR registers.
   process(i_clk, i_rst)
@@ -261,9 +272,11 @@ begin
     if i_rst = '1' then
       s_pa_shift <= (others => '0');
       s_pa_active <= '0';
+      s_pa_prev_addr <=  24x"123456";  -- Unlikely address.
     elsif rising_edge(i_clk) then
       s_pa_shift <= s_pa_next_shift;
       s_pa_active <= s_xc_active;
+      s_pa_prev_addr <= s_pa_addr;
     end if;
   end process;
 
@@ -280,7 +293,9 @@ begin
       s_pf_shift <= (others => '0');
       s_pf_active <= '0';
     elsif rising_edge(i_clk) then
-      s_pf_data <= i_mem_data;
+      if i_mem_ack = '1' then
+        s_pf_data <= i_mem_data;
+      end if;
       s_pf_shift <= s_pa_shift;
       s_pf_active <= s_pa_active;
     end if;
