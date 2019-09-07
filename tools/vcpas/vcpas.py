@@ -189,7 +189,7 @@ def write_asm(output_file, code, vcp_file):
     with open(output_file, mode="wt", encoding="utf-8") as f:
         # TODO(m): Add a more flexible way to export symbols.
         f.write(f"; Source file: {vcp_file}\n")
-        f.write(f"; Assembled by vcp-as\n\n")
+        f.write(f"; Assembled by vcpas\n\n")
         f.write(f"    .data\n\n")
         f.write(f"    .global vcp_program\n")
         f.write(f"    .global vcp_program_start\n")
