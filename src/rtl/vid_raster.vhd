@@ -75,8 +75,8 @@ begin
     variable v_restart_frame : std_logic;
   begin
     if i_rst = '1' then
-      s_y_pos <= (others => '0');
-      s_x_pos <= (others => '0');
+      s_y_pos <= to_signed(C_Y_START, Y_COORD_BITS);
+      s_x_pos <= to_signed(C_X_START, X_COORD_BITS);
       s_hsync <= '0';
       s_vsync <= '0';
       s_restart_frame <= '1';
