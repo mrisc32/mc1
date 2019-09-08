@@ -162,21 +162,33 @@ def translate_code(statements):
                     if first_pass:
                         label = cmd[:-1]
                         labels[label] = pc
+
                 elif cmd == ".org":
                     pc = eval_expr(args[0], labels, symbols)
                     if not start:
                         start = pc
+
                 elif cmd == ".set":
-                    symbols[args[0]] = eval_expr(args[1], labels, symbols)
-                    pass
+                    try:
+                        symbols[args[0]] = eval_expr(args[1], labels, symbols)
+                    except:
+                        if not first_pass:
+                            raise
+                        symbols[args[0]] = 0
+
                 elif cmd == ".add":
-                    symbols[args[0]] = symbols[args[0]] + eval_expr(args[1], labels, symbols)
-                    pass
+                    try:
+                        symbols[args[0]] = symbols[args[0]] + eval_expr(args[1], labels, symbols)
+                    except:
+                        if not first_pass:
+                            raise
+
                 elif cmd == ".word":
                     for arg in args:
                         if not first_pass:
                             words.append(eval_expr(arg, labels, symbols))
                         pc = pc + 1
+
                 elif cmd == ".lerp":
                     first = eval_expr(args[0], labels, symbols)
                     last = eval_expr(args[1], labels, symbols)
@@ -185,6 +197,7 @@ def translate_code(statements):
                     if not first_pass:
                         words.extend(lerp_words)
                     pc = pc + len(lerp_words)
+
                 elif cmd == ".rept":
                     if rept_start:
                         raise Exception("Nested .rept statements are not allowed")
@@ -192,6 +205,7 @@ def translate_code(statements):
                     rept_count = int(args[0], 0)
                     if rept_count < 1:
                         raise Exception(f"Invalid .rept count: {rept_count}")
+
                 elif cmd == ".endr":
                     if not rept_start:
                         raise Exception(".endr without .rept is not allowed")
@@ -200,8 +214,10 @@ def translate_code(statements):
                         statement_no = rept_start
                     else:
                         rept_start = None
+
                 elif cmd[0] == ".":
                     raise Exception(f"Unrecognized directive: {cmd}")
+
                 else:
                     if not first_pass:
                         words.append(translate_command(cmd, eval_args(args, labels, symbols)))
