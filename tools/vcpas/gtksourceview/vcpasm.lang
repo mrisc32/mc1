@@ -99,7 +99,7 @@
     </context>
 
     <context id="directive" style-ref="directive">
-      <match>\.(add|endr|global|org|rept|set)</match>
+      <match>\.(add|endr|global|incbin|include|org|rept|set)</match>
     </context>
 
     <context id="vcpasm" class="no-spell-check">

@@ -12,6 +12,31 @@ class _OutputFormat:
     BIN = 2
 
 
+def strip_arg(arg):
+    arg = arg.strip()
+    if arg[0] == "\"":
+        return arg[1:-1]
+    return arg
+
+
+def included_file_path(parent_file, included_file):
+    return os.path.join(os.path.dirname(os.path.realpath(parent_file)), included_file)
+
+
+def incbin(file_name, line_no):
+    with open(file_name, "rb") as f:
+        data = f.read()
+        num_words = int(len(data) / 4)
+        # TODO(m): Pad an extra word with zeros for non multiples of four bytes.
+        words = struct.unpack("<" + "I" * num_words, data)
+
+    statements = []
+    for word in words:
+        statements.append({"line": line_no, "cmd": ".word", "args": [f"{word:#10x}"]})
+
+    return statements
+
+
 def parse_vcp_file(vcp_file):
     statements = []
     line_no = 0
@@ -31,8 +56,8 @@ def parse_vcp_file(vcp_file):
             first_space_pos = line.find(" ")
             if first_space_pos >= 0:
                 cmd = line[:first_space_pos]
-                args_str = line[first_space_pos:].strip().replace(" ", "")
-                args = args_str.split(",")
+                args_str = line[first_space_pos:].strip()
+                args = [strip_arg(arg) for arg in args_str.split(",")]
             else:
                 cmd = line
                 args = []
@@ -40,7 +65,13 @@ def parse_vcp_file(vcp_file):
             # The command is always case insensitive.
             cmd = cmd.lower()
 
-            statements.append({"line": line_no, "cmd": cmd, "args": args})
+            # Handle include directives.
+            if cmd == ".incbin":
+                statements.extend(incbin(included_file_path(vcp_file, args[0]), line_no))
+            elif cmd == ".include":
+                statements.extend(parse_vcp_file(included_file_path(vcp_file, args[0])))
+            else:
+                statements.append({"line": line_no, "cmd": cmd, "args": args})
 
     return statements
 
