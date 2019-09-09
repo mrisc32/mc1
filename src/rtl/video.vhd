@@ -203,9 +203,11 @@ begin
   end process;
 
   -- RGB output from the pixel pipeline.
-  o_r <= s_pix_color(31 downto 24);
-  o_g <= s_pix_color(23 downto 16);
-  o_b <= s_pix_color(15 downto 8);
+  -- The internal color format is ABGR32 (little endian):
+  --   |AAAAAAAA|BBBBBBBB|GGGGGGGG|RRRRRRRR|
+  o_r <= s_pix_color(7 downto 0);
+  o_g <= s_pix_color(15 downto 8);
+  o_b <= s_pix_color(23 downto 16);
 
   -- Horizontal and vertical sync signal outputs.
   -- These need to be cycle-delayed in order to be in sync with the color

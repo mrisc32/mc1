@@ -112,7 +112,7 @@ The SETPAL command is encoded as follows:
 |  15-8 | First palette entry (0-255)      |
 |   7-0 | Number of entries - 1, N (0-255) |
 
-After the SETPAL command, N+1 number of 32-bit RGBA color values follow in the VCP stream.
+After the SETPAL command, N+1 number of RGBA8888 (ABGR32) color values follow in the VCP stream.
 
 
 ## Video control registers
