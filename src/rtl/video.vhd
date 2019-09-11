@@ -171,34 +171,26 @@ begin
       o_color => s_pix_color
     );
 
+  --------------------------------------------------------------------------------------------------
   -- VRAM read logic - only one entity may access VRAM during each clock cycle.
+  --------------------------------------------------------------------------------------------------
+
+  -- Select the active read unit - The pixel pipe has priority over the VCPP.
+  o_read_adr <= s_pix_mem_read_addr(ADR_BITS-1 downto 0) when s_pix_mem_read_en = '1' else
+                s_vcpp_mem_read_addr(ADR_BITS-1 downto 0) when s_vcpp_mem_read_en = '1' else
+                (others => '-');
+  s_next_pix_mem_ack <= s_pix_mem_read_en;
+  s_next_vcpp_mem_ack <= s_vcpp_mem_read_en and not s_pix_mem_read_en;
+
+  -- Respond with an ack to the relevant unit (one cycle after).
   process(i_clk, i_rst)
   begin
     if i_rst = '1' then
-      o_read_adr <= (others => '0');
-      s_vcpp_mem_ack <= '0';
       s_pix_mem_ack <= '0';
-      s_next_vcpp_mem_ack <= '0';
-      s_next_pix_mem_ack <= '0';
+      s_vcpp_mem_ack <= '0';
     elsif rising_edge(i_clk) then
-      -- Respond with an ack to the relevant unit.
-      s_vcpp_mem_ack <= s_next_vcpp_mem_ack;
       s_pix_mem_ack <= s_next_pix_mem_ack;
-
-      -- The pixel pipe has priority over the VCPP.
-      if s_pix_mem_read_en = '1' then
-        o_read_adr <= s_pix_mem_read_addr(ADR_BITS-1 downto 0);
-        s_next_vcpp_mem_ack <= '0';
-        s_next_pix_mem_ack <= '1';
-      elsif s_vcpp_mem_read_en = '1' then
-        o_read_adr <= s_vcpp_mem_read_addr(ADR_BITS-1 downto 0);
-        s_next_vcpp_mem_ack <= '1';
-        s_next_pix_mem_ack <= '0';
-      else
-        o_read_adr <= (others => '0');
-        s_next_vcpp_mem_ack <= '0';
-        s_next_pix_mem_ack <= '0';
-      end if;
+      s_vcpp_mem_ack <= s_next_vcpp_mem_ack;
     end if;
   end process;
 
