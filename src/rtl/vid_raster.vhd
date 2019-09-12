@@ -87,26 +87,26 @@ begin
       v_vsync := s_vsync;
       v_restart_frame := '0';
 
-      if v_x_pos = C_X_END then
+      if v_x_pos = C_X_END-1 then
         -- End of line reached. Restart the horizontal raster.
         v_x_pos := to_signed(C_X_START, X_COORD_BITS);
 
-        if v_y_pos = C_Y_END then
+        if v_y_pos = C_Y_END-1 then
           -- End of frame reached. Restart the vertical raster.
           v_y_pos := to_signed(C_Y_START, Y_COORD_BITS);
           v_restart_frame := '1';
         else
-          if v_y_pos = C_Y_SYNC_START then
+          if v_y_pos = C_Y_SYNC_START-1 then
             v_vsync := '1';
-          elsif v_y_pos = C_Y_SYNC_END then
+          elsif v_y_pos = C_Y_SYNC_END-1 then
             v_vsync := '0';
           end if;
           v_y_pos := v_y_pos + to_signed(1, Y_COORD_BITS);
         end if;
       else
-        if v_x_pos = C_X_SYNC_START then
+        if v_x_pos = C_X_SYNC_START-1 then
           v_hsync := '1';
-        elsif v_x_pos = C_X_SYNC_END then
+        elsif v_x_pos = C_X_SYNC_END-1 then
           v_hsync := '0';
         end if;
         v_x_pos := v_x_pos + to_signed(1, X_COORD_BITS);
