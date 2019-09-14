@@ -23,7 +23,6 @@ main:
 
     ; Activate video output starting at row 0.
     wait    0
-    nop     ; TODO(m): Fix WAIT bug and drop this NOP!
     setreg  HSTOP, 1280
 
     ; Generate video addresses for all rows.
@@ -31,7 +30,6 @@ main:
     .set    row_addr, image_data
     .rept   360
         wait    row
-        nop     ; TODO(m): Fix WAIT bug and drop this NOP!
         setreg  ADDR, row_addr
         .add    row, 2
         .add    row_addr, 160   ; Row stride

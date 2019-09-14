@@ -89,6 +89,8 @@ architecture rtl of vid_vcpp is
   signal s_if_have_data : std_logic;
   signal s_if_data : std_logic_vector(31 downto 0);
   signal s_if_have_cached_data : std_logic;
+  signal s_if_latched_data : std_logic_vector(31 downto 0);
+  signal s_if_have_latched_data : std_logic;
   signal s_if_is_valid_instr : std_logic;
   signal s_if_pc_plus_1 : T_ADDR;
 
@@ -194,15 +196,26 @@ begin
     if i_rst = '1' then
       s_if_data <= (others => '0');
       s_if_have_cached_data <= '0';
+      s_if_latched_data <= (others => '0');
+      s_if_have_latched_data <= '0';
       s_if_is_valid_instr <= '0';
       s_if_pc_plus_1 <= (others => '0');
     elsif rising_edge(i_clk) then
       if s_stall_if = '0' then
-        if i_mem_ack = '1' then
+        if s_if_have_latched_data = '1' then
+          s_if_data <= s_if_latched_data;
+        elsif i_mem_ack = '1' then
           s_if_data <= i_mem_data;
         end if;
         s_if_have_cached_data <= s_if_have_data;
+        s_if_have_latched_data <= '0';
         s_if_pc_plus_1 <= s_pc_prev_read_addr_plus_1;
+      else
+        -- During stalls we need to latch read data for later.
+        if i_mem_ack = '1' then
+          s_if_latched_data <= i_mem_data;
+          s_if_have_latched_data <= '1';
+        end if;
       end if;
       s_if_is_valid_instr <= s_if_have_data and not (i_restart_frame or s_id_apply_jump_target);
     end if;
