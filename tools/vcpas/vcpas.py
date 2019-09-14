@@ -127,8 +127,10 @@ def translate_command(cmd, args):
         code = 0x02000000 | (args[0] & 0x00ffffff)
     elif cmd == "rts":
         code = 0x03000000
-    elif cmd == "wait":
+    elif cmd == "waitx":
         code = 0x40000000 | (args[0] & 0x0000ffff)
+    elif cmd == "waity":
+        code = 0x41000000 | (args[0] & 0x0000ffff)
     elif cmd == "setreg":
         code = 0x80000000 | ((args[0] & 63) << 24) | (args[1] & 0x00ffffff)
     elif cmd == "setpal":

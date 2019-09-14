@@ -38,6 +38,7 @@ use ieee.numeric_std.all;
 
 entity vid_vcpp is
   generic(
+    X_COORD_BITS : positive;
     Y_COORD_BITS : positive
   );
   port(
@@ -45,6 +46,7 @@ entity vid_vcpp is
     i_clk : in std_logic;
 
     i_restart_frame : in std_logic;
+    i_raster_x : in std_logic_vector(X_COORD_BITS-1 downto 0);
     i_raster_y : in std_logic_vector(Y_COORD_BITS-1 downto 0);
 
     o_mem_read_en : out std_logic;
@@ -65,16 +67,22 @@ architecture rtl of vid_vcpp is
   constant C_VCP_START_ADDRESS : T_ADDR := 24x"0";
 
   subtype T_INSTR is std_logic_vector(1 downto 0);
+  subtype T_SUB_INSTR is std_logic_vector(1 downto 0);
+
   constant C_INSTR_JUMP : T_INSTR := "00";
   constant C_INSTR_WAIT : T_INSTR := "01";
   constant C_INSTR_SETREG : T_INSTR := "10";
   constant C_INSTR_SETPAL : T_INSTR := "11";
 
-  subtype T_JUMP_SUB_INSTR is std_logic_vector(1 downto 0);
-  constant C_INSTR_NOP : T_JUMP_SUB_INSTR := "00";
-  constant C_INSTR_JMP : T_JUMP_SUB_INSTR := "01";
-  constant C_INSTR_JSR : T_JUMP_SUB_INSTR := "10";
-  constant C_INSTR_RTS : T_JUMP_SUB_INSTR := "11";
+  -- JUMP sub instructions.
+  constant C_INSTR_NOP : T_SUB_INSTR := "00";
+  constant C_INSTR_JMP : T_SUB_INSTR := "01";
+  constant C_INSTR_JSR : T_SUB_INSTR := "10";
+  constant C_INSTR_RTS : T_SUB_INSTR := "11";
+
+  -- WAIT sub instructions.
+  constant C_INSTR_WAITX : T_SUB_INSTR := "00";
+  constant C_INSTR_WAITY : T_SUB_INSTR := "01";
 
   -- PC signals
   signal s_stall_pc : std_logic;
@@ -96,18 +104,22 @@ architecture rtl of vid_vcpp is
 
   -- ID/EX signals
   signal s_id_instr : T_INSTR;
+  signal s_id_sub_instr : T_SUB_INSTR;
   signal s_id_is_new_valid_instr : std_logic;
 
   signal s_id_is_jump_instr : std_logic;
-  signal s_id_jump_sub_instr : T_JUMP_SUB_INSTR;
   signal s_id_do_stack_push : std_logic;
   signal s_id_do_stack_pop : std_logic;
   signal s_id_return_addr_from_stack : T_ADDR;
   signal s_id_jump_target : T_ADDR;
   signal s_id_apply_jump_target : std_logic;
 
-  signal s_id_is_wait_instr : std_logic;
-  signal s_id_prev_is_wait_instr : std_logic;
+  signal s_id_is_waitx_instr : std_logic;
+  signal s_id_is_waity_instr : std_logic;
+  signal s_id_prev_is_waitx_instr : std_logic;
+  signal s_id_prev_is_waity_instr : std_logic;
+  signal s_id_xpos_reached : std_logic;
+  signal s_id_ypos_reached : std_logic;
   signal s_id_is_waiting : std_logic;
 
   signal s_id_is_setreg_instr : std_logic;
@@ -136,11 +148,19 @@ architecture rtl of vid_vcpp is
   signal s_id_next_write_data : std_logic_vector(31 downto 0);
   signal s_id_write_data : std_logic_vector(31 downto 0);
 
-  function ycoord_to_signed16(x: std_logic_vector) return std_logic_vector is
+  function xcoord_to_signed16(x: std_logic_vector) return std_logic_vector is
     variable v_result : std_logic_vector(15 downto 0);
   begin
-    v_result(15 downto Y_COORD_BITS) := (others => x(Y_COORD_BITS-1));
-    v_result(Y_COORD_BITS-1 downto 0) := x;
+    v_result(15 downto X_COORD_BITS) := (others => x(X_COORD_BITS-1));
+    v_result(X_COORD_BITS-1 downto 0) := x;
+    return v_result;
+  end;
+
+  function ycoord_to_signed16(y: std_logic_vector) return std_logic_vector is
+    variable v_result : std_logic_vector(15 downto 0);
+  begin
+    v_result(15 downto Y_COORD_BITS) := (others => y(Y_COORD_BITS-1));
+    v_result(Y_COORD_BITS-1 downto 0) := y;
     return v_result;
   end;
 begin
@@ -244,26 +264,34 @@ begin
 
   -- Decode the instruction.
   s_id_instr <= s_if_data(31 downto 30);
+  s_id_sub_instr <= s_if_data(25 downto 24);
   s_id_is_new_valid_instr <= s_if_is_valid_instr and not s_id_is_pal_data;
 
   -- JUMP: Jump to or return from subroutine.
   s_id_is_jump_instr <= '0' when i_restart_frame = '1' else
                         s_id_is_new_valid_instr when s_id_instr = C_INSTR_JUMP else
                         '0';
-  s_id_jump_sub_instr <= s_if_data(25 downto 24);
-  s_id_do_stack_push <= s_id_is_jump_instr when s_id_jump_sub_instr = C_INSTR_JSR else '0';
-  s_id_do_stack_pop <= s_id_is_jump_instr when s_id_jump_sub_instr = C_INSTR_RTS else '0';
+  s_id_do_stack_push <= s_id_is_jump_instr when s_id_sub_instr = C_INSTR_JSR else '0';
+  s_id_do_stack_pop <= s_id_is_jump_instr when s_id_sub_instr = C_INSTR_RTS else '0';
 
   -- Determine the next jump target address, and whether or not to perform the jump.
   s_id_jump_target <= s_id_return_addr_from_stack when s_id_do_stack_pop = '1' else s_if_data(23 downto 0);
-  s_id_apply_jump_target <= s_id_is_jump_instr when s_id_jump_sub_instr /= C_INSTR_NOP else '0';
+  s_id_apply_jump_target <= s_id_is_jump_instr when s_id_sub_instr /= C_INSTR_NOP else '0';
 
   -- WAIT: Should we wait (stall)?
-  s_id_is_wait_instr <= '0' when i_restart_frame = '1' else
-                        s_id_prev_is_wait_instr when s_if_is_valid_instr = '0' else
-                        s_id_is_new_valid_instr when s_id_instr = C_INSTR_WAIT else
-                        '0';
-  s_id_is_waiting <= s_id_is_wait_instr when s_if_data(15 downto 0) /= ycoord_to_signed16(i_raster_y) else '0';
+  s_id_is_waitx_instr <= '0' when i_restart_frame = '1' else
+                         s_id_prev_is_waitx_instr when s_if_is_valid_instr = '0' else
+                         s_id_is_new_valid_instr when s_id_instr = C_INSTR_WAIT and s_id_sub_instr = C_INSTR_WAITX else
+                         '0';
+  s_id_is_waity_instr <= '0' when i_restart_frame = '1' else
+                         s_id_prev_is_waity_instr when s_if_is_valid_instr = '0' else
+                         s_id_is_new_valid_instr when s_id_instr = C_INSTR_WAIT and s_id_sub_instr = C_INSTR_WAITY else
+                         '0';
+  s_id_xpos_reached <= '1' when s_if_data(15 downto 0) = xcoord_to_signed16(i_raster_x) else '0';
+  s_id_ypos_reached <= '1' when s_if_data(15 downto 0) = ycoord_to_signed16(i_raster_y) else '0';
+  s_id_is_waiting <= (not s_id_xpos_reached) when s_id_is_waitx_instr = '1' else
+                     (not s_id_ypos_reached) when s_id_is_waity_instr = '1' else
+                     '0';
 
   -- SETREG: Decode register write operations.
   s_id_is_setreg_instr <= s_id_is_new_valid_instr when s_id_instr = C_INSTR_SETREG else '0';
@@ -300,7 +328,8 @@ begin
   process(i_clk, i_rst)
   begin
     if i_rst = '1' then
-      s_id_prev_is_wait_instr <= '0';
+      s_id_prev_is_waitx_instr <= '0';
+      s_id_prev_is_waity_instr <= '0';
       s_id_prev_is_setpal_instr <= '0';
       s_id_is_pal_data <= '0';
       s_id_prev_pal_entries_left <= (others => '0');
@@ -310,7 +339,8 @@ begin
       s_id_write_addr <= (others => '0');
       s_id_write_data <= (others => '0');
     elsif rising_edge(i_clk) then
-      s_id_prev_is_wait_instr <= s_id_is_wait_instr;
+      s_id_prev_is_waitx_instr <= s_id_is_waitx_instr;
+      s_id_prev_is_waity_instr <= s_id_is_waity_instr;
       s_id_prev_is_setpal_instr <= s_id_is_setpal_instr;
       s_id_is_pal_data <= s_id_next_is_pal_data;
       s_id_prev_pal_entries_left <= s_id_pal_entries_left;

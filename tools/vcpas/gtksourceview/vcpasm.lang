@@ -85,7 +85,8 @@
       <keyword>jmp</keyword>
       <keyword>jsr</keyword>
       <keyword>rts</keyword>
-      <keyword>wait</keyword>
+      <keyword>waitx</keyword>
+      <keyword>waity</keyword>
       <keyword>setreg</keyword>
       <keyword>setpal</keyword>
     </context>

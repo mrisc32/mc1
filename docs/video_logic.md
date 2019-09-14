@@ -21,16 +21,16 @@ Each video control command (VCC) is 32 bits wide.
 
 The two most significant bits give the command, according to:
 
-| Code (bin) | Command | Description                                 |
-|------------|---------|---------------------------------------------|
-| 00         | JUMP    | Program flow control (NOP, JMP, JSR, RTS)   |
-| 01         | WAIT    | Wait until the given raster line is reached |
-| 10         | SETREG  | Set the value of a video control register   |
-| 11         | SETPAL  | Set the palette                             |
+| Code (bin) | Command | Description                                     |
+|------------|---------|-------------------------------------------------|
+| 00         | JUMP    | Program flow control (NOP, JMP, JSR, RTS)       |
+| 01         | WAIT    | Wait until the given raster position is reached |
+| 10         | SETREG  | Set the value of a video control register       |
+| 11         | SETPAL  | Set the palette                                 |
 
 ### JUMP
 
-The JUMP command is in fact one of four sub-commands: NOP, JMP, JSR or RTS.
+The JUMP command is one of four sub-commands: NOP, JMP, JSR or RTS.
 
 #### NOP
 
@@ -86,12 +86,33 @@ Note: Since the stack is never reset, issuing an RTS command without a matching 
 
 ### WAIT
 
-The WAIT command is encoded as follows:
+The JUMP command is one of two sub-commands: WAITX, WAITY.
 
-| Bits  | Description                        |
-|-------|------------------------------------|
-| 29-16 | (unused)                           |
-|  15-0 | Raster line number (-32768..32767) |
+#### WAITX
+
+The WAITX command is encoded as follows:
+
+| Bits  | Description                          |
+|-------|--------------------------------------|
+| 29-26 | (unused)                             |
+| 25-24 | 00                                   |
+| 23-16 | (unused)                             |
+|  15-0 | Raster column number (-32768..32767) |
+
+The command waits until the specified column is reached. If the specified column has already passed, the command will wait for the same column in the next raster line.
+
+#### WAITY
+
+The WAITY command is encoded as follows:
+
+| Bits  | Description                       |
+|-------|-----------------------------------|
+| 29-26 | (unused)                          |
+| 25-24 | 01                                |
+| 23-16 | (unused)                          |
+|  15-0 | Raster row number (-32768..32767) |
+
+The command waits until the specified row is reached. If the specified row has already passed, the command will wait until the end of the frame.
 
 ### SETREG
 

@@ -22,14 +22,14 @@ main:
     jsr     load_palette_a
 
     ; Activate video output starting at row 0.
-    wait    0
+    waity   0
     setreg  HSTOP, 1280
 
     ; Generate video addresses for all rows.
     .set    row, 0
     .set    row_addr, image_data
     .rept   180
-        wait    row
+        waity   row
         setreg  ADDR, row_addr
         .add    row, 4
         .add    row_addr, 80   ; Row stride

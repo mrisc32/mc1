@@ -112,12 +112,14 @@ begin
   -- Instantiate the video control program processor.
   vcpp_1: entity work.vid_vcpp
     generic map (
+      X_COORD_BITS => s_raster_x'length,
       Y_COORD_BITS => s_raster_y'length
     )
     port map(
       i_rst => i_rst,
       i_clk => i_clk,
       i_restart_frame => s_restart_frame,
+      i_raster_x => s_raster_x,
       i_raster_y => s_raster_y,
       o_mem_read_en => s_vcpp_mem_read_en,
       o_mem_read_addr => s_vcpp_mem_read_addr,
