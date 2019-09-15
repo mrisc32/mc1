@@ -1,0 +1,60 @@
+; -*- mode: vcpasm; tab-width: 4; indent-tabs-mode: nil; -*-
+;-----------------------------------------------------------------------------
+; This is a test program for video_tb.
+;-----------------------------------------------------------------------------
+
+    .include "mc1-defines.vcp"
+
+    ; Set the program start address
+    .org    0x000000
+
+main:
+    ; Display nothing
+    setreg  HSTRT, 0
+    setreg  HSTOP, 0
+
+    ; Set the video mode
+    setreg  XOFFS, 0x000000
+    setreg  CMODE, CM_PAL1
+    setreg  ADDR, image_data
+
+    setpal  1, 0
+        .word    0xffa0a080
+
+    ; Activate video output starting at row 0.
+    waity   0
+    setreg  HSTOP, 1280
+
+    ; Generate video addresses for all rows.
+    .set    row, 0
+    .set    col, 280
+    .set    xinc, 0x000000
+    .set    xoff, 0x800000
+    .set    color1, 0xFF000000
+    .set    color2, 0xFFF000FF
+    .rept   720
+        waity   row
+        setreg  XOFFS, xoff
+        setreg  XINCR, xinc
+        setpal  0, 0
+            .word    color1
+        waitx   col
+        setpal  0, 0
+            .word    color2
+        .add    row, 1
+        .add    col, 1
+        .add    xinc, 0x000010
+        .add    xoff, -0x002800
+        .add    color1, 0x00000101
+        .add    color2, 0x00000100
+    .endr
+
+    ; End of program
+    waity   32767
+
+image_data:
+    .word   0xAAAAAAAA, 0xAAAAAAAA, 0xAAAAAAAA, 0xAAAAAAAA
+    .word   0xAAAAAAAA, 0xAAAAAAAA, 0xAAAAAAAA, 0xAAAAAAAA
+    .word   0xAAAAAAAA, 0xAAAAAAAA, 0xAAAAAAAA, 0xAAAAAAAA
+    .word   0xAAAAAAAA, 0xAAAAAAAA, 0xAAAAAAAA, 0xAAAAAAAA
+
