@@ -111,6 +111,7 @@ architecture rtl of vid_pixel is
   signal s_pa_addr : std_logic_vector(23 downto 0);
   signal s_pa_prev_addr : std_logic_vector(23 downto 0);
   signal s_pa_addr_is_new : std_logic;
+  signal s_pa_mem_read_en : std_logic;
   signal s_pa_next_shift_32 : std_logic_vector(4 downto 0);
   signal s_pa_next_shift_16 : std_logic_vector(4 downto 0);
   signal s_pa_next_shift_8 : std_logic_vector(4 downto 0);
@@ -243,6 +244,7 @@ begin
   -- Note: We assume that there are no wait-states from the memory, so we do
   -- not have to consider whether or not we got an ACK for the last request.
   s_pa_addr_is_new <= '1' when s_pa_addr(8 downto 0) /= s_pa_prev_addr(8 downto 0) else '0';
+  s_pa_mem_read_en <= s_xc_active and s_pa_addr_is_new;
 
   -- Determine the bit shift amount.
   s_pa_next_shift_32 <= "00000";
@@ -264,7 +266,7 @@ begin
 
   -- Outputs to the memory read interface.
   o_mem_read_addr <= s_pa_addr;
-  o_mem_read_en <= s_xc_active and s_pa_addr_is_new;
+  o_mem_read_en <= s_pa_mem_read_en;
 
   -- PIXADDR registers.
   process(i_clk, i_rst)
@@ -276,7 +278,9 @@ begin
     elsif rising_edge(i_clk) then
       s_pa_shift <= s_pa_next_shift;
       s_pa_active <= s_xc_active;
-      s_pa_prev_addr <= s_pa_addr;
+      if s_pa_mem_read_en then
+        s_pa_prev_addr <= s_pa_addr;
+      end if;
     end if;
   end process;
 
