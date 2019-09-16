@@ -130,7 +130,7 @@ begin
     s_clk <= '1';
 
     -- Run a lot of cycles...
-    file_open(f_char_file, "vunit_out/video_tb_output.bin", WRITE_MODE);
+    file_open(f_char_file, "vunit_out/video_tb_output.data", WRITE_MODE);
     for i in 0 to C_TEST_CYCLES-1 loop
       wait until s_clk = '1';
 
