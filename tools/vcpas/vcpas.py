@@ -142,13 +142,19 @@ def translate_command(cmd, args):
 
 
 def translate_code(statements):
+    # First, collect all label names (set label address to zero)
     labels = {}
-    words = []
-    start = None
+    for statement in statements:
+        cmd = statement["cmd"]
+        if cmd[-1:] == ":":
+            label = cmd[:-1]
+            labels[label] = 0
 
     # We do two passes:
-    #  1st pass: Collect labels (i.e. their memory addresses)
+    #  1st pass: Collect label addresses
     #  2nd pass: Generate code
+    words = []
+    start = None
     for pass_no in [1, 2]:
         first_pass = (pass_no == 1)
         symbols = {}
@@ -171,19 +177,10 @@ def translate_code(statements):
                         start = pc
 
                 elif cmd == ".set":
-                    try:
-                        symbols[args[0]] = eval_expr(args[1], labels, symbols)
-                    except:
-                        if not first_pass:
-                            raise
-                        symbols[args[0]] = 0
+                    symbols[args[0]] = eval_expr(args[1], labels, symbols)
 
                 elif cmd == ".add":
-                    try:
-                        symbols[args[0]] = symbols[args[0]] + eval_expr(args[1], labels, symbols)
-                    except:
-                        if not first_pass:
-                            raise
+                    symbols[args[0]] = symbols[args[0]] + eval_expr(args[1], labels, symbols)
 
                 elif cmd == ".word":
                     for arg in args:
