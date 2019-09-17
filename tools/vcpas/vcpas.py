@@ -77,12 +77,7 @@ def parse_vcp_file(vcp_file):
 
 
 def eval_expr(expr, labels, symbols):
-    # TODO(m): Implement a more advanced expression parser.
-    if expr in labels:
-        return labels[expr]
-    if expr in symbols:
-        return symbols[expr]
-    return int(expr, 0)
+    return int(eval(expr, {**labels, **symbols}))
 
 
 def eval_args(args, labels, symbols):
@@ -178,9 +173,6 @@ def translate_code(statements):
 
                 elif cmd == ".set":
                     symbols[args[0]] = eval_expr(args[1], labels, symbols)
-
-                elif cmd == ".add":
-                    symbols[args[0]] = symbols[args[0]] + eval_expr(args[1], labels, symbols)
 
                 elif cmd == ".word":
                     for arg in args:

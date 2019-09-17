@@ -41,12 +41,12 @@ main:
         waitx   col
         setpal  0, 0
             .word    color2
-        .add    row, 1
-        .add    col, 1
-        .add    xinc, 0x000010
-        .add    xoff, -0x002800
-        .add    color1, 0x00000101
-        .add    color2, 0x00000100
+        .set    row, row + 1
+        .set    col, col + 1
+        .set    xinc, xinc + 0x000010
+        .set    xoff, xoff - 0x002800
+        .set    color1, color1 + 0x00000101
+        .set    color2, color2 + 0x00000100
     .endr
 
     ; End of program

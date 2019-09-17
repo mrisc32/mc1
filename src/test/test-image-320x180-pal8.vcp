@@ -31,8 +31,8 @@ main:
     .rept   180
         waity   row
         setreg  ADDR, row_addr
-        .add    row, 4
-        .add    row_addr, 80   ; Row stride
+        .set    row, row + 4
+        .set    row_addr, row_addr + 80   ; Row stride
     .endr
 
     ; End of program
