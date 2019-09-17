@@ -51,7 +51,7 @@ main:
     .endr
 
     ; End of program
-    wait    32767
+    waity   32767
 
 load_palette_a:
     ; Load a palette with 256 colors.
