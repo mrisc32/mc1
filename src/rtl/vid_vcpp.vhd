@@ -66,23 +66,16 @@ architecture rtl of vid_vcpp is
   subtype T_ADDR is std_logic_vector(C_ADDR_BITS-1 downto 0);
   constant C_VCP_START_ADDRESS : T_ADDR := 24x"0";
 
-  subtype T_INSTR is std_logic_vector(1 downto 0);
-  subtype T_SUB_INSTR is std_logic_vector(1 downto 0);
+  subtype T_INSTR is std_logic_vector(3 downto 0);
 
-  constant C_INSTR_JUMP : T_INSTR := "00";
-  constant C_INSTR_WAIT : T_INSTR := "01";
-  constant C_INSTR_SETREG : T_INSTR := "10";
-  constant C_INSTR_SETPAL : T_INSTR := "11";
-
-  -- JUMP sub instructions.
-  constant C_INSTR_NOP : T_SUB_INSTR := "00";
-  constant C_INSTR_JMP : T_SUB_INSTR := "01";
-  constant C_INSTR_JSR : T_SUB_INSTR := "10";
-  constant C_INSTR_RTS : T_SUB_INSTR := "11";
-
-  -- WAIT sub instructions.
-  constant C_INSTR_WAITX : T_SUB_INSTR := "00";
-  constant C_INSTR_WAITY : T_SUB_INSTR := "01";
+  constant C_INSTR_NOP : T_INSTR    := "0000";
+  constant C_INSTR_JMP : T_INSTR    := "0001";
+  constant C_INSTR_JSR : T_INSTR    := "0010";
+  constant C_INSTR_RTS : T_INSTR    := "0011";
+  constant C_INSTR_WAITX : T_INSTR  := "0100";
+  constant C_INSTR_WAITY : T_INSTR  := "0101";
+  constant C_INSTR_SETPAL : T_INSTR := "0110";
+  constant C_INSTR_SETREG : T_INSTR := "1000";
 
   -- PC signals
   signal s_stall_pc : std_logic;
@@ -104,7 +97,6 @@ architecture rtl of vid_vcpp is
 
   -- ID/EX signals
   signal s_id_instr : T_INSTR;
-  signal s_id_sub_instr : T_SUB_INSTR;
   signal s_id_is_new_valid_instr : std_logic;
 
   signal s_id_is_jump_instr : std_logic;
@@ -263,29 +255,30 @@ begin
     );
 
   -- Decode the instruction.
-  s_id_instr <= s_if_data(31 downto 30);
-  s_id_sub_instr <= s_if_data(25 downto 24);
+  s_id_instr <= s_if_data(31 downto 28);
   s_id_is_new_valid_instr <= s_if_is_valid_instr and not s_id_is_pal_data;
 
   -- JUMP: Jump to or return from subroutine.
   s_id_is_jump_instr <= '0' when i_restart_frame = '1' else
-                        s_id_is_new_valid_instr when s_id_instr = C_INSTR_JUMP else
+                        s_id_is_new_valid_instr when s_id_instr = C_INSTR_JMP or
+                                                     s_id_instr = C_INSTR_JSR or
+                                                     s_id_instr = C_INSTR_RTS else
                         '0';
-  s_id_do_stack_push <= s_id_is_jump_instr when s_id_sub_instr = C_INSTR_JSR else '0';
-  s_id_do_stack_pop <= s_id_is_jump_instr when s_id_sub_instr = C_INSTR_RTS else '0';
+  s_id_do_stack_push <= s_id_is_jump_instr when s_id_instr = C_INSTR_JSR else '0';
+  s_id_do_stack_pop <= s_id_is_jump_instr when s_id_instr = C_INSTR_RTS else '0';
 
   -- Determine the next jump target address, and whether or not to perform the jump.
   s_id_jump_target <= s_id_return_addr_from_stack when s_id_do_stack_pop = '1' else s_if_data(23 downto 0);
-  s_id_apply_jump_target <= s_id_is_jump_instr when s_id_sub_instr /= C_INSTR_NOP else '0';
+  s_id_apply_jump_target <= s_id_is_jump_instr;
 
   -- WAIT: Should we wait (stall)?
   s_id_is_waitx_instr <= '0' when i_restart_frame = '1' else
                          s_id_prev_is_waitx_instr when s_if_is_valid_instr = '0' else
-                         s_id_is_new_valid_instr when s_id_instr = C_INSTR_WAIT and s_id_sub_instr = C_INSTR_WAITX else
+                         s_id_is_new_valid_instr when s_id_instr = C_INSTR_WAITX else
                          '0';
   s_id_is_waity_instr <= '0' when i_restart_frame = '1' else
                          s_id_prev_is_waity_instr when s_if_is_valid_instr = '0' else
-                         s_id_is_new_valid_instr when s_id_instr = C_INSTR_WAIT and s_id_sub_instr = C_INSTR_WAITY else
+                         s_id_is_new_valid_instr when s_id_instr = C_INSTR_WAITY else
                          '0';
   s_id_xpos_reached <= '1' when s_if_data(15 downto 0) = xcoord_to_signed16(i_raster_x) else '0';
   s_id_ypos_reached <= '1' when s_if_data(15 downto 0) = ycoord_to_signed16(i_raster_y) else '0';
@@ -295,7 +288,7 @@ begin
 
   -- SETREG: Decode register write operations.
   s_id_is_setreg_instr <= s_id_is_new_valid_instr when s_id_instr = C_INSTR_SETREG else '0';
-  s_id_reg_addr <= "00" & s_if_data(29 downto 24);
+  s_id_reg_addr <= "0000" & s_if_data(27 downto 24);
   s_id_reg_data <= "00000000" & s_if_data(23 downto 0);
 
   -- SETPAL: Palette state machine.

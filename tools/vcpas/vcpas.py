@@ -117,19 +117,19 @@ def translate_command(cmd, args):
     if cmd == "nop":
         code = 0x00000000
     elif cmd == "jmp":
-        code = 0x01000000 | (args[0] & 0x00ffffff)
+        code = 0x10000000 | (args[0] & 0x00ffffff)
     elif cmd == "jsr":
-        code = 0x02000000 | (args[0] & 0x00ffffff)
+        code = 0x20000000 | (args[0] & 0x00ffffff)
     elif cmd == "rts":
-        code = 0x03000000
+        code = 0x30000000
     elif cmd == "waitx":
         code = 0x40000000 | (args[0] & 0x0000ffff)
     elif cmd == "waity":
-        code = 0x41000000 | (args[0] & 0x0000ffff)
-    elif cmd == "setreg":
-        code = 0x80000000 | ((args[0] & 63) << 24) | (args[1] & 0x00ffffff)
+        code = 0x50000000 | (args[0] & 0x0000ffff)
     elif cmd == "setpal":
-        code = 0xc0000000 | ((args[0] & 255) << 8) | (args[1] & 255)
+        code = 0x60000000 | ((args[0] & 255) << 8) | (args[1] & 255)
+    elif cmd == "setreg":
+        code = 0x80000000 | ((args[0] & 15) << 24) | (args[1] & 0x00ffffff)
     else:
         raise Exception(f"Unrecognized command: {cmd}")
 
