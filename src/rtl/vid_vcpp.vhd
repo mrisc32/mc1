@@ -334,7 +334,11 @@ begin
     elsif rising_edge(i_clk) then
       s_id_prev_is_waitx_instr <= s_id_is_waitx_instr;
       s_id_prev_is_waity_instr <= s_id_is_waity_instr;
-      s_id_prev_is_setpal_instr <= s_id_is_setpal_instr;
+      if s_id_is_setpal_instr = '1' then
+        s_id_prev_is_setpal_instr <= '1';
+      elsif s_if_is_valid_instr = '1' then
+        s_id_prev_is_setpal_instr <= '0';
+      end if;
       s_id_is_pal_data <= s_id_next_is_pal_data;
       s_id_prev_pal_entries_left <= s_id_pal_entries_left;
       s_id_prev_pal_addr <= s_id_pal_addr;
