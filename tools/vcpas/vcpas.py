@@ -2,6 +2,7 @@
 # -*- mode: python; tab-width: 4; indent-tabs-mode: nil; -*-
 
 import argparse
+import math
 import os
 import struct
 import sys
@@ -10,6 +11,12 @@ import sys
 class _OutputFormat:
     GNU_ASM = 1
     BIN = 2
+
+
+_PUBLIC_EVAL_FUNCTIONS = {
+    "sin": math.sin,
+    "cos": math.cos
+}
 
 
 def strip_arg(arg):
@@ -77,7 +84,7 @@ def parse_vcp_file(vcp_file):
 
 
 def eval_expr(expr, labels, symbols):
-    return int(eval(expr, {**labels, **symbols}))
+    return int(eval(expr, {**labels, **symbols, **_PUBLIC_EVAL_FUNCTIONS}))
 
 
 def eval_args(args, labels, symbols):
