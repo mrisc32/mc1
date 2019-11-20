@@ -1,8 +1,8 @@
 #!/bin/bash
 
-AS=mrisc32-as
-LD=mrisc32-ld
-OBJCOPY=mrisc32-objcopy
+AS=mrisc32-elf-as
+LD=mrisc32-elf-ld
+OBJCOPY=mrisc32-elf-objcopy
 
 rm -f out/*.o out/*.elf
 $AS -I src -o out/crt0.o src/crt0.s
