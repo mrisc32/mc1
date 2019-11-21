@@ -37,7 +37,11 @@ entity mc1 is
     o_vga_g : out std_logic_vector(7 downto 0);
     o_vga_b : out std_logic_vector(7 downto 0);
     o_vga_hs : out std_logic;
-    o_vga_vs : out std_logic
+    o_vga_vs : out std_logic;
+
+    -- I/O: Generic input and output registers.
+    i_io: in std_logic_vector(31 downto 0);
+    o_io: out std_logic_vector(31 downto 0)
   );
 end mc1;
 
@@ -86,6 +90,18 @@ architecture rtl of mc1 is
   signal s_video_b : std_logic_vector(7 downto 0);
   signal s_video_hsync : std_logic;
   signal s_video_vsync : std_logic;
+
+  -- Memory mapped I/O interface (Wishbone B4 pipelined slave).
+  signal s_io_cyc : std_logic;
+  signal s_io_stb : std_logic;
+  signal s_io_adr : std_logic_vector(31 downto 2);
+  signal s_io_dat_w : std_logic_vector(31 downto 0);
+  signal s_io_we : std_logic;
+  signal s_io_sel : std_logic_vector(3 downto 0);
+  signal s_io_dat : std_logic_vector(31 downto 0);
+  signal s_io_ack : std_logic;
+  signal s_io_stall : std_logic;
+  signal s_io_err : std_logic;
 begin
   --------------------------------------------------------------------------------------------------
   -- CPU core
@@ -157,11 +173,16 @@ begin
       i_wb_err_2 => '0',
 
       -- Memory mapped I/O interface.
-      -- TODO(m): Implement me!
-      i_wb_dat_3 => (others => '0'),
-      i_wb_ack_3 => '0',
-      i_wb_stall_3 => '0',
-      i_wb_err_3 => '0'
+      o_wb_cyc_3 => s_io_cyc,
+      o_wb_stb_3 => s_io_stb,
+      o_wb_adr_3 => s_io_adr,
+      o_wb_dat_3 => s_io_dat_w,
+      o_wb_we_3 => s_io_we,
+      o_wb_sel_3 => s_io_sel,
+      i_wb_dat_3 => s_io_dat,
+      i_wb_ack_3 => s_io_ack,
+      i_wb_stall_3 => s_io_stall,
+      i_wb_err_3 => s_io_err
     );
 
   -- Internal ROM.
@@ -232,4 +253,30 @@ begin
   o_vga_b <= s_video_b;
   o_vga_hs <= s_video_hsync;
   o_vga_vs <= s_video_vsync;
+
+  --------------------------------------------------------------------------------------------------
+  -- I/O
+  --------------------------------------------------------------------------------------------------
+
+  process (i_cpu_clk, i_cpu_rst)
+  begin
+    if i_cpu_rst = '1' then
+      s_io_dat <= (others => '0');
+      s_io_ack <= '0';
+    elsif rising_edge(i_cpu_clk) then
+      if s_io_cyc = '1' and s_io_stb = '1' then
+        -- Note: We currently do not care about the address.
+        if s_io_we = '1' then
+          o_io <= s_io_dat_w;
+        else
+          s_io_dat <= i_io;
+        end if;
+      end if;
+      s_io_ack <= s_io_cyc and s_io_stb;
+    end if;
+  end process;
+
+  s_io_err <= '0';
+  s_io_stall <= '0';
+
 end rtl;

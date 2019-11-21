@@ -101,6 +101,9 @@ architecture rtl of toplevel is
   signal s_vga_b : std_logic_vector(7 downto 0);
   signal s_vga_hs : std_logic;
   signal s_vga_vs : std_logic;
+
+  signal s_io_in : std_logic_vector(31 downto 0);
+  signal s_io_out : std_logic_vector(31 downto 0);
 begin
   -- System reset signal.
   process(CLOCK_50, RESET_N)
@@ -172,10 +175,12 @@ begin
       o_vga_g => s_vga_g,
       o_vga_b => s_vga_b,
       o_vga_hs => s_vga_hs,
-      o_vga_vs => s_vga_vs
+      o_vga_vs => s_vga_vs,
 
       -- LEDs and buttons interfaces.
-      -- TODO(m): Implement me!
+      -- TODO(m): Make something better here...
+      i_io => s_io_in,
+      o_io => s_io_out
     );
 
   -- VGA interface.
@@ -185,4 +190,20 @@ begin
   VGA_B <= s_vga_b(7 downto 4);
   VGA_HS <= s_vga_hs;
   VGA_VS <= s_vga_vs;
+
+  -- I/O: Input.
+  s_io_in(31 downto 14) <= (others => '0');
+  s_io_in(13 downto 4) <= SW;
+  s_io_in(3 downto 0) <= KEY;
+
+  -- I/O: Output.
+  LEDR <= s_io_out(16 downto 7);
+  HEX0 <= s_io_out(6 downto 0);
+
+  -- Test...
+  HEX5 <= "0001001";  -- H
+  HEX4 <= "0000110";  -- E
+  HEX3 <= "1000111";  -- L
+  HEX2 <= "1000111";  -- L
+  HEX1 <= "1000000";  -- O
 end rtl;

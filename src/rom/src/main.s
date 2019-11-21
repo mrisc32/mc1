@@ -30,8 +30,65 @@ main:
     ; Draw something to the screen.
     jl      pc, #draw@pc
 
+    ; Do some I/O.
+    jl      pc, #do_io@pc
+
     ldw     lr, sp, #0
     add     sp, sp, #4
+    j       lr
+
+
+; ----------------------------------------------------------------------------
+; void msleep(int milliseconds)
+; ----------------------------------------------------------------------------
+
+msleep:
+    ble     s1, 3$
+
+1$:
+    ; This busy loop takes 1 ms on a 70 MHz MRISC32-A1.
+    ldi     s2, #35000
+2$:
+    add     s2, s2, #-1
+    bnz     s2, 2$
+
+    add     s1, s1, #-1
+    bnz     s1, 1$
+
+3$:
+    j       lr
+
+
+; ----------------------------------------------------------------------------
+; Do some memory mapped I/O.
+; ----------------------------------------------------------------------------
+
+do_io:
+    add     sp, sp, #-16
+    stw     lr, sp, #0
+    stw     s20, sp, #4
+    stw     s21, sp, #8
+    stw     s22, sp, #12
+
+    ldhi    s20, #MMIO_START
+    ldi     s21, #0x00055555
+    ldi     s22, #1000
+1$:
+    stw     s21, s20, #0
+
+    ; Sleep for 1/3 s.
+    ldi     s1, #333
+    jl      pc, #msleep@pc
+
+    add     s22, s22, #-1
+    add     s21, s21, #0x1234
+    bnz     s22, 1$
+
+    ldw     lr, sp, #0
+    ldw     s20, sp, #4
+    ldw     s21, sp, #8
+    ldw     s22, sp, #12
+    add     sp, sp, #16
     j       lr
 
 
@@ -63,10 +120,13 @@ init_video:
     stw     s12, s11, #20
     add     s11, s11, #24
 
-    ; Generate a gray scale palette.
+    ; Generate a color palette.
+    ldhi    s15, #0x01020301@hi
+    or      s15, s15, #0x01020301@lo
     ldi     s14, #255
 1$:
     shuf    s12, s14, #0b0000000000000
+    mul.b   s12, s12, s15
     stw     s12, s11, s14*4
     add     s14, s14, #-1
     bge     s14, 1$
@@ -136,8 +196,8 @@ draw:
 2$:
     add     s1, s10, s11                ; Calculate a color for this pixel
     stb     s1, s9, #0
-
     add     s9, s9, #1
+
     add     s11, s11, #-1
     bnz     s11, 2$
 
