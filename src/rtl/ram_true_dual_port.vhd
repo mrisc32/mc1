@@ -29,7 +29,7 @@ use ieee.numeric_std.all;
  
 entity ram_true_dual_port is
   generic(
-    DATA_BITS : integer := 72;
+    DATA_BITS : integer := 32;
     ADR_BITS : integer := 10
   );
   port(
