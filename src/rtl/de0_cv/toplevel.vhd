@@ -86,7 +86,8 @@ entity toplevel is
 end toplevel;
 
 architecture rtl of toplevel is
-  signal s_pll_rst : std_logic;
+  signal s_system_rst : std_logic := '1';
+
   signal s_pll_locked : std_logic;
   signal s_global_async_rst : std_logic;
 
@@ -101,8 +102,19 @@ architecture rtl of toplevel is
   signal s_vga_hs : std_logic;
   signal s_vga_vs : std_logic;
 begin
+  -- System reset signal.
+  process(CLOCK_50, RESET_N)
+  begin
+    if RESET_N = '0' then
+      s_system_rst <= '1';
+    elsif rising_edge(CLOCK_50) then
+      if RESET_N = '1' then
+        s_system_rst <= '0';
+      end if;
+    end if;
+  end process;
+
   -- Clock signals.
-  s_pll_rst <= not RESET_N;
   pll_1: entity work.pll
     generic map (
       -- The input clock of the DE0-CV is 50 MHz.
@@ -122,7 +134,7 @@ begin
     )
     port map
     (
-      i_rst	=> s_pll_rst,
+      i_rst	=> s_system_rst,
       i_refclk => CLOCK_50,
       o_clk0 => s_cpu_clk,
       o_clk1 => s_vga_clk,
@@ -130,7 +142,7 @@ begin
     );
 
   -- Reset logic - synchronize the reset signal to the different clock domains.
-  s_global_async_rst <= (not RESET_N) or (not s_pll_locked);
+  s_global_async_rst <= s_system_rst or (not s_pll_locked);
 
   reset_conditioner_cpu: entity work.reset_conditioner
     port map (
