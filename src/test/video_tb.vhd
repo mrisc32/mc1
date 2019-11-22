@@ -24,6 +24,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 library std;
 use std.textio.all;
+use work.vid_types.all;
 
 entity video_tb is
   generic (runner_cfg : string);
@@ -47,7 +48,8 @@ architecture tb of video_tb is
 begin
   video_0: entity work.video
     generic map(
-      ADR_BITS => s_read_adr'length
+      ADR_BITS => s_read_adr'length,
+      VIDEO_CONFIG => C_1280_720
     )
     port map(
       i_rst => s_rst,

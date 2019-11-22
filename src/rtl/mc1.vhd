@@ -23,8 +23,15 @@
 
 library ieee;
 use ieee.std_logic_1164.all;
+use work.vid_types.all;
 
 entity mc1 is
+  generic(
+    -- Note: The default configuration is conservative. Be sure to pass in values that are suitable
+    -- for your target platform.
+    LOG2_VRAM_SIZE : positive := 12;  -- VRAM size (log2 of number of 32-bit words).
+    VIDEO_CONFIG : T_VIDEO_CONFIG     -- Native video resolution.
+  );
   port(
     -- CPU interface.
     i_cpu_rst : in std_logic;
@@ -46,9 +53,6 @@ entity mc1 is
 end mc1;
 
 architecture rtl of mc1 is
-  -- VRAM size (log2 of number of 32-bit words).
-  constant C_LOG2_VRAM_SIZE : positive := 16;
-
   -- CPU memory interface (Wishbone B4 pipelined master).
   signal s_cpu_cyc : std_logic;
   signal s_cpu_stb : std_logic;
@@ -83,7 +87,7 @@ architecture rtl of mc1 is
   signal s_vram_err : std_logic;
 
   -- Video logic signals.
-  signal s_video_adr : std_logic_vector(C_LOG2_VRAM_SIZE-1 downto 0);
+  signal s_video_adr : std_logic_vector(LOG2_VRAM_SIZE-1 downto 0);
   signal s_video_dat : std_logic_vector(31 downto 0);
   signal s_video_r : std_logic_vector(7 downto 0);
   signal s_video_g : std_logic_vector(7 downto 0);
@@ -202,7 +206,7 @@ begin
   -- Internal VRAM.
   vram_1: entity work.vram
     generic map (
-      ADR_BITS => C_LOG2_VRAM_SIZE
+      ADR_BITS => LOG2_VRAM_SIZE
     )
     port map (
       i_rst => i_cpu_rst,
@@ -211,7 +215,7 @@ begin
       i_wb_clk => i_cpu_clk,
       i_wb_cyc => s_vram_cyc,
       i_wb_stb => s_vram_stb,
-      i_wb_adr => s_vram_adr(C_LOG2_VRAM_SIZE+1 downto 2),
+      i_wb_adr => s_vram_adr(LOG2_VRAM_SIZE+1 downto 2),
       i_wb_dat => s_vram_dat_w,
       i_wb_we => s_vram_we,
       i_wb_sel => s_vram_sel,
@@ -231,7 +235,8 @@ begin
   --------------------------------------------------------------------------------------------------
   video_1: entity work.video
     generic map (
-      ADR_BITS => C_LOG2_VRAM_SIZE
+      ADR_BITS => LOG2_VRAM_SIZE,
+      VIDEO_CONFIG => VIDEO_CONFIG
     )
     port map (
       i_rst => i_vga_rst,

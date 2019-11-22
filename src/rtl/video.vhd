@@ -25,17 +25,7 @@ use work.vid_types.all;
 entity video is
   generic(
     ADR_BITS : positive := 16;
-
-    WIDTH : positive := 1280;
-    HEIGHT : positive := 720;
-
-    FRONT_PORCH_H : positive := 110;
-    SYNC_WIDTH_H : positive := 40;
-    BACK_PORCH_H : positive := 220;
-
-    FRONT_PORCH_V : positive := 5;
-    SYNC_WIDTH_V : positive := 5;
-    BACK_PORCH_V : positive := 20
+    VIDEO_CONFIG : T_VIDEO_CONFIG
   );
   port(
     i_rst : in std_logic;
@@ -61,7 +51,7 @@ architecture rtl of video is
   signal s_vsync_delayed : std_logic_vector(C_SYNC_DELAY-1 downto 0);
 
   signal s_raster_x : std_logic_vector(11 downto 0);
-  signal s_raster_y : std_logic_vector(10 downto 0);
+  signal s_raster_y : std_logic_vector(11 downto 0);
   signal s_hsync : std_logic;
   signal s_vsync : std_logic;
   signal s_restart_frame : std_logic;
@@ -88,14 +78,7 @@ begin
   -- Instantiate the raster control unit.
   rcu_1: entity work.vid_raster
     generic map (
-      WIDTH => WIDTH,
-      HEIGHT => HEIGHT,
-      FRONT_PORCH_H => FRONT_PORCH_H,
-      SYNC_WIDTH_H => SYNC_WIDTH_H,
-      BACK_PORCH_H => BACK_PORCH_H,
-      FRONT_PORCH_V => FRONT_PORCH_V,
-      SYNC_WIDTH_V => SYNC_WIDTH_V,
-      BACK_PORCH_V => BACK_PORCH_V,
+      VIDEO_CONFIG => VIDEO_CONFIG,
       X_COORD_BITS => s_raster_x'length,
       Y_COORD_BITS => s_raster_y'length
     )

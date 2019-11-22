@@ -23,6 +23,7 @@
 
 library ieee;
 use ieee.std_logic_1164.all;
+use work.vid_types.all;
 
 entity toplevel is
   port(
@@ -128,11 +129,12 @@ begin
       -- The CPU clock frequency.
       OUTPUT_CLOCK_FREQUENCY0 => "70.0 MHz",
 
-      -- Pixel frequency for HD 1280x720 @ 60 Hz = 74.250 MHz, rounded to the
-      -- nearest valid frequency that the PLL can generate: 74.375 MHz (60.1 FPS).
-      -- (60 Hz: 74.250 MHz, 59.94 Hz: 74.17575 MHz)
-      -- TODO(m): Run the VGA logic at twice that frequency (rounded to
-      -- 148.75 MHz), in order to enable two layers.
+      -- The video clock frequency.
+      --  Pixel frequencies for supported video modes:
+      --    1920x1080 @ 60 Hz: 148.500 MHz (rounded to 148.75 MHz, 60.1 FPS)
+      --     1280x720 @ 60 Hz:  74.250 MHz (rounded to 74.375 MHz, 60.1 FPS)
+      --      800x600 @ 60 Hz:  40.000 MHz
+      --      640x480 @ 60 Hz:  25.175 MHz (rounded to 25.200 MHz, 60.06 FPS)
       OUTPUT_CLOCK_FREQUENCY1 => "74.375 MHz"
     )
     port map
@@ -163,6 +165,10 @@ begin
 
   -- Instantiate the MC1 machine.
   mc1_1: entity work.mc1
+    generic map (
+      LOG2_VRAM_SIZE => 16,  -- 4*2^16 = 256 KiB
+      VIDEO_CONFIG => C_1280_720
+    )
     port map (
       -- Control signals.
       i_cpu_rst => s_cpu_rst,
