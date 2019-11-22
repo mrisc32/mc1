@@ -19,3 +19,7 @@
     .set    CM_PAL2, 4
     .set    CM_PAL1, 5
 
+    ; Native video resolution.
+    .set    NATIVE_WIDTH, 1280
+    .set    NATIVE_HEIGHT, 720
+

@@ -33,8 +33,17 @@ end entity;
 architecture tb of video_tb is
   constant C_ADR_BITS : positive := 16;
   constant C_VRAM_WORDS : positive := 2**C_ADR_BITS;
-  constant C_TEST_CYCLES : integer := 1237500;  -- (1280 + hblank) x (720 + vblank) = 1237500 cycles
-  constant C_CLK_HALF_PERIOD : time :=  6.72268908 ns;  -- 74.375 MHz
+
+  -- (640 + hblank) x (480 + vblank) = 420000 cycles
+  -- (800 + hblank) x (600 + vblank) = 663168 cycles
+  -- (1280 + hblank) x (720 + vblank) = 1237500 cycles
+  -- (1920 + hblank) x (1080 + vblank) = 2475000 cycles
+  constant C_TEST_CYCLES : integer := 1237500;
+  --  25.175 MHz -> 19.8609732 ns
+  --  40.000 MHz -> 12.5 ns
+  --  74.375 MHz -> 6.72268908 ns
+  -- 148.500 MHz -> 3.36700337 ns
+  constant C_CLK_HALF_PERIOD : time := 6.72268908 ns;
 
   signal s_rst : std_logic;
   signal s_clk : std_logic;

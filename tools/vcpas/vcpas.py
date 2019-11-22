@@ -200,7 +200,7 @@ def translate_code(statements):
                     if rept_start:
                         raise Exception("Nested .rept statements are not allowed")
                     rept_start = statement_no
-                    rept_count = int(args[0], 0)
+                    rept_count = eval_expr(args[0], labels, symbols)
                     if rept_count < 1:
                         raise Exception(f"Invalid .rept count: {rept_count}")
 
