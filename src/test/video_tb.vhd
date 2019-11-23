@@ -152,10 +152,19 @@ begin
       wait for C_CLK_HALF_PERIOD;
 
       -- Construct a word from the generated RGB output.
-      v_rgb_word(31 downto 24) := 8x"ff";  -- TODO(m): Put hsync/vsync in the alpha channel.
+      -- We inject hsync and vsync into the color channels for visualization.
+      v_rgb_word(31 downto 24) := 8x"ff";
       v_rgb_word(23 downto 16) := s_b;
-      v_rgb_word(15 downto 8) := s_g;
-      v_rgb_word(7 downto 0) := s_r;
+      if s_vsync = '1' then
+        v_rgb_word(15 downto 8) := 8x"ff";
+      else
+        v_rgb_word(15 downto 8) := s_g;
+      end if;
+      if s_hsync = '1' then
+        v_rgb_word(7 downto 0) := 8x"ff";
+      else
+        v_rgb_word(7 downto 0) := s_r;
+      end if;
 
       -- Write the word to the output file.
       write_word(f_char_file, v_rgb_word);
