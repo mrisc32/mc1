@@ -266,6 +266,7 @@ begin
   process (i_cpu_clk, i_cpu_rst)
   begin
     if i_cpu_rst = '1' then
+      o_io <= (others => '0');
       s_io_dat <= (others => '0');
       s_io_ack <= '0';
     elsif rising_edge(i_cpu_clk) then
