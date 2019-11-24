@@ -24,6 +24,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 library std;
 use std.textio.all;
+use work.vid_types.all;
 
 entity video_tb is
   generic (runner_cfg : string);
@@ -32,8 +33,17 @@ end entity;
 architecture tb of video_tb is
   constant C_ADR_BITS : positive := 16;
   constant C_VRAM_WORDS : positive := 2**C_ADR_BITS;
-  constant C_TEST_CYCLES : integer := 1237500;  -- (1280 + hblank) x (720 + vblank) = 1237500 cycles
-  constant C_CLK_HALF_PERIOD : time :=  6.72268908 ns;  -- 74.375 MHz
+
+  -- (640 + hblank) x (480 + vblank) = 420000 cycles
+  -- (800 + hblank) x (600 + vblank) = 663168 cycles
+  -- (1280 + hblank) x (720 + vblank) = 1237500 cycles
+  -- (1920 + hblank) x (1080 + vblank) = 2475000 cycles
+  constant C_TEST_CYCLES : integer := 1237500;
+  --  25.175 MHz -> 19.8609732 ns
+  --  40.000 MHz -> 12.5 ns
+  --  74.375 MHz -> 6.72268908 ns
+  -- 148.500 MHz -> 3.36700337 ns
+  constant C_CLK_HALF_PERIOD : time := 6.72268908 ns;
 
   signal s_rst : std_logic;
   signal s_clk : std_logic;
@@ -47,7 +57,8 @@ architecture tb of video_tb is
 begin
   video_0: entity work.video
     generic map(
-      ADR_BITS => s_read_adr'length
+      ADR_BITS => s_read_adr'length,
+      VIDEO_CONFIG => C_1280_720
     )
     port map(
       i_rst => s_rst,
@@ -141,10 +152,19 @@ begin
       wait for C_CLK_HALF_PERIOD;
 
       -- Construct a word from the generated RGB output.
-      v_rgb_word(31 downto 24) := 8x"ff";  -- TODO(m): Put hsync/vsync in the alpha channel.
+      -- We inject hsync and vsync into the color channels for visualization.
+      v_rgb_word(31 downto 24) := 8x"ff";
       v_rgb_word(23 downto 16) := s_b;
-      v_rgb_word(15 downto 8) := s_g;
-      v_rgb_word(7 downto 0) := s_r;
+      if s_vsync = '1' then
+        v_rgb_word(15 downto 8) := 8x"ff";
+      else
+        v_rgb_word(15 downto 8) := s_g;
+      end if;
+      if s_hsync = '1' then
+        v_rgb_word(7 downto 0) := 8x"ff";
+      else
+        v_rgb_word(7 downto 0) := s_r;
+      end if;
 
       -- Write the word to the output file.
       write_word(f_char_file, v_rgb_word);

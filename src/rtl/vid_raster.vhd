@@ -20,19 +20,11 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use work.vid_types.all;
 
 entity vid_raster is
   generic(
-    WIDTH : positive := 1280;
-    HEIGHT : positive := 720;
-
-    FRONT_PORCH_H : positive := 110;
-    SYNC_WIDTH_H : positive := 40;
-    BACK_PORCH_H : positive := 220;
-
-    FRONT_PORCH_V : positive := 5;
-    SYNC_WIDTH_V : positive := 5;
-    BACK_PORCH_V : positive := 20;
+    VIDEO_CONFIG : T_VIDEO_CONFIG;
 
     X_COORD_BITS : positive := 12;  -- Number of bits required for representing an x coordinate.
     Y_COORD_BITS : positive := 11   -- Number of bits required for representing a y coordinate.
@@ -51,15 +43,39 @@ entity vid_raster is
 end vid_raster;
 
 architecture rtl of vid_raster is
-  constant C_X_START : integer := -(FRONT_PORCH_H + SYNC_WIDTH_H + BACK_PORCH_H);
-  constant C_X_SYNC_START : integer := -(SYNC_WIDTH_H + BACK_PORCH_H);
-  constant C_X_SYNC_END : integer := -BACK_PORCH_H;
-  constant C_X_END : integer := WIDTH;
+  constant C_WIDTH : positive := VIDEO_CONFIG.width;
+  constant C_HEIGHT : positive := VIDEO_CONFIG.height;
+  constant C_FRONT_PORCH_H : positive := VIDEO_CONFIG.front_porch_h;
+  constant C_SYNC_WIDTH_H : positive := VIDEO_CONFIG.sync_width_h;
+  constant C_BACK_PORCH_H : positive := VIDEO_CONFIG.back_porch_h;
+  constant C_FRONT_PORCH_V : positive := VIDEO_CONFIG.front_porch_v;
+  constant C_SYNC_WIDTH_V : positive := VIDEO_CONFIG.sync_width_v;
+  constant C_BACK_PORCH_V : positive := VIDEO_CONFIG.back_porch_v;
+  constant C_POLARITY_H : std_logic := VIDEO_CONFIG.polarity_h;
+  constant C_POLARITY_V : std_logic := VIDEO_CONFIG.polarity_v;
 
-  constant C_Y_START : integer := -(FRONT_PORCH_V + SYNC_WIDTH_V + BACK_PORCH_V);
-  constant C_Y_SYNC_START : integer := -(SYNC_WIDTH_V + BACK_PORCH_V);
-  constant C_Y_SYNC_END : integer := -BACK_PORCH_V;
-  constant C_Y_END : integer := HEIGHT;
+  --  ----+------------+-----------------------+-------------+------------+----
+  --  ... | Back porch |  Video                | Front porch | Sync pulse | ...
+  --  ----+------------+-----------------------+-------------+------------+----
+
+  constant C_X_START : integer := -(C_FRONT_PORCH_H + C_SYNC_WIDTH_H + C_BACK_PORCH_H);
+  constant C_X_SYNC_START : integer := -(C_SYNC_WIDTH_H + C_BACK_PORCH_H);
+  constant C_X_SYNC_END : integer := -C_BACK_PORCH_H;
+  constant C_X_END : integer := C_WIDTH;
+
+  constant C_Y_START : integer := -(C_FRONT_PORCH_V + C_SYNC_WIDTH_V + C_BACK_PORCH_V);
+  constant C_Y_SYNC_START : integer := -(C_SYNC_WIDTH_V + C_BACK_PORCH_V);
+  constant C_Y_SYNC_END : integer := -C_BACK_PORCH_V;
+  constant C_Y_END : integer := C_HEIGHT;
+
+  signal s_x_pos_plus_1 : signed(X_COORD_BITS-1 downto 0);
+  signal s_y_pos_plus_1 : signed(Y_COORD_BITS-1 downto 0);
+  signal s_next_restart_line : std_logic;
+  signal s_next_restart_frame : std_logic;
+  signal s_next_x_pos : signed(X_COORD_BITS-1 downto 0);
+  signal s_next_y_pos : signed(Y_COORD_BITS-1 downto 0);
+  signal s_next_hsync : std_logic;
+  signal s_next_vsync : std_logic;
 
   signal s_x_pos : signed(X_COORD_BITS-1 downto 0);
   signal s_y_pos : signed(Y_COORD_BITS-1 downto 0);
@@ -67,57 +83,38 @@ architecture rtl of vid_raster is
   signal s_vsync : std_logic;
   signal s_restart_frame : std_logic;
 begin
+  -- End of line and/or frame?
+  s_next_restart_line <= '1' when s_x_pos = to_signed(C_X_END-1, X_COORD_BITS) else '0';
+  s_next_restart_frame <= s_next_restart_line when s_y_pos = to_signed(C_Y_END-1, Y_COORD_BITS) else '0';
+
+  -- Calculate the next x and y coordinates.
+  s_x_pos_plus_1 <= s_x_pos + to_signed(1, X_COORD_BITS);
+  s_y_pos_plus_1 <= s_y_pos + to_signed(1, Y_COORD_BITS);
+  s_next_x_pos <= to_signed(C_X_START, X_COORD_BITS) when s_next_restart_line = '1' else s_x_pos_plus_1;
+  s_next_y_pos <= to_signed(C_Y_START, Y_COORD_BITS) when s_next_restart_frame = '1' else
+                  s_y_pos_plus_1 when s_next_restart_line = '1' else
+                  s_y_pos;
+
+  -- Are we within the horizontal and/or vertical sync periods?
+  s_next_hsync <= C_POLARITY_H when s_x_pos >= to_signed(C_X_SYNC_START-1, X_COORD_BITS) and
+                                    s_x_pos < to_signed(C_X_SYNC_END-1, X_COORD_BITS) else not C_POLARITY_H;
+  s_next_vsync <= C_POLARITY_V when s_y_pos >= to_signed(C_Y_SYNC_START-1, Y_COORD_BITS) and
+                                    s_y_pos < to_signed(C_Y_SYNC_END-1, Y_COORD_BITS) else not C_POLARITY_V;
+
   process(i_clk, i_rst)
-    variable v_x_pos : signed(X_COORD_BITS-1 downto 0);
-    variable v_y_pos : signed(Y_COORD_BITS-1 downto 0);
-    variable v_hsync : std_logic;
-    variable v_vsync : std_logic;
-    variable v_restart_frame : std_logic;
   begin
     if i_rst = '1' then
-      s_y_pos <= to_signed(C_Y_START, Y_COORD_BITS);
       s_x_pos <= to_signed(C_X_START, X_COORD_BITS);
-      s_hsync <= '0';
-      s_vsync <= '0';
+      s_y_pos <= to_signed(C_Y_START, Y_COORD_BITS);
+      s_hsync <= not C_POLARITY_H;
+      s_vsync <= not C_POLARITY_V;
       s_restart_frame <= '1';
     elsif rising_edge(i_clk) then
-      v_x_pos := s_x_pos;
-      v_y_pos := s_y_pos;
-      v_hsync := s_hsync;
-      v_vsync := s_vsync;
-      v_restart_frame := '0';
-
-      if v_x_pos = C_X_END-1 then
-        -- End of line reached. Restart the horizontal raster.
-        v_x_pos := to_signed(C_X_START, X_COORD_BITS);
-
-        if v_y_pos = C_Y_END-1 then
-          -- End of frame reached. Restart the vertical raster.
-          v_y_pos := to_signed(C_Y_START, Y_COORD_BITS);
-          v_restart_frame := '1';
-        else
-          if v_y_pos = C_Y_SYNC_START-1 then
-            v_vsync := '1';
-          elsif v_y_pos = C_Y_SYNC_END-1 then
-            v_vsync := '0';
-          end if;
-          v_y_pos := v_y_pos + to_signed(1, Y_COORD_BITS);
-        end if;
-      else
-        if v_x_pos = C_X_SYNC_START-1 then
-          v_hsync := '1';
-        elsif v_x_pos = C_X_SYNC_END-1 then
-          v_hsync := '0';
-        end if;
-        v_x_pos := v_x_pos + to_signed(1, X_COORD_BITS);
-      end if;
-
-      -- Update the state signals.
-      s_x_pos <= v_x_pos;
-      s_y_pos <= v_y_pos;
-      s_hsync <= v_hsync;
-      s_vsync <= v_vsync;
-      s_restart_frame <= v_restart_frame;
+      s_x_pos <= s_next_x_pos;
+      s_y_pos <= s_next_y_pos;
+      s_hsync <= s_next_hsync;
+      s_vsync <= s_next_vsync;
+      s_restart_frame <= s_next_restart_frame;
     end if;
   end process;
 
