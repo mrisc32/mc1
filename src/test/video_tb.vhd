@@ -45,6 +45,13 @@ architecture tb of video_tb is
   -- 148.500 MHz -> 3.36700337 ns
   constant C_CLK_HALF_PERIOD : time := 6.72268908 ns;
 
+  signal s_write_clk : std_logic;
+  signal s_write_cyc : std_logic;
+  signal s_write_stb : std_logic;
+  signal s_write_adr : std_logic_vector(C_ADR_BITS-1 downto 0);
+  signal s_write_dat : std_logic_vector(31 downto 0);
+  signal s_write_we : std_logic;
+
   signal s_rst : std_logic;
   signal s_clk : std_logic;
   signal s_read_adr : std_logic_vector(C_ADR_BITS-1 downto 0);
@@ -70,6 +77,28 @@ begin
       o_b => s_b,
       o_hsync => s_hsync,
       o_vsync => s_vsync
+    );
+
+  vram_1: entity work.vram
+    generic map (
+      ADR_BITS => s_read_adr'length
+    )
+    port map (
+      i_rst => '0',
+
+      -- CPU interface.
+      i_wb_clk => s_write_clk,
+      i_wb_cyc => s_write_cyc,
+      i_wb_stb => s_write_stb,
+      i_wb_adr => s_write_adr,
+      i_wb_dat => s_write_dat,
+      i_wb_we => s_write_we,
+      i_wb_sel => "1111",
+
+      -- Video interface.
+      i_read_clk => s_clk,
+      i_read_adr => s_read_adr,
+      o_read_dat => s_read_dat
     );
 
   main : process
@@ -104,9 +133,8 @@ begin
     end procedure;
 
     -- Memory.
-    type T_MEM is array (0 to C_VRAM_WORDS-1) of std_logic_vector(31 downto 0);
-    variable v_mem : T_MEM;
     variable v_mem_idx : integer;
+    variable v_read_dat : std_logic_vector(31 downto 0);
 
     variable v_rgb_word : std_logic_vector(31 downto 0);
   begin
@@ -115,42 +143,63 @@ begin
     -- Continue running even if we have failures (for easier debugging).
     set_stop_level(failure);
 
+    -- Reset write signals.
+    s_write_clk <= '0';
+    s_write_cyc <= '0';
+    s_write_stb <= '0';
+    s_write_we <= '0';
+    s_write_adr <= (others => '0');
+    s_write_dat <= (others => '0');
+    wait for 1 ps;
+
     -- Load data into VRAM.
     file_open(f_char_file, "vunit_out/video_tb_ram.bin");
     v_mem_idx := 0;
     while not endfile(f_char_file) loop
-      v_mem(v_mem_idx) := read_word(f_char_file);
+      s_write_clk <= '1';
+      wait for 1 ps;
+
+      -- Read one word from the data file and write it to VRAM.
+      s_write_cyc <= '1';
+      s_write_stb <= '1';
+      s_write_we <= '1';
+      s_write_adr <= std_logic_vector(to_unsigned(v_mem_idx, C_ADR_BITS));
+      s_write_dat <= read_word(f_char_file);
       v_mem_idx := v_mem_idx + 1;
+
+      -- Tick the write clock.
+      s_write_clk <= '0';
+      wait for 1 ps;
     end loop;
     file_close(f_char_file);
-    for i in v_mem_idx to C_VRAM_WORDS-1 loop
-      v_mem(i) := std_logic_vector(to_unsigned(0, 32));
-    end loop;
 
-    -- Start by resetting the signals.
+    -- Finish the write cycle.
+    s_write_cyc <= '1';
+    s_write_stb <= '0';
+    s_write_we <= '0';
+    s_write_clk <= '1';
+    wait for 1 ps;
+    s_write_clk <= '0';
+    wait for 1 ps;
+    s_write_cyc <= '1';
+    s_write_clk <= '1';
+    wait for 1 ps;
+    s_write_clk <= '0';
+    wait for 1 ps;
+
+    -- Reset the video logic.
     s_rst <= '1';
     s_clk <= '0';
-    s_read_dat <= (others => '0');
-
     wait for C_CLK_HALF_PERIOD;
     s_clk <= '1';
     wait for C_CLK_HALF_PERIOD;
     s_rst <= '0';
     s_clk <= '0';
     wait for C_CLK_HALF_PERIOD;
-    s_clk <= '1';
 
     -- Run a lot of cycles...
     file_open(f_char_file, "vunit_out/video_tb_output.data", WRITE_MODE);
     for i in 0 to C_TEST_CYCLES-1 loop
-      wait until s_clk = '1';
-
-      -- Read the memory.
-      s_read_dat <= v_mem(to_integer(unsigned(s_read_adr)));
-
-      -- Wait for the result to be produced.
-      wait for C_CLK_HALF_PERIOD;
-
       -- Construct a word from the generated RGB output.
       -- We inject hsync and vsync into the color channels for visualization.
       v_rgb_word(31 downto 24) := 8x"ff";
@@ -170,9 +219,10 @@ begin
       write_word(f_char_file, v_rgb_word);
 
       -- Tick the clock.
+      s_clk <= '1';
+      wait for C_CLK_HALF_PERIOD;
       s_clk <= '0';
       wait for C_CLK_HALF_PERIOD;
-      s_clk <= '1';
     end loop;
     file_close(f_char_file);
 

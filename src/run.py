@@ -34,6 +34,8 @@ def main():
     lib.add_source_files("rtl/vid_types.vhd")
     lib.add_source_files("rtl/vid_vcpp.vhd")
     lib.add_source_files("rtl/vid_vcpp_stack.vhd")
+    lib.add_source_files("rtl/vram.vhd")
+    lib.add_source_files("rtl/ram_true_dual_port.vhd")
 
     # Bake the test data.
     bake_video_tb_vram()
