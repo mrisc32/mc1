@@ -21,6 +21,8 @@
 -- This is a true dual-port RAM implementation that should infer block RAM:s in FPGA:s. It only
 -- supports writing on port A - port B is read only.
 -- Inspired by: https://danstrother.com/2010/09/11/inferring-rams-in-fpgas/
+--
+-- This implementation requires support for protected shared variables (e.g. supported by GHDL).
 ----------------------------------------------------------------------------------------------------
  
 library ieee;
@@ -48,7 +50,30 @@ entity ram_true_dual_port is
 end ram_true_dual_port;
  
 architecture rtl of ram_true_dual_port is
-  type T_MEM is array ((2**ADR_BITS)-1 downto 0) of std_logic_vector(DATA_BITS-1 downto 0);
+  subtype T_ADDR is std_logic_vector(ADR_BITS-1 downto 0);
+  subtype T_WORD is std_logic_vector(DATA_BITS-1 downto 0);
+
+  type T_MEM is protected
+    impure function read(addr : T_ADDR) return T_WORD;
+    procedure write(addr : T_ADDR; data : T_WORD);
+  end protected T_MEM;
+
+  type T_MEM is protected body
+    type T_MEM_ARRAY is array ((2**ADR_BITS)-1 downto 0) of T_WORD;
+
+    variable v_mem_array : T_MEM_ARRAY;
+
+    impure function read(addr : T_ADDR) return T_WORD is
+    begin
+      return v_mem_array(to_integer(unsigned(addr)));
+    end function read;
+
+    procedure write(addr : T_ADDR; data : T_WORD) is
+    begin
+      v_mem_array(to_integer(unsigned(addr))) := data;
+    end procedure write;
+  end protected body T_MEM;
+
   shared variable v_mem : T_MEM;
 begin
   -- Port A
@@ -56,9 +81,9 @@ begin
   begin
     if rising_edge(i_clk_a) then
       if i_we_a = '1' then
-        v_mem(to_integer(unsigned(i_adr_a))) := i_data_a;
+        v_mem.write(i_adr_a, i_data_a);
       end if;
-      o_data_a <= v_mem(to_integer(unsigned(i_adr_a)));
+      o_data_a <= v_mem.read(i_adr_a);
     end if;
   end process;
  
@@ -66,7 +91,7 @@ begin
   process(i_clk_b)
   begin
     if rising_edge(i_clk_b) then
-      o_data_b <= v_mem(to_integer(unsigned(i_adr_b)));
+      o_data_b <= v_mem.read(i_adr_b);
     end if;
   end process;
 end rtl;
