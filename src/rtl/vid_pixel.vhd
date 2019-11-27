@@ -31,7 +31,7 @@ use work.vid_types.all;
 --
 -- The pipeline is as follows:
 --
---   XCOORD -> PIXADDR -> PIXFETCH -> SHIFT -> PALFETCH -> COLOR
+--   XCOORD -> PIXADDR -> PIXFETCH1 -> PIXFETCH2 -> SHIFT -> PALFETCH -> COLOR
 --
 -- XCOORD:
 --   Calculate the next x coordinate.
@@ -39,8 +39,11 @@ use work.vid_types.all;
 -- PIXADDR:
 --   Calculate the source pixel word address.
 --
--- PIXFETCH:
---   Fetch the pixel word from RAM.
+-- PIXFETCH1:
+--   Request the pixel word from RAM.
+--
+-- PIXFETCH2:
+--   Get the pixel word from RAM.
 --
 -- SHIFT:
 --   Shift the relevant bits from the pixel word into the least significant part, according to the
@@ -111,7 +114,7 @@ architecture rtl of vid_pixel is
   signal s_pa_addr : std_logic_vector(23 downto 0);
   signal s_pa_prev_addr : std_logic_vector(23 downto 0);
   signal s_pa_addr_is_new : std_logic;
-  signal s_pa_mem_read_en : std_logic;
+  signal s_pa_next_mem_read_en : std_logic;
   signal s_pa_next_shift_32 : std_logic_vector(4 downto 0);
   signal s_pa_next_shift_16 : std_logic_vector(4 downto 0);
   signal s_pa_next_shift_8 : std_logic_vector(4 downto 0);
@@ -119,12 +122,16 @@ architecture rtl of vid_pixel is
   signal s_pa_next_shift_2 : std_logic_vector(4 downto 0);
   signal s_pa_next_shift_1 : std_logic_vector(4 downto 0);
   signal s_pa_next_shift : std_logic_vector(4 downto 0);
+  signal s_pa_mem_read_en : std_logic;
   signal s_pa_shift : std_logic_vector(4 downto 0);
   signal s_pa_active : std_logic;
 
-  signal s_pf_data : std_logic_vector(31 downto 0);
-  signal s_pf_shift : std_logic_vector(4 downto 0);
-  signal s_pf_active : std_logic;
+  signal s_pf1_shift : std_logic_vector(4 downto 0);
+  signal s_pf1_active : std_logic;
+
+  signal s_pf2_data : std_logic_vector(31 downto 0);
+  signal s_pf2_shift : std_logic_vector(4 downto 0);
+  signal s_pf2_active : std_logic;
 
   signal s_sh_shifted_idx : std_logic_vector(7 downto 0);
   signal s_sh_shifted_rgba16 : std_logic_vector(15 downto 0);
@@ -244,7 +251,7 @@ begin
   -- Note: We assume that there are no wait-states from the memory, so we do
   -- not have to consider whether or not we got an ACK for the last request.
   s_pa_addr_is_new <= '1' when s_pa_addr(8 downto 0) /= s_pa_prev_addr(8 downto 0) else '0';
-  s_pa_mem_read_en <= s_xc_active and s_pa_addr_is_new;
+  s_pa_next_mem_read_en <= s_xc_active and s_pa_addr_is_new;
 
   -- Determine the bit shift amount.
   s_pa_next_shift_32 <= "00000";
@@ -264,10 +271,6 @@ begin
         s_pa_next_shift_1 when C_CMODE_PAL1,
         (others => '-') when others;
 
-  -- Outputs to the memory read interface.
-  o_mem_read_addr <= s_pa_addr;
-  o_mem_read_en <= s_pa_mem_read_en;
-
   -- PIXADDR registers.
   process(i_clk, i_rst)
   begin
@@ -278,30 +281,52 @@ begin
     elsif rising_edge(i_clk) then
       s_pa_shift <= s_pa_next_shift;
       s_pa_active <= s_xc_active;
-      if s_pa_mem_read_en then
+      if s_pa_next_mem_read_en then
         s_pa_prev_addr <= s_pa_addr;
       end if;
+      s_pa_mem_read_en <= s_pa_next_mem_read_en;
     end if;
   end process;
 
 
   -----------------------------------------------------------------------------
-  -- PIXFETCH
+  -- PIXFETCH1
   -----------------------------------------------------------------------------
 
-  -- PIXFETCH registers.
+  -- Outputs to the memory read interface.
+  o_mem_read_addr <= s_pa_prev_addr;
+  o_mem_read_en <= s_pa_mem_read_en;
+
+  -- PIXFETCH1 registers.
   process(i_clk, i_rst)
   begin
     if i_rst = '1' then
-      s_pf_data <= (others => '0');
-      s_pf_shift <= (others => '0');
-      s_pf_active <= '0';
+      s_pf1_shift <= (others => '0');
+      s_pf1_active <= '0';
+    elsif rising_edge(i_clk) then
+      s_pf1_shift <= s_pa_shift;
+      s_pf1_active <= s_pa_active;
+    end if;
+  end process;
+
+
+  -----------------------------------------------------------------------------
+  -- PIXFETCH2
+  -----------------------------------------------------------------------------
+
+  -- PIXFETCH2 registers.
+  process(i_clk, i_rst)
+  begin
+    if i_rst = '1' then
+      s_pf2_data <= (others => '0');
+      s_pf2_shift <= (others => '0');
+      s_pf2_active <= '0';
     elsif rising_edge(i_clk) then
       if i_mem_ack = '1' then
-        s_pf_data <= i_mem_data;
+        s_pf2_data <= i_mem_data;
       end if;
-      s_pf_shift <= s_pa_shift;
-      s_pf_active <= s_pa_active;
+      s_pf2_shift <= s_pf1_shift;
+      s_pf2_active <= s_pf1_active;
     end if;
   end process;
 
@@ -311,7 +336,7 @@ begin
   -----------------------------------------------------------------------------
 
   -- Determine the palette index by shifting and masking the data word.
-  s_sh_shifted_idx <= shr_8bits(s_pf_data, s_pf_shift);
+  s_sh_shifted_idx <= shr_8bits(s_pf2_data, s_pf2_shift);
 
   -- Mask the palette index according to the current CMODE (i.e. only preserve
   -- the correct number of bits per pixel).
@@ -325,9 +350,9 @@ begin
   -- Truecolor data transformation.
   -- NOTE: We select the correct half of the 32-bit word when the color mode is
   -- RGBA16, based on the shift amount (which can only be 0 or 16).
-  s_sh_shifted_rgba16 <= s_pf_data(31 downto 16) when s_pf_shift(4) = '1' else
-                         s_pf_data(15 downto 0);
-  s_sh_next_data <= s_pf_data when i_regs.CMODE(3 downto 0) = C_CMODE_RGBA32 else
+  s_sh_shifted_rgba16 <= s_pf2_data(31 downto 16) when s_pf2_shift(4) = '1' else
+                         s_pf2_data(15 downto 0);
+  s_sh_next_data <= s_pf2_data when i_regs.CMODE(3 downto 0) = C_CMODE_RGBA32 else
                     rgba16_to_rgba32(s_sh_shifted_rgba16);
 
   -- Is this a palette lookup or truecolor pixel?
@@ -346,7 +371,7 @@ begin
     elsif rising_edge(i_clk) then
       s_sh_data <= s_sh_next_data;
       s_sh_is_truecolor <= s_sh_next_is_truecolor;
-      s_sh_active <= s_pf_active;
+      s_sh_active <= s_pf2_active;
     end if;
   end process;
 

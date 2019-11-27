@@ -46,7 +46,7 @@ end video;
 architecture rtl of video is
   -- Number of cycles to delay the sync output signals, due to the pipeline delay
   -- of the pixel pipeline.
-  constant C_SYNC_DELAY : positive := 5;
+  constant C_SYNC_DELAY : positive := 6;
   signal s_hsync_delayed : std_logic_vector(C_SYNC_DELAY-1 downto 0);
   signal s_vsync_delayed : std_logic_vector(C_SYNC_DELAY-1 downto 0);
 
