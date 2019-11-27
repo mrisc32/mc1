@@ -38,12 +38,13 @@ architecture tb of video_tb is
   -- (800 + hblank) x (600 + vblank) = 663168 cycles
   -- (1280 + hblank) x (720 + vblank) = 1237500 cycles
   -- (1920 + hblank) x (1080 + vblank) = 2475000 cycles
-  constant C_TEST_CYCLES : integer := 1237500;
+  constant C_TEST_CYCLES : integer := 2475000;
+
   --  25.175 MHz -> 19.8609732 ns
   --  40.000 MHz -> 12.5 ns
   --  74.375 MHz -> 6.72268908 ns
   -- 148.500 MHz -> 3.36700337 ns
-  constant C_CLK_HALF_PERIOD : time := 6.72268908 ns;
+  constant C_CLK_HALF_PERIOD : time := 3.36700337 ns;
 
   signal s_write_clk : std_logic;
   signal s_write_cyc : std_logic;
@@ -66,7 +67,7 @@ begin
     generic map(
       COLOR_BITS => s_r'length,
       ADR_BITS => s_read_adr'length,
-      VIDEO_CONFIG => C_1280_720
+      VIDEO_CONFIG => C_1920_1080
     )
     port map(
       i_rst => s_rst,
