@@ -24,7 +24,8 @@ use work.vid_types.all;
 
 entity video is
   generic(
-    ADR_BITS : positive := 16;
+    COLOR_BITS : positive;
+    ADR_BITS : positive;
     VIDEO_CONFIG : T_VIDEO_CONFIG
   );
   port(
@@ -34,9 +35,9 @@ entity video is
     o_read_adr : out std_logic_vector(ADR_BITS-1 downto 0);
     i_read_dat : in std_logic_vector(31 downto 0);
 
-    o_r : out std_logic_vector(7 downto 0);
-    o_g : out std_logic_vector(7 downto 0);
-    o_b : out std_logic_vector(7 downto 0);
+    o_r : out std_logic_vector(COLOR_BITS-1 downto 0);
+    o_g : out std_logic_vector(COLOR_BITS-1 downto 0);
+    o_b : out std_logic_vector(COLOR_BITS-1 downto 0);
 
     o_hsync : out std_logic;
     o_vsync : out std_logic
@@ -44,11 +45,28 @@ entity video is
 end video;
 
 architecture rtl of video is
-  -- Number of cycles to delay the sync output signals, due to the pipeline delay
-  -- of the pixel pipeline.
-  constant C_SYNC_DELAY : positive := 6;
-  signal s_hsync_delayed : std_logic_vector(C_SYNC_DELAY-1 downto 0);
-  signal s_vsync_delayed : std_logic_vector(C_SYNC_DELAY-1 downto 0);
+  -- Should we enable dithering or not?
+  function ENABLE_DITHERING return boolean is
+  begin
+    if (COLOR_BITS < 8) then
+      return true;
+    else
+      return false;
+    end if;
+  end;
+
+  -- Number of cycles to delay the sync output signals, due to color pipeline
+  -- delays.
+  function SYNC_DELAY return integer is
+    constant C_PIXEL_DELAY : integer := 6;
+    constant C_DITHER_DELAY : integer := 1;
+  begin
+    if ENABLE_DITHERING then
+      return C_PIXEL_DELAY + C_DITHER_DELAY;
+    else
+      return C_PIXEL_DELAY;
+    end if;
+  end function;
 
   signal s_raster_x : std_logic_vector(11 downto 0);
   signal s_raster_y : std_logic_vector(11 downto 0);
@@ -74,6 +92,14 @@ architecture rtl of video is
   signal s_pix_pal_addr : std_logic_vector(7 downto 0);
   signal s_pix_pal_data : std_logic_vector(31 downto 0);
   signal s_pix_color : std_logic_vector(31 downto 0);
+
+  signal s_r8 : std_logic_vector(7 downto 0);
+  signal s_g8 : std_logic_vector(7 downto 0);
+  signal s_b8 : std_logic_vector(7 downto 0);
+  signal s_dither_method : std_logic_vector(1 downto 0);
+
+  signal s_hsync_delayed : std_logic_vector(SYNC_DELAY-1 downto 0);
+  signal s_vsync_delayed : std_logic_vector(SYNC_DELAY-1 downto 0);
 begin
   -- Instantiate the raster control unit.
   rcu_1: entity work.vid_raster
@@ -156,6 +182,7 @@ begin
       o_color => s_pix_color
     );
 
+
   --------------------------------------------------------------------------------------------------
   -- VRAM read logic - only one entity may access VRAM during each clock cycle.
   --------------------------------------------------------------------------------------------------
@@ -179,16 +206,47 @@ begin
     end if;
   end process;
 
-  -- RGB output from the pixel pipeline.
+
+  --------------------------------------------------------------------------------------------------
+  -- Video signal output logic.
+  --------------------------------------------------------------------------------------------------
+
+  -- Extract the R, G and B channels from the pixel pipeline output.
   -- The internal color format is ABGR32 (little endian):
   --   |AAAAAAAA|BBBBBBBB|GGGGGGGG|RRRRRRRR|
-  o_r <= s_pix_color(7 downto 0);
-  o_g <= s_pix_color(15 downto 8);
-  o_b <= s_pix_color(23 downto 16);
+  s_r8 <= s_pix_color(7 downto 0);
+  s_g8 <= s_pix_color(15 downto 8);
+  s_b8 <= s_pix_color(23 downto 16);
+
+  -- Use dithering (or not) to generate the final RGB signals.
+  DitherGen: if ENABLE_DITHERING generate
+  begin
+    -- TODO(m): Control the dither method with a VCR.
+    s_dither_method <= "01";
+
+    dither1: entity work.dither
+      generic map(
+        BITS => COLOR_BITS
+      )
+      port map (
+        i_rst => i_rst,
+        i_clk => i_clk,
+        i_method => s_dither_method,
+        i_r => s_r8,
+        i_g => s_g8,
+        i_b => s_b8,
+        o_r => o_r,
+        o_g => o_g,
+        o_b => o_b
+      );
+  else generate
+    o_r <= s_r8;
+    o_g <= s_g8;
+    o_b <= s_b8;
+  end generate;
 
   -- Horizontal and vertical sync signal outputs.
-  -- These need to be cycle-delayed in order to be in sync with the color
-  -- output from the pixel pipeline.
+  -- These need to be cycle-delayed in order to be in sync with the color outputs.
   process(i_clk, i_rst)
   begin
     if i_rst = '1' then
@@ -197,12 +255,12 @@ begin
     elsif rising_edge(i_clk) then
       s_hsync_delayed(0) <= s_hsync;
       s_vsync_delayed(0) <= s_vsync;
-      for k in 1 to C_SYNC_DELAY-1 loop
+      for k in 1 to SYNC_DELAY-1 loop
         s_hsync_delayed(k) <= s_hsync_delayed(k-1);
         s_vsync_delayed(k) <= s_vsync_delayed(k-1);
       end loop;
     end if;
   end process;
-  o_hsync <= s_hsync_delayed(C_SYNC_DELAY-1);
-  o_vsync <= s_vsync_delayed(C_SYNC_DELAY-1);
+  o_hsync <= s_hsync_delayed(SYNC_DELAY-1);
+  o_vsync <= s_vsync_delayed(SYNC_DELAY-1);
 end rtl;

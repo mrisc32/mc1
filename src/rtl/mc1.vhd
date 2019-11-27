@@ -27,8 +27,8 @@ use work.vid_types.all;
 
 entity mc1 is
   generic(
-    -- Note: The default configuration is conservative. Be sure to pass in values that are suitable
-    -- for your target platform.
+    -- Note: Be sure to pass in values that are suitable for your target platform.
+    COLOR_BITS : positive := 8;       -- Set this to < 8 to enable dithering.
     LOG2_VRAM_SIZE : positive := 12;  -- VRAM size (log2 of number of 32-bit words).
     VIDEO_CONFIG : T_VIDEO_CONFIG     -- Native video resolution.
   );
@@ -40,9 +40,9 @@ entity mc1 is
     -- VGA interface.
     i_vga_rst : in std_logic;
     i_vga_clk : in std_logic;
-    o_vga_r : out std_logic_vector(7 downto 0);
-    o_vga_g : out std_logic_vector(7 downto 0);
-    o_vga_b : out std_logic_vector(7 downto 0);
+    o_vga_r : out std_logic_vector(COLOR_BITS-1 downto 0);
+    o_vga_g : out std_logic_vector(COLOR_BITS-1 downto 0);
+    o_vga_b : out std_logic_vector(COLOR_BITS-1 downto 0);
     o_vga_hs : out std_logic;
     o_vga_vs : out std_logic;
 
@@ -89,11 +89,6 @@ architecture rtl of mc1 is
   -- Video logic signals.
   signal s_video_adr : std_logic_vector(LOG2_VRAM_SIZE-1 downto 0);
   signal s_video_dat : std_logic_vector(31 downto 0);
-  signal s_video_r : std_logic_vector(7 downto 0);
-  signal s_video_g : std_logic_vector(7 downto 0);
-  signal s_video_b : std_logic_vector(7 downto 0);
-  signal s_video_hsync : std_logic;
-  signal s_video_vsync : std_logic;
 
   -- Memory mapped I/O interface (Wishbone B4 pipelined slave).
   signal s_io_cyc : std_logic;
@@ -235,6 +230,7 @@ begin
   --------------------------------------------------------------------------------------------------
   video_1: entity work.video
     generic map (
+      COLOR_BITS => COLOR_BITS,
       ADR_BITS => LOG2_VRAM_SIZE,
       VIDEO_CONFIG => VIDEO_CONFIG
     )
@@ -245,24 +241,17 @@ begin
       o_read_adr => s_video_adr,
       i_read_dat => s_video_dat,
 
-      o_r => s_video_r,
-      o_g => s_video_g,
-      o_b => s_video_b,
+      o_r => o_vga_r,
+      o_g => o_vga_g,
+      o_b => o_vga_b,
 
-      o_hsync => s_video_hsync,
-      o_vsync => s_video_vsync
+      o_hsync => o_vga_hs,
+      o_vsync => o_vga_vs
     );
-
-  o_vga_r <= s_video_r;
-  o_vga_g <= s_video_g;
-  o_vga_b <= s_video_b;
-  o_vga_hs <= s_video_hsync;
-  o_vga_vs <= s_video_vsync;
 
   --------------------------------------------------------------------------------------------------
   -- I/O
   --------------------------------------------------------------------------------------------------
-
   process (i_cpu_clk, i_cpu_rst)
   begin
     if i_cpu_rst = '1' then

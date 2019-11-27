@@ -56,14 +56,15 @@ architecture tb of video_tb is
   signal s_clk : std_logic;
   signal s_read_adr : std_logic_vector(C_ADR_BITS-1 downto 0);
   signal s_read_dat : std_logic_vector(31 downto 0);
-  signal s_r : std_logic_vector(7 downto 0);
-  signal s_g : std_logic_vector(7 downto 0);
-  signal s_b : std_logic_vector(7 downto 0);
+  signal s_r : std_logic_vector(3 downto 0);
+  signal s_g : std_logic_vector(3 downto 0);
+  signal s_b : std_logic_vector(3 downto 0);
   signal s_hsync : std_logic;
   signal s_vsync : std_logic;
 begin
   video_0: entity work.video
     generic map(
+      COLOR_BITS => s_r'length,
       ADR_BITS => s_read_adr'length,
       VIDEO_CONFIG => C_1280_720
     )
@@ -203,16 +204,16 @@ begin
       -- Construct a word from the generated RGB output.
       -- We inject hsync and vsync into the color channels for visualization.
       v_rgb_word(31 downto 24) := 8x"ff";
-      v_rgb_word(23 downto 16) := s_b;
+      v_rgb_word(23 downto 16) := s_b & s_b(3 downto 0);
       if s_vsync = '1' then
         v_rgb_word(15 downto 8) := 8x"ff";
       else
-        v_rgb_word(15 downto 8) := s_g;
+        v_rgb_word(15 downto 8) := s_g & s_g(3 downto 0);
       end if;
       if s_hsync = '1' then
         v_rgb_word(7 downto 0) := 8x"ff";
       else
-        v_rgb_word(7 downto 0) := s_r;
+        v_rgb_word(7 downto 0) := s_r & s_r(3 downto 0);
       end if;
 
       -- Write the word to the output file.

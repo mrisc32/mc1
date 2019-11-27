@@ -97,9 +97,9 @@ architecture rtl of toplevel is
 
   signal s_vga_rst : std_logic;
   signal s_vga_clk : std_logic;
-  signal s_vga_r : std_logic_vector(7 downto 0);
-  signal s_vga_g : std_logic_vector(7 downto 0);
-  signal s_vga_b : std_logic_vector(7 downto 0);
+  signal s_vga_r : std_logic_vector(3 downto 0);
+  signal s_vga_g : std_logic_vector(3 downto 0);
+  signal s_vga_b : std_logic_vector(3 downto 0);
   signal s_vga_hs : std_logic;
   signal s_vga_vs : std_logic;
 
@@ -166,7 +166,8 @@ begin
   -- Instantiate the MC1 machine.
   mc1_1: entity work.mc1
     generic map (
-      LOG2_VRAM_SIZE => 16,  -- 4*2^16 = 256 KiB
+      COLOR_BITS => s_vga_r'length,
+      LOG2_VRAM_SIZE => 16,          -- 4*2^16 = 256 KiB
       VIDEO_CONFIG => C_1280_720
     )
     port map (
@@ -190,10 +191,9 @@ begin
     );
 
   -- VGA interface.
-  -- TODO(m): Apply dithering.
-  VGA_R <= s_vga_r(7 downto 4);
-  VGA_G <= s_vga_g(7 downto 4);
-  VGA_B <= s_vga_b(7 downto 4);
+  VGA_R <= s_vga_r;
+  VGA_G <= s_vga_g;
+  VGA_B <= s_vga_b;
   VGA_HS <= s_vga_hs;
   VGA_VS <= s_vga_vs;
 
