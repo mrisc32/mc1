@@ -46,66 +46,50 @@ architecture rtl of vid_regs is
   constant C_DEFAULT_HSTRT : std_logic_vector(23 downto 0) := x"000000";
   constant C_DEFAULT_HSTOP : std_logic_vector(23 downto 0) := x"000000";
   constant C_DEFAULT_CMODE : std_logic_vector(23 downto 0) := x"000002";
+  constant C_DEFAULT_RMODE : std_logic_vector(23 downto 0) := x"000000";
 
-  signal s_reg_ADDR : std_logic_vector(23 downto 0);
-  signal s_reg_XOFFS : std_logic_vector(23 downto 0);
-  signal s_reg_XINCR : std_logic_vector(23 downto 0);
-  signal s_reg_HSTRT : std_logic_vector(23 downto 0);
-  signal s_reg_HSTOP : std_logic_vector(23 downto 0);
-  signal s_reg_CMODE : std_logic_vector(23 downto 0);
-
-  signal s_next_ADDR : std_logic_vector(23 downto 0);
-  signal s_next_XOFFS : std_logic_vector(23 downto 0);
-  signal s_next_XINCR : std_logic_vector(23 downto 0);
-  signal s_next_HSTRT : std_logic_vector(23 downto 0);
-  signal s_next_HSTOP : std_logic_vector(23 downto 0);
-  signal s_next_CMODE : std_logic_vector(23 downto 0);
+  signal s_regs : T_VID_REGS;
+  signal s_next_regs : T_VID_REGS;
 begin
   -- Write logic.
-  s_next_ADDR <= i_write_data when i_write_enable = '1' and i_write_addr = "000" else
-                 C_DEFAULT_ADDR when i_restart_frame = '1' else
-                 s_reg_ADDR;
-  s_next_XOFFS <= i_write_data when i_write_enable = '1' and i_write_addr = "001" else
-                  C_DEFAULT_XOFFS when i_restart_frame = '1' else
-                  s_reg_XOFFS;
-  s_next_XINCR <= i_write_data when i_write_enable = '1' and i_write_addr = "010" else
-                  C_DEFAULT_XINCR when i_restart_frame = '1' else
-                  s_reg_XINCR;
-  s_next_HSTRT <= i_write_data when i_write_enable = '1' and i_write_addr = "011" else
-                  C_DEFAULT_HSTRT when i_restart_frame = '1' else
-                  s_reg_HSTRT;
-  s_next_HSTOP <= i_write_data when i_write_enable = '1' and i_write_addr = "100" else
-                  C_DEFAULT_HSTOP when i_restart_frame = '1' else
-                  s_reg_HSTOP;
-  s_next_CMODE <= i_write_data when i_write_enable = '1' and i_write_addr = "101" else
-                  C_DEFAULT_CMODE when i_restart_frame = '1' else
-                  s_reg_CMODE;
+  s_next_regs.ADDR <= i_write_data when i_write_enable = '1' and i_write_addr = "000" else
+                      C_DEFAULT_ADDR when i_restart_frame = '1' else
+                      s_regs.ADDR;
+  s_next_regs.XOFFS <= i_write_data when i_write_enable = '1' and i_write_addr = "001" else
+                       C_DEFAULT_XOFFS when i_restart_frame = '1' else
+                       s_regs.XOFFS;
+  s_next_regs.XINCR <= i_write_data when i_write_enable = '1' and i_write_addr = "010" else
+                       C_DEFAULT_XINCR when i_restart_frame = '1' else
+                       s_regs.XINCR;
+  s_next_regs.HSTRT <= i_write_data when i_write_enable = '1' and i_write_addr = "011" else
+                       C_DEFAULT_HSTRT when i_restart_frame = '1' else
+                       s_regs.HSTRT;
+  s_next_regs.HSTOP <= i_write_data when i_write_enable = '1' and i_write_addr = "100" else
+                       C_DEFAULT_HSTOP when i_restart_frame = '1' else
+                       s_regs.HSTOP;
+  s_next_regs.CMODE <= i_write_data when i_write_enable = '1' and i_write_addr = "101" else
+                       C_DEFAULT_CMODE when i_restart_frame = '1' else
+                       s_regs.CMODE;
+  s_next_regs.RMODE <= i_write_data when i_write_enable = '1' and i_write_addr = "110" else
+                       C_DEFAULT_RMODE when i_restart_frame = '1' else
+                       s_regs.RMODE;
 
   -- Clocked registers.
   process(i_clk, i_rst)
   begin
     if i_rst = '1' then
-      s_reg_ADDR <= C_DEFAULT_ADDR;
-      s_reg_XOFFS <= C_DEFAULT_XOFFS;
-      s_reg_XINCR <= C_DEFAULT_XINCR;
-      s_reg_HSTRT <= C_DEFAULT_HSTRT;
-      s_reg_HSTOP <= C_DEFAULT_HSTOP;
-      s_reg_CMODE <= C_DEFAULT_CMODE;
+      s_regs.ADDR <= C_DEFAULT_ADDR;
+      s_regs.XOFFS <= C_DEFAULT_XOFFS;
+      s_regs.XINCR <= C_DEFAULT_XINCR;
+      s_regs.HSTRT <= C_DEFAULT_HSTRT;
+      s_regs.HSTOP <= C_DEFAULT_HSTOP;
+      s_regs.CMODE <= C_DEFAULT_CMODE;
+      s_regs.RMODE <= C_DEFAULT_RMODE;
     elsif rising_edge(i_clk) then
-      s_reg_ADDR <= s_next_ADDR;
-      s_reg_XOFFS <= s_next_XOFFS;
-      s_reg_XINCR <= s_next_XINCR;
-      s_reg_HSTRT <= s_next_HSTRT;
-      s_reg_HSTOP <= s_next_HSTOP;
-      s_reg_CMODE <= s_next_CMODE;
+      s_regs <= s_next_regs;
     end if;
   end process;
 
   -- Outputs.
-  o_regs.ADDR <= s_reg_ADDR;
-  o_regs.XOFFS <= s_reg_XOFFS;
-  o_regs.XINCR <= s_reg_XINCR;
-  o_regs.HSTRT <= s_reg_HSTRT;
-  o_regs.HSTOP <= s_reg_HSTOP;
-  o_regs.CMODE <= s_reg_CMODE;
+  o_regs <= s_regs;
 end rtl;

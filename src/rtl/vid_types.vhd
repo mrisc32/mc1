@@ -35,6 +35,7 @@ package vid_types is
     HSTRT : std_logic_vector(23 downto 0);
     HSTOP : std_logic_vector(23 downto 0);
     CMODE : std_logic_vector(23 downto 0);
+    RMODE : std_logic_vector(23 downto 0);
   end record T_VID_REGS;
 
 

@@ -16,6 +16,7 @@ main:
     ; Set the video mode
     setreg  XOFFS, 0x000000
     setreg  CMODE, CM_PAL1
+    setreg  RMODE, RM_DITHER_WHITE
     setreg  ADDR, image_data
 
     setpal  1, 0

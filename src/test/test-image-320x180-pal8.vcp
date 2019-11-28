@@ -17,6 +17,7 @@ main:
     setreg  XOFFS, 0x000000
     setreg  XINCR, 0x004000   ; 320 pixels/row
     setreg  CMODE, CM_PAL8
+    setreg  RMODE, RM_DITHER_WHITE
 
     ; Set the palette
     jsr     load_palette_a

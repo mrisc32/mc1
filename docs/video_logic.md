@@ -143,7 +143,14 @@ Each video control register (VCR) is 24 bits wide.
 | 3   | HSTRT | Horizontal screen start position<br>Default: 0 |
 | 4   | HSTOP | Horizontal screen stop position<br>Default: 0 |
 | 5   | CMODE | Color mode:<br>0 = RGBA8888 (32 bpp)<br>1 = RGBA5551 (16 bpp)<br>2 = PAL8 (8 bpp, default)<br>3 = PAL4 (4 bpp)<br>4 = PAL2 (2 bpp)<br>5 = PAL1 (1 bpp) |
+| 6   | RMODE | Bits 0-1: Dither method:<br>0 = no dithering (default)<br>1 = white noise dithering |
 
 ## Pixel pipeline
 
 The pixel pipeline uses the configuration given by the video control registers to read data from VRAM and convert it to 24-bit RGB pixel values.
+
+## Dithering
+
+As a final step the 24-bit RGB color is dithered to the resolution that is supported by the target hardware. For instance if the video output of a device is 12-bit VGA (4 bits per color component), the color will be dithered from 24 bits to 12 bits.
+
+The dithering method is selected via the `RMODE` register.

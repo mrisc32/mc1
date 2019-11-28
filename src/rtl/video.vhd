@@ -222,8 +222,8 @@ begin
   -- Use dithering (or not) to generate the final RGB signals.
   DitherGen: if ENABLE_DITHERING generate
   begin
-    -- TODO(m): Control the dither method with a VCR.
-    s_dither_method <= "01";
+    -- The dither method is controlled via the RMODE VCR.
+    s_dither_method <= s_regs.RMODE(1 downto 0);
 
     dither1: entity work.dither
       generic map(
