@@ -145,6 +145,7 @@ begin
     port map(
       i_rst => i_rst,
       i_clk => i_clk,
+      i_restart_frame => s_restart_frame,
       i_write_enable => s_vcpp_reg_write_enable,
       i_write_addr => s_vcpp_write_addr(2 downto 0),
       i_write_data => s_vcpp_write_data(23 downto 0),

@@ -30,6 +30,7 @@ entity vid_regs is
     i_rst : in std_logic;
     i_clk : in std_logic;
 
+    i_restart_frame : in std_logic;
     i_write_enable : in std_logic;
     i_write_addr : in std_logic_vector(2 downto 0);
     i_write_data : in std_logic_vector(23 downto 0);
@@ -62,16 +63,22 @@ architecture rtl of vid_regs is
 begin
   -- Write logic.
   s_next_ADDR <= i_write_data when i_write_enable = '1' and i_write_addr = "000" else
+                 C_DEFAULT_ADDR when i_restart_frame = '1' else
                  s_reg_ADDR;
   s_next_XOFFS <= i_write_data when i_write_enable = '1' and i_write_addr = "001" else
+                  C_DEFAULT_XOFFS when i_restart_frame = '1' else
                   s_reg_XOFFS;
   s_next_XINCR <= i_write_data when i_write_enable = '1' and i_write_addr = "010" else
+                  C_DEFAULT_XINCR when i_restart_frame = '1' else
                   s_reg_XINCR;
   s_next_HSTRT <= i_write_data when i_write_enable = '1' and i_write_addr = "011" else
+                  C_DEFAULT_HSTRT when i_restart_frame = '1' else
                   s_reg_HSTRT;
   s_next_HSTOP <= i_write_data when i_write_enable = '1' and i_write_addr = "100" else
+                  C_DEFAULT_HSTOP when i_restart_frame = '1' else
                   s_reg_HSTOP;
   s_next_CMODE <= i_write_data when i_write_enable = '1' and i_write_addr = "101" else
+                  C_DEFAULT_CMODE when i_restart_frame = '1' else
                   s_reg_CMODE;
 
   -- Clocked registers.
