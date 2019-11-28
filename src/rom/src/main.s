@@ -101,24 +101,28 @@ init_video:
     stw     vl, sp, #0
 
     ldhi    s11, #VCP_START@hi
-    add     s11, s11, #VCP_START@lo   ; s11 = start of Video Control Program
+    or      s11, s11, #VCP_START@lo ; s11 = start of Video Control Program
 
     ; VCP prologue.
-    ldhi    s12, #0x81000000@hi     ; SETREG XOFFS, 0x00.0000
+    ldhi    s12, #0x81000000        ; SETREG XOFFS, 0x00.0000
     stw     s12, s11, #0
-    ldhi    s12, #0x82004000@hi     ; SETREG XINCR, 0x00.4000
+    ldhi    s12, #0x82004000        ; SETREG XINCR, 0x00.4000
     stw     s12, s11, #4
-    ldhi    s12, #0x83000000@hi     ; SETREG HSTRT, 0
+    ldhi    s12, #0x83000000        ; SETREG HSTRT, 0
     stw     s12, s11, #8
-    ldhi    s12, #0x84000000@hi     ; SETREG HSTOP, 0
+    ldhi    s12, #0x84000000        ; SETREG HSTOP, 0
     stw     s12, s11, #12
     ldhi    s12, #0x85000002@hi     ; SETREG CMODE, 2
-    add     s12, s12, #0x85000002@lo
+    or      s12, s12, #0x85000002@lo
     stw     s12, s11, #16
-    ldhi    s12, #0xc00000ff@hi     ; SETPAL 0, 255
-    add     s12, s12, #0xc00000ff@lo
+    ldhi    s12, #0x86000001@hi     ; SETREG RMODE, 1
+    or      s12, s12, #0x86000001@lo
     stw     s12, s11, #20
-    add     s11, s11, #24
+    ldhi    s12, #0xc00000ff@hi     ; SETPAL 0, 255
+    or      s12, s12, #0xc00000ff@lo
+    stw     s12, s11, #24
+
+    add     s11, s11, #28
 
     ; Generate a color palette.
     ldhi    s15, #0x01020301@hi
@@ -130,42 +134,45 @@ init_video:
     stw     s12, s11, s14*4
     add     s14, s14, #-1
     bge     s14, 1$
+
     add     s11, s11, #256*4
 
-    ; s1 = WAIT for line (start with line 0)
-    ldhi    s1, #0x40000000@hi
+    ; s1 = WAITY for line (start with line 0)
+    ldhi    s1, #0x50000000@hi
 
     ; s2 = SETREG ADDR, (FB_START - RAM_START)/4
     ldhi    s2, #(0x80000000 + ((FB_START - RAM_START)/4))@hi
-    add     s2, s2, #(0x80000000 + ((FB_START - RAM_START)/4))@lo
+    or      s2, s2, #(0x80000000 + ((FB_START - RAM_START)/4))@lo
 
     ; First line.
-    stw     s1, s11, #0                 ; WAIT   ...
+    stw     s1, s11, #0                 ; WAITY   ...
     stw     s2, s11, #4                 ; SETREG ADDR, ...
     ldhi    s12, #(0x84000000+1280)@hi  ; SETREG HSTOP, 1280
-    add     s12, s12, #(0x84000000+1280)@lo
+    or      s12, s12, #(0x84000000+1280)@lo
     stw     s12, s11, #8
     add     s11, s11, #12
     j       pc, #3$@pc
 
     ; Consecutive lines.
 2$:
-    stw     s1, s11, #0             ; WAIT   ...
+    stw     s1, s11, #0             ; WAITY   ...
     stw     s2, s11, #4             ; SETREG ADDR, ...
     add     s11, s11, #8
 3$:
-    add     s1, s1, #720/FB_HEIGHT  ; Increment WAIT line (vertical resolution)
+    add     s1, s1, #720/FB_HEIGHT  ; Increment WAITY line (vertical resolution)
     add     s2, s2, #FB_WIDTH/4     ; Increment row address (horizontal stride)
-    slt     s13, s1, #720
+    and     s13, s1, #0x3fff
+    slt     s13, s13, #720
     bs      s13, 2$
 
     ; VCP epilogue.
-    ldhi    s12, #0x40000000@hi     ; WAIT 0 (will never happen)
+    ldhi    s12, #0x50007fff@hi     ; WAITY 32767 (will never happen)
+    or      s12, s12, #0x50007fff@lo
     stw     s12, s11, #0
 
     ; Clear the frame buffer.
     ldhi    s9, #FB_START@hi
-    add     s9, s9, #FB_START@lo                ; s9 = start of frame buffer
+    or      s9, s9, #FB_START@lo                ; s9 = start of frame buffer
     cpuid   s10, z, z                           ; s10 = max vector length
     ldi     s11, #(FB_WIDTH * FB_HEIGHT) / 4    ; s11 = number of words
 4$:
@@ -189,7 +196,7 @@ draw:
     stw     vl, sp, #0
 
     ldhi    s9, #FB_START@hi
-    add     s9, s9, #FB_START@lo        ; s9 = start of frame buffer
+    or      s9, s9, #FB_START@lo        ; s9 = start of frame buffer
     ldi     s10, #FB_HEIGHT
 1$:
     ldi     s11, #FB_WIDTH
