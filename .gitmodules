@@ -1,0 +1,3 @@
+[submodule "src/mrisc32-a1"]
+	path = src/mrisc32-a1
+	url = git@github.com:mbitsnbites/mrisc32-a1.git
