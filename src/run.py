@@ -25,21 +25,36 @@ def main():
     lib = vu.add_library("lib")
     lib.add_source_files("test/*_tb.vhd")
 
-    # ...and all the DUT:s.
+    # Add the MC1 design.
+    lib.add_source_files("rtl/dither.vhd")
+    lib.add_source_files("rtl/mc1.vhd")
+    lib.add_source_files("rtl/memory_mux.vhd")
+    lib.add_source_files("rtl/prng.vhd")
+    lib.add_source_files("rtl/ram_true_dual_port.vhd")
+    lib.add_source_files("rtl/reset_conditioner.vhd")
+    lib.add_source_files("rtl/rom.vhd")
+    lib.add_source_files("rtl/synchronizer.vhd")
     lib.add_source_files("rtl/video.vhd")
     lib.add_source_files("rtl/vid_palette.vhd")
     lib.add_source_files("rtl/vid_pixel.vhd")
     lib.add_source_files("rtl/vid_raster.vhd")
     lib.add_source_files("rtl/vid_regs.vhd")
     lib.add_source_files("rtl/vid_types.vhd")
-    lib.add_source_files("rtl/vid_vcpp.vhd")
     lib.add_source_files("rtl/vid_vcpp_stack.vhd")
+    lib.add_source_files("rtl/vid_vcpp.vhd")
     lib.add_source_files("rtl/vram.vhd")
-    lib.add_source_files("rtl/ram_true_dual_port.vhd")
-    lib.add_source_files("rtl/dither.vhd")
-    lib.add_source_files("rtl/prng.vhd")
 
-    # Bake the test data.
+    # Add the MRISC32-A1 implementation.
+    lib.add_source_files("mrisc32-a1/rtl/agu/*.vhd")
+    lib.add_source_files("mrisc32-a1/rtl/alu/*.vhd")
+    lib.add_source_files("mrisc32-a1/rtl/common/*.vhd")
+    lib.add_source_files("mrisc32-a1/rtl/core/*.vhd")
+    lib.add_source_files("mrisc32-a1/rtl/fpu/*.vhd")
+    lib.add_source_files("mrisc32-a1/rtl/muldiv/*.vhd")
+    lib.add_source_files("mrisc32-a1/rtl/pipeline/*.vhd")
+    lib.add_source_files("mrisc32-a1/rtl/sau/*.vhd")
+
+    # Bake the video_tb test data.
     bake_video_tb_vram()
 
     # Run vunit function
