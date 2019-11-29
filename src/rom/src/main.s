@@ -27,68 +27,11 @@ main:
     ; Init video.
     jl      pc, #init_video@pc
 
-    ; Draw something to the screen.
-    jl      pc, #draw@pc
-
-    ; Do some I/O.
-    jl      pc, #do_io@pc
+    ; Enter the main loop.
+    jl      pc, #main_loop@pc
 
     ldw     lr, sp, #0
     add     sp, sp, #4
-    j       lr
-
-
-; ----------------------------------------------------------------------------
-; void msleep(int milliseconds)
-; ----------------------------------------------------------------------------
-
-msleep:
-    ble     s1, 3$
-
-1$:
-    ; This busy loop takes 1 ms on a 70 MHz MRISC32-A1.
-    ldi     s2, #35000
-2$:
-    add     s2, s2, #-1
-    bnz     s2, 2$
-
-    add     s1, s1, #-1
-    bnz     s1, 1$
-
-3$:
-    j       lr
-
-
-; ----------------------------------------------------------------------------
-; Do some memory mapped I/O.
-; ----------------------------------------------------------------------------
-
-do_io:
-    add     sp, sp, #-16
-    stw     lr, sp, #0
-    stw     s20, sp, #4
-    stw     s21, sp, #8
-    stw     s22, sp, #12
-
-    ldhi    s20, #MMIO_START
-    ldi     s21, #0x00055555
-    ldi     s22, #1000
-1$:
-    stw     s21, s20, #0
-
-    ; Sleep for 1/3 s.
-    ldi     s1, #333
-    jl      pc, #msleep@pc
-
-    add     s22, s22, #-1
-    add     s21, s21, #0x1234
-    bnz     s22, 1$
-
-    ldw     lr, sp, #0
-    ldw     s20, sp, #4
-    ldw     s21, sp, #8
-    ldw     s22, sp, #12
-    add     sp, sp, #16
     j       lr
 
 
@@ -104,25 +47,19 @@ init_video:
     or      s11, s11, #VCP_START@lo ; s11 = start of Video Control Program
 
     ; VCP prologue.
-    ldhi    s12, #0x81000000        ; SETREG XOFFS, 0x00.0000
-    stw     s12, s11, #0
     ldhi    s12, #0x82004000        ; SETREG XINCR, 0x00.4000
-    stw     s12, s11, #4
-    ldhi    s12, #0x83000000        ; SETREG HSTRT, 0
-    stw     s12, s11, #8
-    ldhi    s12, #0x84000000        ; SETREG HSTOP, 0
-    stw     s12, s11, #12
+    stw     s12, s11, #0
     ldhi    s12, #0x85000002@hi     ; SETREG CMODE, 2
     or      s12, s12, #0x85000002@lo
-    stw     s12, s11, #16
+    stw     s12, s11, #4
     ldhi    s12, #0x86000001@hi     ; SETREG RMODE, 1
     or      s12, s12, #0x86000001@lo
-    stw     s12, s11, #20
-    ldhi    s12, #0xc00000ff@hi     ; SETPAL 0, 255
-    or      s12, s12, #0xc00000ff@lo
-    stw     s12, s11, #24
+    stw     s12, s11, #8
+    ldhi    s12, #0x600000ff@hi     ; SETPAL 0, 255
+    or      s12, s12, #0x600000ff@lo
+    stw     s12, s11, #12
 
-    add     s11, s11, #28
+    add     s11, s11, #16
 
     ; Generate a color palette.
     ldhi    s15, #0x01020301@hi
@@ -188,6 +125,61 @@ init_video:
 
 
 ; ----------------------------------------------------------------------------
+; void msleep(int milliseconds)
+; ----------------------------------------------------------------------------
+
+msleep:
+    ble     s1, 3$
+
+1$:
+    ; This busy loop takes 1 ms on a 70 MHz MRISC32-A1.
+    ldi     s2, #35000
+2$:
+    add     s2, s2, #-1
+    bnz     s2, 2$
+
+    add     s1, s1, #-1
+    bnz     s1, 1$
+
+3$:
+    j       lr
+
+
+; ----------------------------------------------------------------------------
+; Main loop.
+; ----------------------------------------------------------------------------
+
+main_loop:
+    add     sp, sp, #-12
+    stw     lr, sp, #0
+    stw     s20, sp, #4
+    stw     s21, sp, #8
+
+    ldhi    s20, #MMIO_START
+    ldi     s21, #1
+1$:
+    ; Write something to the MMIO port.
+    stw     s21, s20, #0
+
+    ; Draw something to the screen.
+    mov     s1, s21
+    jl      pc, #draw@pc
+
+    ; Sleep for 1/60 s.
+    ldi     s1, #16
+    jl      pc, #msleep@pc
+
+    add     s21, s21, #0x1234
+    bz      z, 1$
+
+    ldw     lr, sp, #0
+    ldw     s20, sp, #4
+    ldw     s21, sp, #8
+    add     sp, sp, #12
+    j       lr
+
+
+; ----------------------------------------------------------------------------
 ; Draw something to the frame buffer.
 ; ----------------------------------------------------------------------------
 
@@ -201,8 +193,9 @@ draw:
 1$:
     ldi     s11, #FB_WIDTH
 2$:
-    add     s1, s10, s11                ; Calculate a color for this pixel
-    stb     s1, s9, #0
+    add     s2, s10, s11                ; Calculate a color for this pixel
+    add     s2, s1, s2
+    stb     s2, s9, #0
     add     s9, s9, #1
 
     add     s11, s11, #-1
@@ -214,3 +207,4 @@ draw:
     ldw     vl, sp, #0
     add     sp, sp, #4
     j       lr
+
