@@ -8,8 +8,8 @@
 VCP_START = RAM_START
 VCP_SIZE  = 1024 * 4
 FB_START  = VCP_START + VCP_SIZE
-FB_WIDTH  = 320
-FB_HEIGHT = 180
+FB_WIDTH  = 640
+FB_HEIGHT = 360
 
 
     .text
@@ -47,7 +47,7 @@ init_video:
     or      s11, s11, #VCP_START@lo ; s11 = start of Video Control Program
 
     ; VCP prologue.
-    ldhi    s12, #0x82004000        ; SETREG XINCR, 0x00.4000
+    ldhi    s12, #0x82008000        ; SETREG XINCR, 0x00.8000
     stw     s12, s11, #0
     ldhi    s12, #0x85000002@hi     ; SETREG CMODE, 2
     or      s12, s12, #0x85000002@lo
@@ -169,7 +169,7 @@ main_loop:
     ldi     s1, #16
     jl      pc, #msleep@pc
 
-    add     s21, s21, #0x1234
+    add     s21, s21, #1
     bz      z, 1$
 
     ldw     lr, sp, #0
@@ -185,26 +185,106 @@ main_loop:
 
 draw:
     add     sp, sp, #-4
-    stw     vl, sp, #0
+    stw     lr, sp, #0
 
-    ldhi    s9, #FB_START@hi
-    or      s9, s9, #FB_START@lo        ; s9 = start of frame buffer
-    ldi     s10, #FB_HEIGHT
-1$:
-    ldi     s11, #FB_WIDTH
-2$:
-    add     s2, s10, s11                ; Calculate a color for this pixel
-    add     s2, s1, s2
-    stb     s2, s9, #0
-    add     s9, s9, #1
+    jl      pc, #mandelbrot@pc
 
-    add     s11, s11, #-1
-    bnz     s11, 2$
-
-    add     s10, s10, #-1
-    bnz     s10, 1$
-
-    ldw     vl, sp, #0
+    ldw     lr, sp, #0
     add     sp, sp, #4
     j       lr
+
+
+; ----------------------------------------------------------------------------
+; Draw a Mandelbrot fractal.
+; s1 = frame number (0, 1, ...)
+; ----------------------------------------------------------------------------
+
+mandelbrot:
+    add     sp, sp, #-4
+    stw     s20, sp, #0
+
+    ldw     s13, pc, #coord_step@pc
+    ldw     s17, pc, #max_num_iterations@pc
+    ldw     s18, pc, #max_distance_sqr@pc
+
+    ; Calculate a zoom factor.
+    itof    s1, s1, z
+    ldhi    s2, #0x3b030000         ; ~0.002
+    fmul    s2, s1, s2
+    ldhi    s3, #0x3f800000         ; 1.0
+    fadd    s2, s2, s3              ;
+    fdiv    s20, s3, s2             ; s20 = 1.0 / (1.0 + frameno * 0.002)
+
+    fmul    s13, s13, s20           ; s13 = coord_step * zoom_factor
+
+    ldhi    s14, #FB_START@hi       ; s14 = pixel_data
+    or      s14, s14, #FB_START@lo
+
+    ldw     s2, pc, #min_im@pc
+    fmul    s2, s2, s20     ; s2 = min_im * zoom_factor
+    ldi     s16, #FB_HEIGHT ; s16 = loop counter for y
+
+outer_loop_y:
+    ldw     s1, pc, #min_re@pc
+    fmul    s1, s1, s20     ; s1 = min_re * zoom_factor
+    ldi     s15, #FB_WIDTH  ; s15 = loop counter for x
+
+outer_loop_x:
+    or      s3, z, z        ; s3 = re(z) = 0.0
+    or      s4, z, z        ; s4 = im(z) = 0.0
+
+    ldi     s9, #0          ; Iteration count.
+
+inner_loop:
+    fmul    s5, s3, s3      ; s5 = re(z)^2
+    fmul    s6, s4, s4      ; s6 = im(z)^2
+    add     s9, s9, #1
+    fmul    s4, s3, s4
+    fsub    s3, s5, s6
+    fadd    s5, s5, s6      ; s5 = |z|^2
+    fadd    s4, s4, s4      ; s4 = 2*re(z)*im(z)
+    fadd    s3, s3, s1      ; s3 = re(z)^2 - im(z)^2 + re(c)
+    sub     s10, s17, s9    ; s9 = max_num_iterations - num_iterations = color
+    fadd    s4, s4, s2      ; s4 = 2*re(z)*im(z) + im(c)
+    fslt    s5, s5, s18     ; |z|^2 < 4.0?
+
+    bns     s5, inner_loop_done
+    bgt     s10, inner_loop   ; max_num_iterations no reached yet?
+
+inner_loop_done:
+    lsl     s9, s10, #1      ; x2 for more intense levels
+
+    ; Write color to pixel matrix.
+    stb     s9, s14, #0
+    add     s14, s14, #1
+
+    ; Increment along the x axis.
+    add     s15, s15, #-1
+    fadd    s1, s1, s13     ; re(c) = re(c) + coord_step
+    bgt     s15, outer_loop_x
+
+    ; Increment along the y axis.
+    add     s16, s16, #-1
+    fadd    s2, s2, s13     ; im(c) = im(c) + coord_step
+    bgt     s16, outer_loop_y
+
+    ldw     s20, sp, #0
+    add     sp, sp, #4
+    j       lr
+
+
+max_num_iterations:
+    .word   100
+
+max_distance_sqr:
+    .float  4.0
+
+min_re:
+    .float  -3.0
+
+min_im:
+    .float  -1.5
+
+coord_step:
+    .float  0.007
 
