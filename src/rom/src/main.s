@@ -62,15 +62,56 @@ init_video:
     add     s11, s11, #16
 
     ; Generate a color palette.
-    ldhi    s15, #0x01020301@hi
-    or      s15, s15, #0x01020301@lo
-    ldi     s14, #255
+    ldi     s1, #100    ; R
+    ldi     s2, #50     ; G
+    ldi     s3, #0      ; B
+    ldi     s4, #2      ; R increment
+    ldi     s5, #3      ; G increment
+    ldi     s6, #1      ; B increment
+
+    ldhi    s15, #0xff000000
+    stw     s15, s11, #0         ; Color 0 is black
+
+    ldi     s14, #1
 1$:
-    shuf    s12, s14, #0b0000000000000
-    mul.b   s12, s12, s15
-    stw     s12, s11, s14*4
-    add     s14, s14, #-1
-    bge     s14, 1$
+    lsl     s7, s3, #16
+    lsl     s8, s2, #8
+    or      s7, s7, s8
+    or      s7, s7, s1
+    or      s7, s7, s15        ; s7 = 255 << 24 | s3 << 16 | s2 << 8 | s1
+    stw     s7, s11, s14*4
+
+    ; Update R, and if necessary adjust the increment value.
+    add     s1, s1, s4
+    sle     s7, s1, #255
+    sle     s8, z, s1
+    and     s7, s7, s8
+    bs      s7, 5$
+    sub     s4, z, s4
+    add     s1, s1, s4
+5$:
+    ; Update G, and if necessary adjust the increment value.
+    add     s2, s2, s5
+    sle     s7, s2, #255
+    sle     s8, z, s2
+    and     s7, s7, s8
+    bs      s7, 6$
+    sub     s5, z, s5
+    add     s2, s2, s5
+6$:
+    ; Update B, and if necessary adjust the increment value.
+    add     s3, s3, s6
+    sle     s7, s3, #255
+    sle     s8, z, s3
+    and     s7, s7, s8
+    bs      s7, 7$
+    sub     s6, z, s6
+    add     s3, s3, s6
+7$:
+
+    add     s14, s14, #1
+    sne     s7, s14, #256
+    bs      s7, 1$
 
     add     s11, s11, #256*4
 
@@ -209,25 +250,32 @@ mandelbrot:
 
     ; Calculate a zoom factor.
     itof    s1, s1, z
-    ldhi    s2, #0x3b030000         ; ~0.002
+    fmul    s1, s1, s1
+    ldhi    s2, #0x3c23c000         ; ~0.01
     fmul    s2, s1, s2
     ldhi    s3, #0x3f800000         ; 1.0
     fadd    s2, s2, s3              ;
-    fdiv    s20, s3, s2             ; s20 = 1.0 / (1.0 + frameno * 0.002)
+    fdiv    s20, s3, s2             ; s20 = 1.0 / (1.0 + frameno^2 * 0.01)
 
     fmul    s13, s13, s20           ; s13 = coord_step * zoom_factor
 
     ldhi    s14, #FB_START@hi       ; s14 = pixel_data
     or      s14, s14, #FB_START@lo
 
-    ldw     s2, pc, #min_im@pc
-    fmul    s2, s2, s20     ; s2 = min_im * zoom_factor
     ldi     s16, #FB_HEIGHT ; s16 = loop counter for y
+    asr     s3, s16, #1
+    itof    s3, s3, z
+    fmul    s3, s13, s3
+    ldw     s2, pc, #center_im@pc
+    fsub    s2, s2, s3      ; s2 = min_im = center_im - coord_step * FB_HEIGHT/2
 
 outer_loop_y:
-    ldw     s1, pc, #min_re@pc
-    fmul    s1, s1, s20     ; s1 = min_re * zoom_factor
     ldi     s15, #FB_WIDTH  ; s15 = loop counter for x
+    asr     s3, s15, #1
+    itof    s3, s3, z
+    fmul    s3, s13, s3
+    ldw     s1, pc, #center_re@pc
+    fsub    s1, s1, s3      ; s1 = min_re = center_re - coord_step * FB_WIDTH/2
 
 outer_loop_x:
     or      s3, z, z        ; s3 = re(z) = 0.0
@@ -244,15 +292,17 @@ inner_loop:
     fadd    s5, s5, s6      ; s5 = |z|^2
     fadd    s4, s4, s4      ; s4 = 2*re(z)*im(z)
     fadd    s3, s3, s1      ; s3 = re(z)^2 - im(z)^2 + re(c)
-    sub     s10, s17, s9    ; s9 = max_num_iterations - num_iterations = color
+    slt     s10, s9, s17    ; num_iterations < max_num_iterations?
     fadd    s4, s4, s2      ; s4 = 2*re(z)*im(z) + im(c)
     fslt    s5, s5, s18     ; |z|^2 < 4.0?
 
     bns     s5, inner_loop_done
-    bgt     s10, inner_loop   ; max_num_iterations no reached yet?
+    bs      s10, inner_loop   ; max_num_iterations no reached yet?
+
+    ldi     s9, #0          ; This point is part of the set -> color = 0
 
 inner_loop_done:
-    lsl     s9, s10, #1      ; x2 for more intense levels
+    lsl     s9, s9, #1      ; color * 2 for more intense levels
 
     ; Write color to pixel matrix.
     stb     s9, s14, #0
@@ -274,16 +324,16 @@ inner_loop_done:
 
 
 max_num_iterations:
-    .word   100
+    .word   127
 
 max_distance_sqr:
     .float  4.0
 
-min_re:
-    .float  -3.0
+center_re:
+    .float  -1.156362697351
 
-min_im:
-    .float  -1.5
+center_im:
+    .float  -0.279199711590
 
 coord_step:
     .float  0.007

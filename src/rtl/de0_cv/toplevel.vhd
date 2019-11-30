@@ -203,8 +203,8 @@ begin
   s_io_in(3 downto 0) <= KEY;
 
   -- I/O: Output.
-  LEDR <= s_io_out(16 downto 7);
-  HEX0 <= s_io_out(6 downto 0);
+  HEX0 <= not s_io_out(22 downto 16);
+  LEDR <= s_io_out(9 downto 0);
 
   -- Test...
   HEX5 <= "0001001";  -- H
