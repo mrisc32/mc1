@@ -135,7 +135,7 @@ begin
       --     1280x720 @ 60 Hz:  74.250 MHz (rounded to 74.375 MHz, 60.1 FPS)
       --      800x600 @ 60 Hz:  40.000 MHz
       --      640x480 @ 60 Hz:  25.175 MHz (rounded to 25.200 MHz, 60.06 FPS)
-      OUTPUT_CLOCK_FREQUENCY1 => "74.375 MHz"
+      OUTPUT_CLOCK_FREQUENCY1 => "148.75 MHz"
     )
     port map
     (
@@ -168,7 +168,7 @@ begin
     generic map (
       COLOR_BITS => s_vga_r'length,
       LOG2_VRAM_SIZE => 16,          -- 4*2^16 = 256 KiB
-      VIDEO_CONFIG => C_1280_720
+      VIDEO_CONFIG => C_1920_1080
     )
     port map (
       -- Control signals.

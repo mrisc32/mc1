@@ -11,6 +11,9 @@ FB_START  = VCP_START + VCP_SIZE
 FB_WIDTH  = 640
 FB_HEIGHT = 360
 
+NATIVE_WIDTH = 1920
+NATIVE_HEIGHT = 1080
+
 
     .text
 
@@ -47,7 +50,8 @@ init_video:
     or      s11, s11, #VCP_START@lo ; s11 = start of Video Control Program
 
     ; VCP prologue.
-    ldhi    s12, #0x82008000        ; SETREG XINCR, 0x00.8000
+    ldhi    s12, #(0x82000000 + 0x010000 * FB_WIDTH / NATIVE_WIDTH)@hi  ; SETREG XINCR, ...
+    or      s12, s12, #(0x82000000 + 0x010000 * FB_WIDTH / NATIVE_WIDTH)@lo
     stw     s12, s11, #0
     ldhi    s12, #0x85000002@hi     ; SETREG CMODE, 2
     or      s12, s12, #0x85000002@lo
@@ -125,8 +129,8 @@ init_video:
     ; First line.
     stw     s1, s11, #0                 ; WAITY   ...
     stw     s2, s11, #4                 ; SETREG ADDR, ...
-    ldhi    s12, #(0x84000000+1280)@hi  ; SETREG HSTOP, 1280
-    or      s12, s12, #(0x84000000+1280)@lo
+    ldhi    s12, #(0x84000000+NATIVE_WIDTH)@hi  ; SETREG HSTOP, NATIVE_WIDTH
+    or      s12, s12, #(0x84000000+NATIVE_WIDTH)@lo
     stw     s12, s11, #8
     add     s11, s11, #12
     j       pc, #3$@pc
@@ -137,10 +141,10 @@ init_video:
     stw     s2, s11, #4             ; SETREG ADDR, ...
     add     s11, s11, #8
 3$:
-    add     s1, s1, #720/FB_HEIGHT  ; Increment WAITY line (vertical resolution)
-    add     s2, s2, #FB_WIDTH/4     ; Increment row address (horizontal stride)
+    add     s1, s1, #NATIVE_HEIGHT/FB_HEIGHT  ; Increment WAITY line (vertical resolution)
+    add     s2, s2, #FB_WIDTH/4               ; Increment row address (horizontal stride)
     and     s13, s1, #0x3fff
-    slt     s13, s13, #720
+    slt     s13, s13, #NATIVE_HEIGHT
     bs      s13, 2$
 
     ; VCP epilogue.

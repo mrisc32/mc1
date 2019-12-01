@@ -25,6 +25,6 @@
     .set    RM_DITHER_WHITE, 1
 
     ; Native video resolution.
-    .set    NATIVE_WIDTH, 1280
-    .set    NATIVE_HEIGHT, 720
+    .set    NATIVE_WIDTH, 1920
+    .set    NATIVE_HEIGHT, 1080
 
