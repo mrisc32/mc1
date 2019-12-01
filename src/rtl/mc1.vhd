@@ -23,6 +23,8 @@
 
 library ieee;
 use ieee.std_logic_1164.all;
+library mrisc32;
+use mrisc32.config.all;
 use work.vid_types.all;
 
 entity mc1 is
@@ -105,7 +107,10 @@ begin
   --------------------------------------------------------------------------------------------------
   -- CPU core
   --------------------------------------------------------------------------------------------------
-  mrisc32_core_1: entity work.core
+  mrisc32_core_1: entity mrisc32.core
+    generic map (
+      CONFIG => C_CORE_CONFIG_FULL
+    )
     port map (
       i_clk => i_cpu_clk,
       i_rst => i_cpu_rst,

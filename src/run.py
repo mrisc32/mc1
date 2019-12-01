@@ -45,14 +45,15 @@ def main():
     lib.add_source_files("rtl/vram.vhd")
 
     # Add the MRISC32-A1 implementation.
-    lib.add_source_files("mrisc32-a1/rtl/agu/*.vhd")
-    lib.add_source_files("mrisc32-a1/rtl/alu/*.vhd")
-    lib.add_source_files("mrisc32-a1/rtl/common/*.vhd")
-    lib.add_source_files("mrisc32-a1/rtl/core/*.vhd")
-    lib.add_source_files("mrisc32-a1/rtl/fpu/*.vhd")
-    lib.add_source_files("mrisc32-a1/rtl/muldiv/*.vhd")
-    lib.add_source_files("mrisc32-a1/rtl/pipeline/*.vhd")
-    lib.add_source_files("mrisc32-a1/rtl/sau/*.vhd")
+    mrisc32 = vu.add_library("mrisc32")
+    mrisc32.add_source_files("mrisc32-a1/rtl/agu/*.vhd")
+    mrisc32.add_source_files("mrisc32-a1/rtl/alu/*.vhd")
+    mrisc32.add_source_files("mrisc32-a1/rtl/common/*.vhd")
+    mrisc32.add_source_files("mrisc32-a1/rtl/core/*.vhd")
+    mrisc32.add_source_files("mrisc32-a1/rtl/fpu/*.vhd")
+    mrisc32.add_source_files("mrisc32-a1/rtl/muldiv/*.vhd")
+    mrisc32.add_source_files("mrisc32-a1/rtl/pipeline/*.vhd")
+    mrisc32.add_source_files("mrisc32-a1/rtl/sau/*.vhd")
 
     # Bake the video_tb test data.
     bake_video_tb_vram()
