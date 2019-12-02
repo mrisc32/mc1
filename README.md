@@ -1,6 +1,6 @@
 ![MC1 logo](docs/mc1-logo.png)
 
-MC1 is a compact computer intended for FPGA:s, based on the [MRISC32-A1](https://github.com/mbitsnbites/mrisc32) soft microprocessor.
+MC1 is a compact computer intended for FPGA:s, based on the [MRISC32-A1](https://github.com/mbitsnbites/mrisc32-a1) soft microprocessor.
 
 ## Architecture
 
