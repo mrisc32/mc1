@@ -40,7 +40,9 @@ entity video is
     o_b : out std_logic_vector(COLOR_BITS-1 downto 0);
 
     o_hsync : out std_logic;
-    o_vsync : out std_logic
+    o_vsync : out std_logic;
+
+    o_restart_frame : out std_logic
   );
 end video;
 
@@ -264,4 +266,5 @@ begin
   end process;
   o_hsync <= s_hsync_delayed(SYNC_DELAY-1);
   o_vsync <= s_vsync_delayed(SYNC_DELAY-1);
+  o_restart_frame <= s_restart_frame;
 end rtl;
