@@ -23,6 +23,7 @@
 
 library ieee;
 use ieee.std_logic_1164.all;
+use work.mmio_types.all;
 use work.vid_types.all;
 
 entity toplevel is
@@ -103,8 +104,9 @@ architecture rtl of toplevel is
   signal s_vga_hs : std_logic;
   signal s_vga_vs : std_logic;
 
-  signal s_io_in : std_logic_vector(31 downto 0);
-  signal s_io_out : std_logic_vector(31 downto 0);
+  signal s_io_switches : std_logic_vector(31 downto 0);
+  signal s_io_buttons : std_logic_vector(31 downto 0);
+  signal s_io_regs_w : T_MMIO_REGS_WO;
 begin
   -- System reset signal.
   process(CLOCK_50, RESET_N)
@@ -184,10 +186,10 @@ begin
       o_vga_hs => s_vga_hs,
       o_vga_vs => s_vga_vs,
 
-      -- LEDs and buttons interfaces.
-      -- TODO(m): Make something better here...
-      i_io => s_io_in,
-      o_io => s_io_out
+      -- I/O registers.
+      i_io_switches => s_io_switches,
+      i_io_buttons => s_io_buttons,
+      o_io_regs_w => s_io_regs_w
     );
 
   -- VGA interface.
@@ -198,18 +200,17 @@ begin
   VGA_VS <= s_vga_vs;
 
   -- I/O: Input.
-  s_io_in(31 downto 14) <= (others => '0');
-  s_io_in(13 downto 4) <= SW;
-  s_io_in(3 downto 0) <= KEY;
+  s_io_switches(31 downto 10) <= (others => '0');
+  s_io_switches(9 downto 0) <= SW;
+  s_io_buttons(31 downto 4) <= (others => '0');
+  s_io_buttons(3 downto 0) <= KEY;
 
   -- I/O: Output.
-  HEX0 <= not s_io_out(22 downto 16);
-  LEDR <= s_io_out(9 downto 0);
-
-  -- Test...
-  HEX5 <= "0001001";  -- H
-  HEX4 <= "0000110";  -- E
-  HEX3 <= "1000111";  -- L
-  HEX2 <= "1000111";  -- L
-  HEX1 <= "1000000";  -- O
+  HEX0 <= not s_io_regs_w.SEGDISP0(6 downto 0);
+  HEX1 <= not s_io_regs_w.SEGDISP1(6 downto 0);
+  HEX2 <= not s_io_regs_w.SEGDISP2(6 downto 0);
+  HEX3 <= not s_io_regs_w.SEGDISP3(6 downto 0);
+  HEX4 <= not s_io_regs_w.SEGDISP4(6 downto 0);
+  HEX5 <= not s_io_regs_w.SEGDISP5(6 downto 0);
+  LEDR <= s_io_regs_w.LEDS(9 downto 0);
 end rtl;

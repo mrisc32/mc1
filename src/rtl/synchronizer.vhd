@@ -18,13 +18,13 @@
 ----------------------------------------------------------------------------------------------------
 
 ----------------------------------------------------------------------------------------------------
--- This is a two-flip-flop synchronization circuit.
+-- This is a two-flip-flop synchronization circuit for single bit signals.
 ----------------------------------------------------------------------------------------------------
 
 library ieee;
 use ieee.std_logic_1164.all;
 
-entity synchronizer is
+entity synchronizer1 is
   port(
     -- Clock signal for this clock domain.
     i_clk : in std_logic;
@@ -35,10 +35,54 @@ entity synchronizer is
     -- Synchronized signal.
     o_q : out std_logic
   );
+end synchronizer1;
+
+architecture rtl of synchronizer1 is
+  signal s_q_1 : std_logic;
+begin
+  -- First flip-flop.
+  process(i_clk)
+  begin
+    if rising_edge(i_clk) then
+      s_q_1 <= i_d;
+    end if;
+  end process;
+
+  -- Second flip-flop.
+  process(i_clk)
+  begin
+    if rising_edge(i_clk) then
+      o_q <= s_q_1;
+    end if;
+  end process;
+end rtl;
+
+
+----------------------------------------------------------------------------------------------------
+-- This is a two-flip-flop synchronization circuit for multi-bit signals.
+----------------------------------------------------------------------------------------------------
+
+library ieee;
+use ieee.std_logic_1164.all;
+
+entity synchronizer is
+  generic(
+    BITS : positive := 32
+  );
+  port(
+    -- Clock signal for this clock domain.
+    i_clk : in std_logic;
+
+    -- Signal from another clock domain, or an asynchronous signal.
+    i_d : in std_logic_vector(BITS-1 downto 0);
+
+    -- Synchronized signal.
+    o_q : out std_logic_vector(BITS-1 downto 0)
+  );
 end synchronizer;
 
 architecture rtl of synchronizer is
-  signal s_q_1 : std_logic;
+  signal s_q_1 : std_logic_vector(BITS-1 downto 0);
 begin
   -- First flip-flop.
   process(i_clk)

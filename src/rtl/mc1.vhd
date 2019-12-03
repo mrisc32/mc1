@@ -25,6 +25,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 library mrisc32;
 use mrisc32.config.all;
+use work.mmio_types.all;
 use work.vid_types.all;
 
 entity mc1 is
@@ -49,8 +50,9 @@ entity mc1 is
     o_vga_vs : out std_logic;
 
     -- I/O: Generic input and output registers.
-    i_io: in std_logic_vector(31 downto 0);
-    o_io: out std_logic_vector(31 downto 0)
+    i_io_switches : in std_logic_vector(31 downto 0);
+    i_io_buttons : in std_logic_vector(31 downto 0);
+    o_io_regs_w : out T_MMIO_REGS_WO
   );
 end mc1;
 
@@ -91,6 +93,14 @@ architecture rtl of mc1 is
   -- Video logic signals.
   signal s_video_adr : std_logic_vector(LOG2_VRAM_SIZE-1 downto 0);
   signal s_video_dat : std_logic_vector(31 downto 0);
+  signal s_restart_frame : std_logic;
+  signal s_raster_x : std_logic_vector(15 downto 0);
+  signal s_raster_y : std_logic_vector(15 downto 0);
+
+  -- Video logic signals in the CPU clock domain.
+  signal s_restart_frame_cpu : std_logic;
+  signal s_raster_x_cpu : std_logic_vector(15 downto 0);
+  signal s_raster_y_cpu : std_logic_vector(15 downto 0);
 
   -- Memory mapped I/O interface (Wishbone B4 pipelined slave).
   signal s_io_cyc : std_logic;
@@ -230,6 +240,66 @@ begin
     );
   s_vram_err <= '0';
 
+  -- MMIO registers.
+  mmio_1: entity work.mmio
+    generic map (
+      CPU_CLK_HZ => 70000000,   -- TODO(m): Implement me!
+      VRAM_SIZE => 2**LOG2_VRAM_SIZE,
+      XRAM_SIZE => 0,
+      VID_FPS => 60*65536,      -- TODO(m): Implement me!
+      COLOR_BITS => COLOR_BITS,
+      VIDEO_CONFIG => VIDEO_CONFIG
+    )
+    port map (
+      i_rst => i_cpu_rst,
+
+      i_wb_clk => i_cpu_clk,
+      i_wb_cyc => s_io_cyc,
+      i_wb_stb => s_io_stb,
+      i_wb_adr => s_io_adr,
+      i_wb_dat => s_io_dat_w,
+      i_wb_we => s_io_we,
+      i_wb_sel => s_io_sel,
+      o_wb_dat => s_io_dat,
+      o_wb_ack => s_io_ack,
+      o_wb_stall => s_io_stall,
+      o_wb_err => s_io_err,
+
+      i_restart_frame => s_restart_frame_cpu,
+      i_raster_x => s_raster_x_cpu,
+      i_raster_y => s_raster_y_cpu,
+      i_switches => i_io_switches,
+      i_buttons => i_io_buttons,
+      o_regs_w => o_io_regs_w
+    );
+
+  -- We need to handle clock domain crossing (VGA -> CPU) for these signals.
+  sync_restart_frame: entity work.synchronizer1
+    port map (
+      i_clk => i_cpu_clk,
+      i_d => s_restart_frame,
+      o_q => s_restart_frame_cpu
+    );
+  sync_raster_x: entity work.synchronizer
+    generic map (
+      BITS => s_raster_x'length
+    )
+    port map (
+      i_clk => i_cpu_clk,
+      i_d => s_raster_x,
+      o_q => s_raster_x_cpu
+    );
+  sync_raster_y: entity work.synchronizer
+    generic map (
+      BITS => s_raster_y'length
+    )
+    port map (
+      i_clk => i_cpu_clk,
+      i_d => s_raster_y,
+      o_q => s_raster_y_cpu
+    );
+
+
   --------------------------------------------------------------------------------------------------
   -- Video logic
   --------------------------------------------------------------------------------------------------
@@ -251,32 +321,11 @@ begin
       o_b => o_vga_b,
 
       o_hsync => o_vga_hs,
-      o_vsync => o_vga_vs
+      o_vsync => o_vga_vs,
+
+      o_restart_frame => s_restart_frame,
+      o_raster_x => s_raster_x,
+      o_raster_y => s_raster_y
     );
-
-  --------------------------------------------------------------------------------------------------
-  -- I/O
-  --------------------------------------------------------------------------------------------------
-  process (i_cpu_clk, i_cpu_rst)
-  begin
-    if i_cpu_rst = '1' then
-      o_io <= (others => '0');
-      s_io_dat <= (others => '0');
-      s_io_ack <= '0';
-    elsif rising_edge(i_cpu_clk) then
-      if s_io_cyc = '1' and s_io_stb = '1' then
-        -- Note: We currently do not care about the address.
-        if s_io_we = '1' then
-          o_io <= s_io_dat_w;
-        else
-          s_io_dat <= i_io;
-        end if;
-      end if;
-      s_io_ack <= s_io_cyc and s_io_stb;
-    end if;
-  end process;
-
-  s_io_err <= '0';
-  s_io_stall <= '0';
 
 end rtl;
