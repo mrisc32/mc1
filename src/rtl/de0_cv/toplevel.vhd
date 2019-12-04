@@ -90,7 +90,8 @@ end toplevel;
 architecture rtl of toplevel is
   signal s_system_rst : std_logic := '1';
 
-  signal s_pll_locked : std_logic;
+  signal s_pll_cpu_locked : std_logic;
+  signal s_pll_vga_locked : std_logic;
   signal s_global_async_rst : std_logic;
 
   signal s_cpu_rst : std_logic;
@@ -120,36 +121,44 @@ begin
     end if;
   end process;
 
-  -- Clock signals.
-  pll_1: entity work.pll
+  -- Generate the CPU clock signal.
+  -- 70 MHz seems to be a good safe bet, but going higher is certainly possible.
+  pll_cpu: entity work.pll
     generic map (
-      -- The input clock of the DE0-CV is 50 MHz.
       REFERENCE_CLOCK_FREQUENCY => "50 MHz",
-
-      NUMBER_OF_CLOCKS => 2,
-
-      -- The CPU clock frequency.
-      OUTPUT_CLOCK_FREQUENCY0 => "70.0 MHz",
-
-      -- The video clock frequency.
-      --  Pixel frequencies for supported video modes:
-      --    1920x1080 @ 60 Hz: 148.500 MHz (rounded to 148.75 MHz, 60.1 FPS)
-      --     1280x720 @ 60 Hz:  74.250 MHz (rounded to 74.375 MHz, 60.1 FPS)
-      --      800x600 @ 60 Hz:  40.000 MHz
-      --      640x480 @ 60 Hz:  25.175 MHz (rounded to 25.200 MHz, 60.06 FPS)
-      OUTPUT_CLOCK_FREQUENCY1 => "148.75 MHz"
+      NUMBER_OF_CLOCKS => 1,
+      OUTPUT_CLOCK_FREQUENCY0 => "70.0 MHz"
     )
     port map
     (
-      i_rst	=> s_system_rst,
+      i_rst => s_system_rst,
       i_refclk => CLOCK_50,
       o_clk0 => s_cpu_clk,
-      o_clk1 => s_vga_clk,
-      o_locked => s_pll_locked
+      o_locked => s_pll_cpu_locked
+    );
+
+  -- Generate the VGA clock signal.
+  -- Pixel frequencies for supported video modes:
+  --  1920x1080 @ 60 Hz: 148.500 MHz (rounded to 148.4375 MHz, 59.97 FPS)
+  --   1280x720 @ 60 Hz:  74.250 MHz (rounded to 74.242424 MHz, 59.99 FPS)
+  --    800x600 @ 60 Hz:  40.000 MHz
+  --    640x480 @ 60 Hz:  25.175 MHz (rounded to 25.175644 MHz, 60.002 FPS)
+  pll_vga: entity work.pll
+    generic map (
+      REFERENCE_CLOCK_FREQUENCY => "50 MHz",
+      NUMBER_OF_CLOCKS => 1,
+      OUTPUT_CLOCK_FREQUENCY0 => "148.4375 MHz"
+    )
+    port map
+    (
+      i_rst => s_system_rst,
+      i_refclk => CLOCK2_50,
+      o_clk0 => s_vga_clk,
+      o_locked => s_pll_vga_locked
     );
 
   -- Reset logic - synchronize the reset signal to the different clock domains.
-  s_global_async_rst <= s_system_rst or (not s_pll_locked);
+  s_global_async_rst <= s_system_rst or (not (s_pll_cpu_locked and s_pll_vga_locked));
 
   reset_conditioner_cpu: entity work.reset_conditioner
     port map (
