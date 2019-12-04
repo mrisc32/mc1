@@ -19,16 +19,25 @@
 
 ----------------------------------------------------------------------------------------------------
 -- This is a two-flip-flop synchronization circuit for multi-bit signals.
+--
+-- In addition to passing a signal over from one clock domain to another, this design also employs
+-- mitigations against timing differences between individual bits of the signal. This is done by
+-- detecting changes in the signal and only propagating the new signal value to the output once the
+-- signal has stayed constant for a certain number of clock cycles (this functionality is optional).
 ----------------------------------------------------------------------------------------------------
 
 library ieee;
 use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
 
 entity synchronizer is
   generic(
-    BITS : positive := 32
+    BITS : positive := 32;
+    STEADY_CYCLES : integer := 7
   );
   port(
+    i_rst : in std_logic;
+
     -- Clock signal for the target clock domain.
     i_clk : in std_logic;
 
@@ -41,8 +50,27 @@ entity synchronizer is
 end synchronizer;
 
 architecture rtl of synchronizer is
+  function steady_cycles_bits return positive is
+    variable v_result : positive;
+    variable v_steady_cycles_pot : positive;
+  begin
+    v_result := 1;
+    v_steady_cycles_pot := 1;
+    while v_steady_cycles_pot < STEADY_CYCLES loop
+      v_steady_cycles_pot := 2 * v_steady_cycles_pot;
+      v_result := v_result + 1;
+    end loop;
+    return v_result;
+  end;
+
+  -- Signals for the synchronizer flip-flops.
   signal s_metastable : std_logic_vector(BITS-1 downto 0);
   signal s_stable : std_logic_vector(BITS-1 downto 0);
+
+  -- Signals for the value change detector.
+  signal s_prev_stable : std_logic_vector(BITS-1 downto 0);
+  signal s_stable_changed : std_logic;
+  signal s_steady_cycles : unsigned(steady_cycles_bits-1 downto 0);
 
   -- Intel/Altera specific constraints.
   attribute ALTERA_ATTRIBUTE : string;
@@ -59,14 +87,45 @@ architecture rtl of synchronizer is
   attribute SHREG_EXTRACT of s_metastable : signal is "NO";
   attribute SHREG_EXTRACT of s_stable : signal is "NO";
 begin
-  -- Implement two flip-flops in series.
-  process(i_clk)
+  -- Synchronize the source signal using two flip-flops in series.
+  process(i_rst, i_clk)
   begin
-    if rising_edge(i_clk) then
+    if i_rst = '0' then
+      s_metastable <= (others => '0');
+      s_stable <= (others => '0');
+    elsif rising_edge(i_clk) then
       s_metastable <= i_d;
       s_stable <= s_metastable;
     end if;
   end process;
 
-  o_q <= s_stable;
+  SteadyGen: if STEADY_CYCLES > 0 generate
+    -- Only accept a value after STEADY_CYCLES cycles of steady state.
+    s_stable_changed <= '1' when s_stable /= s_prev_stable else '0';
+
+    process(i_rst, i_clk)
+    begin
+      if i_rst = '1' then
+        s_prev_stable <= (others => '0');
+        s_steady_cycles <= to_unsigned(0, steady_cycles_bits);
+        o_q <= (others => '0');
+      elsif rising_edge(i_clk) then
+        -- Count the number of steady cycles that we have.
+        if s_stable_changed = '1' then
+          s_steady_cycles <= to_unsigned(0, steady_cycles_bits);
+        else
+          s_steady_cycles <= s_steady_cycles + to_unsigned(1, steady_cycles_bits);
+        end if;
+
+        -- Time to update the output value?
+        if s_steady_cycles = to_unsigned(STEADY_CYCLES, steady_cycles_bits) then
+          o_q <= s_stable;
+        end if;
+
+        s_prev_stable <= s_stable;
+      end if;
+    end process;
+  else generate
+    o_q <= s_stable;
+  end generate;
 end rtl;

@@ -275,6 +275,7 @@ begin
       BITS => s_raster_y'length
     )
     port map (
+      i_rst => i_cpu_rst,
       i_clk => i_cpu_clk,
       i_d => s_raster_y,
       o_q => s_raster_y_cpu

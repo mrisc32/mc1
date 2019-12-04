@@ -101,7 +101,6 @@ architecture rtl of mmio is
   signal s_inc_vidframeno : std_logic;
   signal s_next_clkcnt : unsigned(63 downto 0);
   signal s_next_vidframeno : unsigned(31 downto 0);
-  signal s_next_vidy : std_logic_vector(31 downto 0);
 
   -- Wishbone signals.
   signal s_reg_adr : T_REG_ADR;
@@ -144,9 +143,6 @@ begin
   s_inc_vidframeno <= '1' when s_prev_vidy_msb = '1' and s_vidy_msb = '0' else '0';
   s_next_vidframeno <= unsigned(s_regs_r.VIDFRAMENO) + (to_unsigned(0, 31) & s_inc_vidframeno);
 
-  -- Sign-extend raster coordinates.
-  s_next_vidy <= sign_ext_raster(i_raster_y);
-
   -- Dynamic read-only registers.
   process(i_rst, i_wb_clk)
   begin
@@ -154,9 +150,6 @@ begin
       s_regs_r.CLKCNTLO <= (others => '0');
       s_regs_r.CLKCNTHI <= (others => '0');
       s_regs_r.VIDFRAMENO <= (others => '0');
-      s_regs_r.VIDY <= (others => '0');
-      s_regs_r.SWITCHES <= (others => '0');
-      s_regs_r.BUTTONS <= (others => '0');
       s_prev_vidy_msb <= '0';
     elsif rising_edge(i_wb_clk) then
       -- Update the clock count.
@@ -166,13 +159,15 @@ begin
       -- Increment the frame count for each new frame.
       s_regs_r.VIDFRAMENO <= std_logic_vector(s_next_vidframeno);
 
-      -- From external sources (we add a register here to improve routing).
-      s_regs_r.VIDY <= s_next_vidy;
-      s_regs_r.SWITCHES <= i_switches;
-      s_regs_r.BUTTONS <= i_buttons;
+      -- Remember last MSB from the raster Y coordinate (used for detecting end-of-frame).
       s_prev_vidy_msb <= s_vidy_msb;
     end if;
   end process;
+
+  -- Dynamic read-only registers from external sources.
+  s_regs_r.VIDY <= sign_ext_raster(i_raster_y);
+  s_regs_r.SWITCHES <= i_switches;
+  s_regs_r.BUTTONS <= i_buttons;
 
 
   --------------------------------------------------------------------------------------------------
