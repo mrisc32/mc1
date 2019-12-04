@@ -80,14 +80,14 @@ architecture rtl of vid_vcpp is
 
   subtype T_INSTR is std_logic_vector(3 downto 0);
 
-  constant C_INSTR_NOP : T_INSTR    := "0000";
-  constant C_INSTR_JMP : T_INSTR    := "0001";
-  constant C_INSTR_JSR : T_INSTR    := "0010";
-  constant C_INSTR_RTS : T_INSTR    := "0011";
-  constant C_INSTR_WAITX : T_INSTR  := "0100";
-  constant C_INSTR_WAITY : T_INSTR  := "0101";
-  constant C_INSTR_SETPAL : T_INSTR := "0110";
-  constant C_INSTR_SETREG : T_INSTR := "1000";
+  constant C_INSTR_NOP : T_INSTR    := 4x"0";
+  constant C_INSTR_JMP : T_INSTR    := 4x"1";
+  constant C_INSTR_JSR : T_INSTR    := 4x"2";
+  constant C_INSTR_RTS : T_INSTR    := 4x"3";
+  constant C_INSTR_WAITX : T_INSTR  := 4x"4";
+  constant C_INSTR_WAITY : T_INSTR  := 4x"5";
+  constant C_INSTR_SETPAL : T_INSTR := 4x"6";
+  constant C_INSTR_SETREG : T_INSTR := 4x"8";
 
   -- PC signals
   signal s_stall_pc : std_logic;
@@ -235,6 +235,7 @@ begin
 
   -----------------------------------------------------------------------------
   -- IF2
+  -- TODO(m): Can we simplify this logic?
   -----------------------------------------------------------------------------
 
   -- Do we have the data that we need?
@@ -258,15 +259,21 @@ begin
           s_if2_data <= i_mem_data;
         end if;
         s_if2_have_cached_data <= s_if2_have_data;
-        s_if2_have_latched_data <= '0';
         s_if2_pc_plus_1 <= s_if1_pc_plus_1;
+      end if;
+
+      -- During stalls we need to latch read data for later.
+      if i_mem_ack = '1' then
+        s_if2_latched_data <= i_mem_data;
+      end if;
+      if s_stall_if2 = '0' then
+        s_if2_have_latched_data <= '0';
       else
-        -- During stalls we need to latch read data for later.
         if i_mem_ack = '1' then
-          s_if2_latched_data <= i_mem_data;
           s_if2_have_latched_data <= '1';
         end if;
       end if;
+
       s_if2_is_valid_instr <= s_if2_have_data and not (i_restart_frame or s_id_apply_jump_target);
     end if;
   end process;
