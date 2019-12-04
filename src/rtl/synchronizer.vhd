@@ -40,18 +40,11 @@ end synchronizer1;
 architecture rtl of synchronizer1 is
   signal s_q_1 : std_logic;
 begin
-  -- First flip-flop.
+  -- Implement two flip-flops in series.
   process(i_clk)
   begin
     if rising_edge(i_clk) then
       s_q_1 <= i_d;
-    end if;
-  end process;
-
-  -- Second flip-flop.
-  process(i_clk)
-  begin
-    if rising_edge(i_clk) then
       o_q <= s_q_1;
     end if;
   end process;
@@ -84,18 +77,11 @@ end synchronizer;
 architecture rtl of synchronizer is
   signal s_q_1 : std_logic_vector(BITS-1 downto 0);
 begin
-  -- First flip-flop.
+  -- Implement two flip-flops in series.
   process(i_clk)
   begin
     if rising_edge(i_clk) then
       s_q_1 <= i_d;
-    end if;
-  end process;
-
-  -- Second flip-flop.
-  process(i_clk)
-  begin
-    if rising_edge(i_clk) then
       o_q <= s_q_1;
     end if;
   end process;

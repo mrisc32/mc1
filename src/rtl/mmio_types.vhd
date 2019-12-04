@@ -41,7 +41,6 @@ package mmio_types is
     VIDHEIGHT : T_MMIO_REG_WORD;   -- Native video resoltuion, height.
     VIDFPS : T_MMIO_REG_WORD;      -- Video refresh rate in 65536 * frames per s.
     VIDFRAMENO : T_MMIO_REG_WORD;  -- Video frame number (free running counter).
-    VIDX : T_MMIO_REG_WORD;        -- Video raster X position.
     VIDY : T_MMIO_REG_WORD;        -- Video raster Y position.
 
     -- External registers.

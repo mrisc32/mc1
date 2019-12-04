@@ -98,8 +98,6 @@ architecture rtl of mc1 is
   signal s_raster_y : std_logic_vector(15 downto 0);
 
   -- Video logic signals in the CPU clock domain.
-  signal s_restart_frame_cpu : std_logic;
-  signal s_raster_x_cpu : std_logic_vector(15 downto 0);
   signal s_raster_y_cpu : std_logic_vector(15 downto 0);
 
   -- Memory mapped I/O interface (Wishbone B4 pipelined slave).
@@ -265,8 +263,6 @@ begin
       o_wb_stall => s_io_stall,
       o_wb_err => s_io_err,
 
-      i_restart_frame => s_restart_frame_cpu,
-      i_raster_x => s_raster_x_cpu,
       i_raster_y => s_raster_y_cpu,
       i_switches => i_io_switches,
       i_buttons => i_io_buttons,
@@ -274,21 +270,6 @@ begin
     );
 
   -- We need to handle clock domain crossing (VGA -> CPU) for these signals.
-  sync_restart_frame: entity work.synchronizer1
-    port map (
-      i_clk => i_cpu_clk,
-      i_d => s_restart_frame,
-      o_q => s_restart_frame_cpu
-    );
-  sync_raster_x: entity work.synchronizer
-    generic map (
-      BITS => s_raster_x'length
-    )
-    port map (
-      i_clk => i_cpu_clk,
-      i_d => s_raster_x,
-      o_q => s_raster_x_cpu
-    );
   sync_raster_y: entity work.synchronizer
     generic map (
       BITS => s_raster_y'length

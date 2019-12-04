@@ -54,8 +54,6 @@ entity mmio is
     o_wb_err : out std_logic;
 
     -- Some intput registers are collected externally.
-    i_restart_frame : in std_logic;
-    i_raster_x : in std_logic_vector(15 downto 0);
     i_raster_y : in std_logic_vector(15 downto 0);
     i_switches : in std_logic_vector(31 downto 0);
     i_buttons : in std_logic_vector(31 downto 0);
@@ -83,10 +81,9 @@ architecture rtl of mmio is
   constant C_ADR_VIDHEIGHT  : T_REG_ADR := reg_adr(6);
   constant C_ADR_VIDFPS     : T_REG_ADR := reg_adr(7);
   constant C_ADR_VIDFRAMENO : T_REG_ADR := reg_adr(8);
-  constant C_ADR_VIDX       : T_REG_ADR := reg_adr(9);
-  constant C_ADR_VIDY       : T_REG_ADR := reg_adr(10);
-  constant C_ADR_SWITCHES   : T_REG_ADR := reg_adr(11);
-  constant C_ADR_BUTTONS    : T_REG_ADR := reg_adr(12);
+  constant C_ADR_VIDY       : T_REG_ADR := reg_adr(9);
+  constant C_ADR_SWITCHES   : T_REG_ADR := reg_adr(10);
+  constant C_ADR_BUTTONS    : T_REG_ADR := reg_adr(11);
 
   constant C_ADR_SEGDISP0   : T_REG_ADR := reg_adr(16);
   constant C_ADR_SEGDISP1   : T_REG_ADR := reg_adr(17);
@@ -99,10 +96,11 @@ architecture rtl of mmio is
   constant C_ADR_LEDS       : T_REG_ADR := reg_adr(24);
 
   -- Clock and counter signals.
-  signal s_prev_restart_frame : std_logic;
+  signal s_vidy_msb : std_logic;
+  signal s_prev_vidy_msb : std_logic;
+  signal s_inc_vidframeno : std_logic;
   signal s_next_clkcnt : unsigned(63 downto 0);
   signal s_next_vidframeno : unsigned(31 downto 0);
-  signal s_next_vidx : std_logic_vector(31 downto 0);
   signal s_next_vidy : std_logic_vector(31 downto 0);
 
   -- Wishbone signals.
@@ -142,10 +140,11 @@ begin
   s_next_clkcnt <= unsigned(s_regs_r.CLKCNTHI & s_regs_r.CLKCNTLO) + to_unsigned(1, 64);
 
   -- Increment the frame count for each new frame.
-  s_next_vidframeno <= unsigned(s_regs_r.VIDFRAMENO) + (to_unsigned(0, 31) & s_prev_restart_frame);
+  s_vidy_msb <= s_regs_r.VIDY(31);
+  s_inc_vidframeno <= '1' when s_prev_vidy_msb = '1' and s_vidy_msb = '0' else '0';
+  s_next_vidframeno <= unsigned(s_regs_r.VIDFRAMENO) + (to_unsigned(0, 31) & s_inc_vidframeno);
 
   -- Sign-extend raster coordinates.
-  s_next_vidx <= sign_ext_raster(i_raster_x);
   s_next_vidy <= sign_ext_raster(i_raster_y);
 
   -- Dynamic read-only registers.
@@ -155,11 +154,10 @@ begin
       s_regs_r.CLKCNTLO <= (others => '0');
       s_regs_r.CLKCNTHI <= (others => '0');
       s_regs_r.VIDFRAMENO <= (others => '0');
-      s_regs_r.VIDX <= (others => '0');
       s_regs_r.VIDY <= (others => '0');
       s_regs_r.SWITCHES <= (others => '0');
       s_regs_r.BUTTONS <= (others => '0');
-      s_prev_restart_frame <= '0';
+      s_prev_vidy_msb <= '0';
     elsif rising_edge(i_wb_clk) then
       -- Update the clock count.
       s_regs_r.CLKCNTLO <= std_logic_vector(s_next_clkcnt(31 downto 0));
@@ -169,11 +167,10 @@ begin
       s_regs_r.VIDFRAMENO <= std_logic_vector(s_next_vidframeno);
 
       -- From external sources (we add a register here to improve routing).
-      s_regs_r.VIDX <= s_next_vidx;
       s_regs_r.VIDY <= s_next_vidy;
       s_regs_r.SWITCHES <= i_switches;
       s_regs_r.BUTTONS <= i_buttons;
-      s_prev_restart_frame <= i_restart_frame;
+      s_prev_vidy_msb <= s_vidy_msb;
     end if;
   end process;
 
@@ -222,8 +219,6 @@ begin
         o_wb_dat <= s_regs_r.VIDFPS;
       elsif s_reg_adr = C_ADR_VIDFRAMENO then
         o_wb_dat <= s_regs_r.VIDFRAMENO;
-      elsif s_reg_adr = C_ADR_VIDX then
-        o_wb_dat <= s_regs_r.VIDX;
       elsif s_reg_adr = C_ADR_VIDY then
         o_wb_dat <= s_regs_r.VIDY;
       elsif s_reg_adr = C_ADR_SWITCHES then
