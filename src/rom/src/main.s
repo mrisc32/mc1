@@ -203,8 +203,20 @@ main_loop:
     ldhi    s20, #MMIO_START
     ldi     s21, #1
 1$:
-    ; Write something to the MMIO port.
-    stw     s21, s20, #0
+    ; Write the rendered frame count to LEDS.
+    stw     s21, s20, #LEDS
+
+    ; Write the machine frame number to some of the 6 segment displays.
+    ldw     s1, s20, #VIDFRAMENO
+    stw     s1, s20, #SEGDISP0
+    lsr     s1, s1, #7
+    stw     s1, s20, #SEGDISP1
+    lsr     s1, s1, #7
+    stw     s1, s20, #SEGDISP2
+    lsr     s1, s1, #7
+    stw     s1, s20, #SEGDISP3
+    lsr     s1, s1, #7
+    stw     s1, s20, #SEGDISP4
 
     ; Draw something to the screen.
     mov     s1, s21
