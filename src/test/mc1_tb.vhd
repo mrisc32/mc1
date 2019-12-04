@@ -38,7 +38,7 @@ architecture tb of mc1_tb is
   -- (800 + hblank) x (600 + vblank) = 663168 cycles per frame
   -- (1280 + hblank) x (720 + vblank) = 1237500 cycles per frame
   -- (1920 + hblank) x (1080 + vblank) = 2475000 cycles per frame
-  constant C_TEST_CYCLES : integer := 1237500 * C_TEST_FRAMES;
+  constant C_TEST_CYCLES : integer := 2475000 * C_TEST_FRAMES;
 
   --  25.175 MHz -> 19.8609732 ns
   --  40.000 MHz -> 12.5 ns
@@ -59,7 +59,7 @@ begin
     generic map (
       COLOR_BITS => s_r'length,
       LOG2_VRAM_SIZE => 16,          -- 4*2^16 = 256 KiB
-      VIDEO_CONFIG => C_1280_720
+      VIDEO_CONFIG => C_1920_1080
     )
     port map (
       -- Control signals.
@@ -75,8 +75,9 @@ begin
       o_vga_hs => s_hsync,
       o_vga_vs => s_vsync,
 
-      -- LEDs and buttons interfaces.
-      i_io => (others => '0')
+      -- I/O interfaces.
+      i_io_switches => (others => '0'),
+      i_io_buttons => (others => '0')
     );
 
   main : process
