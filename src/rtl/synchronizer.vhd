@@ -18,40 +18,6 @@
 ----------------------------------------------------------------------------------------------------
 
 ----------------------------------------------------------------------------------------------------
--- This is a two-flip-flop synchronization circuit for single bit signals.
-----------------------------------------------------------------------------------------------------
-
-library ieee;
-use ieee.std_logic_1164.all;
-
-entity synchronizer1 is
-  port(
-    -- Clock signal for this clock domain.
-    i_clk : in std_logic;
-
-    -- Signal from another clock domain, or an asynchronous signal.
-    i_d : in std_logic;
-
-    -- Synchronized signal.
-    o_q : out std_logic
-  );
-end synchronizer1;
-
-architecture rtl of synchronizer1 is
-  signal s_q_1 : std_logic;
-begin
-  -- Implement two flip-flops in series.
-  process(i_clk)
-  begin
-    if rising_edge(i_clk) then
-      s_q_1 <= i_d;
-      o_q <= s_q_1;
-    end if;
-  end process;
-end rtl;
-
-
-----------------------------------------------------------------------------------------------------
 -- This is a two-flip-flop synchronization circuit for multi-bit signals.
 ----------------------------------------------------------------------------------------------------
 
@@ -63,10 +29,10 @@ entity synchronizer is
     BITS : positive := 32
   );
   port(
-    -- Clock signal for this clock domain.
+    -- Clock signal for the target clock domain.
     i_clk : in std_logic;
 
-    -- Signal from another clock domain, or an asynchronous signal.
+    -- Signal from the source clock domain (or an asynchronous signal).
     i_d : in std_logic_vector(BITS-1 downto 0);
 
     -- Synchronized signal.
@@ -75,14 +41,32 @@ entity synchronizer is
 end synchronizer;
 
 architecture rtl of synchronizer is
-  signal s_q_1 : std_logic_vector(BITS-1 downto 0);
+  signal s_metastable : std_logic_vector(BITS-1 downto 0);
+  signal s_stable : std_logic_vector(BITS-1 downto 0);
+
+  -- Intel/Altera specific constraints.
+  attribute ALTERA_ATTRIBUTE : string;
+  attribute ALTERA_ATTRIBUTE of rtl : architecture is "-name SDC_STATEMENT ""set_false_path -to [get_registers {*|synchronizer:*|s_metastable*}] """;
+  attribute ALTERA_ATTRIBUTE of s_metastable : signal is "-name SYNCHRONIZER_IDENTIFICATION ""FORCED IF ASYNCHRONOUS""";
+  attribute PRESERVE : boolean;
+  attribute PRESERVE of s_metastable : signal is true;
+  attribute PRESERVE of s_stable : signal is true;
+
+  -- Xilinx specific constraints.
+  attribute ASYNC_REG : string;
+  attribute ASYNC_REG of s_metastable : signal is "TRUE";
+  attribute SHREG_EXTRACT : string;
+  attribute SHREG_EXTRACT of s_metastable : signal is "NO";
+  attribute SHREG_EXTRACT of s_stable : signal is "NO";
 begin
   -- Implement two flip-flops in series.
   process(i_clk)
   begin
     if rising_edge(i_clk) then
-      s_q_1 <= i_d;
-      o_q <= s_q_1;
+      s_metastable <= i_d;
+      s_stable <= s_metastable;
     end if;
   end process;
+
+  o_q <= s_stable;
 end rtl;
