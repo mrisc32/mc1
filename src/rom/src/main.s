@@ -192,6 +192,7 @@ msleep:
 
 ; ----------------------------------------------------------------------------
 ; void print_hex(unsigned number)
+; Print a hexadecimal number to the board segment displays.
 ; ----------------------------------------------------------------------------
 
 print_hex:
@@ -204,19 +205,59 @@ print_hex:
     and     s4, s1, #0x0f
     lsr     s1, s1, #4
     ldub    s4, s2, s4
+2$:
     stw     s4, s3, #0
     add     s3, s3, #4
     add     s5, s5, #-1
-    bnz     s5, 1$
+    bz      s5, 3$
 
+    bnz     s1, 1$
+    ldi     s4, #0          ; Blank the upper digits.
+    bz      s1, 2$
+
+3$:
     j       lr
 
 
-;    0
-;  5   1
-;    6
-;  4   2
-;    3
+; ----------------------------------------------------------------------------
+; void print_dec(unsigned number)
+; Print a decimal number to the board segment displays.
+; ----------------------------------------------------------------------------
+
+print_dec:
+    ldea    s2, pc, #hex_to_segment_lut@pc
+    ldhi    s3, #MMIO_START
+    ldea    s3, s3, #SEGDISP0
+
+    ldi     s6, #10
+    ldi     s5, #8
+1$:
+    remu    s4, s1, s6
+    divu    s1, s1, s6
+    ldub    s4, s2, s4
+2$:
+    stw     s4, s3, #0
+    add     s3, s3, #4
+    add     s5, s5, #-1
+    bz      s5, 3$
+
+    bnz     s1, 1$
+    ldi     s4, #0          ; Blank the upper digits.
+    bz      s1, 2$
+
+3$:
+    j       lr
+
+
+; ----------------------------------------------------------------------------
+; 7-segment display bit encoding:
+;
+;              -0-
+;             5   1
+;             |-6-|
+;             4   2
+;              -3-
+; ----------------------------------------------------------------------------
 
 hex_to_segment_lut:
     .byte   0b0111111   ; 0
@@ -238,6 +279,7 @@ hex_to_segment_lut:
 
     .p2align 2
 
+
 ; ----------------------------------------------------------------------------
 ; Main loop.
 ; ----------------------------------------------------------------------------
@@ -254,9 +296,9 @@ main_loop:
     ; Write the rendered frame count to LEDS.
     stw     s21, s20, #LEDS
 
-    ; Write the machine frame number to the 6 segment displays.
+    ; Write the machine frame number to the segment displays.
     ldw     s1, s20, #VIDFRAMENO
-    jl      pc, #print_hex@pc
+    jl      pc, #print_dec@pc
 
     ; Draw something to the screen.
     mov     s1, s21
@@ -278,6 +320,7 @@ main_loop:
 
 ; ----------------------------------------------------------------------------
 ; Draw something to the frame buffer.
+; s1 = frame number (0, 1, ...)
 ; ----------------------------------------------------------------------------
 
 draw:
@@ -419,31 +462,30 @@ funky:
 
     cpuid   s13, z, z
     mov     vl, s13
-    lsl     s14, s13, #2    ; s14 = memory stride per vector operation
+    lsl     s14, s13, #2            ; s14 = memory stride per vector operation
 
-    add     s1, s13, #-1
-    ldea    v4, s1, #-1     ; v4 is a ramp from vl-1 downto 0
+    add     s2, s13, #-1
+    ldea    v4, s2, #-1             ; v4 is a ramp from vl-1 downto 0
 
-    add     s21, pc, #sine1024@pc  ; s21 = start of 1024-entry sine table
-    ldi     s12, #0         ; s12 = last frame number
+    add     s21, pc, #sine1024@pc   ; s21 = start of 1024-entry sine table
 
 begin_new_frame:
-    ldhi    s6, #FB_START@hi   ; s6 = video frame buffer
+    ldhi    s6, #FB_START@hi        ; s6 = video frame buffer
     or      s6, s6, #FB_START@lo
 
-    ldi     s8, #FB_HEIGHT  ; s8 = y counter
+    ldi     s8, #FB_HEIGHT          ; s8 = y counter
 loop_y:
-    add     s8, s8, #-1     ; Decrement the y counter
+    add     s8, s8, #-1             ; Decrement the y counter
 
-    ldi     s7, #FB_WIDTH/4   ; s7 = x counter
+    ldi     s7, #FB_WIDTH/4         ; s7 = x counter
 loop_x:
     min     vl, s13, s7
-    sub     s7, s7, vl      ; Decrement the x counter
+    sub     s7, s7, vl              ; Decrement the x counter
 
     ; Some funky kind of test pattern...
     add     v7, v4, s7
 
-    lsl     s20, s12, #1
+    lsl     s20, s1, #1
     add     s20, s7, s20
     add     v9, v4, s20
     and     v8, v9, #1023
@@ -451,7 +493,7 @@ loop_x:
     ldh     v8, s21, v8
     mulq.h  v7, v7, v8
 
-    add     s9, s8, s12
+    add     s9, s8, s1
     add     v1, v7, s9
     shuf    v1, v7, v1
 
@@ -459,7 +501,7 @@ loop_x:
     adds.b  v1, v1, v8
 
     stw     v1, s6, #4
-    add     s6, s6, s14     ; Increment the memory pointer
+    add     s6, s6, s14             ; Increment the memory pointer
 
     bgt     s7, #loop_x
     bgt     s8, #loop_y
@@ -468,8 +510,8 @@ loop_x:
     ldw     s12, s10, #VIDFRAMENO
 wait_vblank:
     ldw     s11, s10, #VIDFRAMENO
-    sne     s1, s11, s12
-    bns     s1, #wait_vblank
+    sne     s11, s11, s12
+    bns     s11, #wait_vblank
 
     ldw		s20, sp, #0
     ldw		s21, sp, #4
