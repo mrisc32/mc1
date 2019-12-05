@@ -22,7 +22,7 @@
 -- supports writing on port A - port B is read only.
 -- Inspired by: https://danstrother.com/2010/09/11/inferring-rams-in-fpgas/
 --
--- This implementation requires support for shared variables (e.g. supported by Quartus).
+-- This implementation requires support for VHDL'93 shared variables (e.g. supported by Quartus).
 ----------------------------------------------------------------------------------------------------
  
 library ieee;

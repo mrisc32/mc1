@@ -22,7 +22,8 @@
 -- supports writing on port A - port B is read only.
 -- Inspired by: https://danstrother.com/2010/09/11/inferring-rams-in-fpgas/
 --
--- This implementation requires support for protected shared variables (e.g. supported by GHDL).
+-- This implementation requires support for VHDL-2000 protected shared variables (e.g. supported by
+-- GHDL).
 ----------------------------------------------------------------------------------------------------
  
 library ieee;
