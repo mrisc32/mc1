@@ -33,7 +33,7 @@ use ieee.numeric_std.all;
 entity synchronizer is
   generic(
     BITS : positive := 32;
-    STEADY_CYCLES : integer := 7
+    STEADY_CYCLES : integer := 3
   );
   port(
     i_rst : in std_logic;
@@ -50,18 +50,22 @@ entity synchronizer is
 end synchronizer;
 
 architecture rtl of synchronizer is
-  function steady_cycles_bits return positive is
-    variable v_result : positive;
-    variable v_steady_cycles_pot : positive;
+  -- Determine how many bits are required to represent an integer number
+  -- (it is essentially log2()).
+  function num_bits_required_for(x : integer) return positive is
+    variable v_num_bits : positive;
+    variable v_next_pot : positive;
   begin
-    v_result := 1;
-    v_steady_cycles_pot := 1;
-    while v_steady_cycles_pot < STEADY_CYCLES loop
-      v_steady_cycles_pot := 2 * v_steady_cycles_pot;
-      v_result := v_result + 1;
+    v_num_bits := 1;
+    v_next_pot := 2;
+    while x >= v_next_pot loop
+      v_next_pot := v_next_pot * 2;
+      v_num_bits := v_num_bits + 1;
     end loop;
-    return v_result;
+    return v_num_bits;
   end;
+
+  constant C_STEADY_CYCLES_BITS : positive := num_bits_required_for(STEADY_CYCLES);
 
   -- Signals for the synchronizer flip-flops.
   signal s_metastable : std_logic_vector(BITS-1 downto 0);
@@ -70,7 +74,7 @@ architecture rtl of synchronizer is
   -- Signals for the value change detector.
   signal s_prev_stable : std_logic_vector(BITS-1 downto 0);
   signal s_stable_changed : std_logic;
-  signal s_steady_cycles : unsigned(steady_cycles_bits-1 downto 0);
+  signal s_steady_cycles : unsigned(C_STEADY_CYCLES_BITS-1 downto 0);
 
   -- Intel/Altera specific constraints.
   attribute ALTERA_ATTRIBUTE : string;
@@ -107,18 +111,18 @@ begin
     begin
       if i_rst = '1' then
         s_prev_stable <= (others => '0');
-        s_steady_cycles <= to_unsigned(0, steady_cycles_bits);
+        s_steady_cycles <= to_unsigned(0, C_STEADY_CYCLES_BITS);
         o_q <= (others => '0');
       elsif rising_edge(i_clk) then
         -- Count the number of steady cycles that we have.
         if s_stable_changed = '1' then
-          s_steady_cycles <= to_unsigned(0, steady_cycles_bits);
+          s_steady_cycles <= to_unsigned(0, C_STEADY_CYCLES_BITS);
         else
-          s_steady_cycles <= s_steady_cycles + to_unsigned(1, steady_cycles_bits);
+          s_steady_cycles <= s_steady_cycles + to_unsigned(1, C_STEADY_CYCLES_BITS);
         end if;
 
         -- Time to update the output value?
-        if s_steady_cycles = to_unsigned(STEADY_CYCLES, steady_cycles_bits) then
+        if s_steady_cycles = to_unsigned(STEADY_CYCLES, C_STEADY_CYCLES_BITS) then
           o_q <= s_stable;
         end if;
 

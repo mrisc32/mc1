@@ -269,18 +269,6 @@ begin
       o_regs_w => o_io_regs_w
     );
 
-  -- We need to handle clock domain crossing (VGA -> CPU) for these signals.
-  sync_raster_y: entity work.synchronizer
-    generic map (
-      BITS => s_raster_y'length
-    )
-    port map (
-      i_rst => i_cpu_rst,
-      i_clk => i_cpu_clk,
-      i_d => s_raster_y,
-      o_q => s_raster_y_cpu
-    );
-
 
   --------------------------------------------------------------------------------------------------
   -- Video logic
@@ -308,6 +296,31 @@ begin
       o_restart_frame => s_restart_frame,
       o_raster_x => s_raster_x,
       o_raster_y => s_raster_y
+    );
+
+
+  --------------------------------------------------------------------------------------------------
+  -- Clock domain crossing
+  --
+  -- We have two clock domains: The CPU clock domain and the video clock domain. For the most part
+  -- these two domains are independent of each other since most communication between the two
+  -- happens via the dual-ported, dual-clocked VRAM.
+  --
+  -- In rare occasions we need to send signals from the video domain to the CPU domain, but we try
+  -- to keep the number of signals that need to cross clock domains to a minimum.
+  --------------------------------------------------------------------------------------------------
+
+  -- The raster Y coordinate is exposed as an MMIO register, and needs to cross from the video
+  -- clock domain to the CPU clock domain.
+  sync_raster_y: entity work.synchronizer
+    generic map (
+      BITS => s_raster_y'length
+    )
+    port map (
+      i_rst => i_cpu_rst,
+      i_clk => i_cpu_clk,
+      i_d => s_raster_y,
+      o_q => s_raster_y_cpu
     );
 
 end rtl;
