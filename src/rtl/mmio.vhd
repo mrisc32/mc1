@@ -140,7 +140,7 @@ begin
 
   -- Increment the frame count for each new frame.
   s_vidy_msb <= s_regs_r.VIDY(31);
-  s_inc_vidframeno <= '1' when s_prev_vidy_msb = '1' and s_vidy_msb = '0' else '0';
+  s_inc_vidframeno <= '1' when s_prev_vidy_msb = '0' and s_vidy_msb = '1' else '0';
   s_next_vidframeno <= unsigned(s_regs_r.VIDFRAMENO) + (to_unsigned(0, 31) & s_inc_vidframeno);
 
   -- Dynamic read-only registers.
