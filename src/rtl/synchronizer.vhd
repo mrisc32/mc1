@@ -90,7 +90,7 @@ begin
   -- Synchronize the source signal using two flip-flops in series.
   process(i_rst, i_clk)
   begin
-    if i_rst = '0' then
+    if i_rst = '1' then
       s_metastable <= (others => '0');
       s_stable <= (others => '0');
     elsif rising_edge(i_clk) then
