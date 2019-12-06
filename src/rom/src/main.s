@@ -460,16 +460,16 @@ funky:
     stw		s20, sp, #0
     stw		s21, sp, #4
 
-    cpuid   s13, z, z
+    add     s1, s1, s1              ; Increase animation speed
+
+    cpuid   s13, z, z               ; s13 = memory stride per vector operation
     mov     vl, s13
-    lsl     s14, s13, #2            ; s14 = memory stride per vector operation
 
     add     s2, s13, #-1
     ldea    v4, s2, #-1             ; v4 is a ramp from vl-1 downto 0
 
     add     s21, pc, #sine1024@pc   ; s21 = start of 1024-entry sine table
 
-begin_new_frame:
     ldhi    s6, #FB_START@hi        ; s6 = video frame buffer
     or      s6, s6, #FB_START@lo
 
@@ -477,7 +477,9 @@ begin_new_frame:
 loop_y:
     add     s8, s8, #-1             ; Decrement the y counter
 
-    ldi     s7, #FB_WIDTH/4         ; s7 = x counter
+    add     s9, s8, s1
+
+    ldi     s7, #FB_WIDTH/2         ; s7 = x counter
 loop_x:
     min     vl, s13, s7
     sub     s7, s7, vl              ; Decrement the x counter
@@ -485,23 +487,15 @@ loop_x:
     ; Some funky kind of test pattern...
     add     v7, v4, s7
 
-    lsl     s20, s1, #1
-    add     s20, s7, s20
+    ldea    s20, s7, s1*2
     add     v9, v4, s20
     and     v8, v9, #1023
-    lsl     v8, v8, #1
-    ldh     v8, s21, v8
+    ldh     v8, s21, v8*2
     mulq.h  v7, v7, v8
+    add.h   v1, v7, s9
 
-    add     s9, s8, s1
-    add     v1, v7, s9
-    shuf    v1, v7, v1
-
-    shuf    v8, v9, #0b0000000001010
-    adds.b  v1, v1, v8
-
-    stw     v1, s6, #4
-    add     s6, s6, s14             ; Increment the memory pointer
+    stw     v1, s6, #2
+    ldea    s6, s6, s13*2           ; Increment the memory pointer
 
     bgt     s7, #loop_x
     bgt     s8, #loop_y
