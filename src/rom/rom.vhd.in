@@ -43,14 +43,9 @@ end rom;
 
 architecture rtl of rom is
   constant C_ADDR_BITS : positive := ${ADDR_BITS};
-  constant C_ROM_SIZE : positive := 2**C_ADDR_BITS;
-
-  type T_ROM_ARRAY is array (0 to C_ROM_SIZE-1) of std_logic_vector(31 downto 0);
-  constant C_ROM_ARRAY : T_ROM_ARRAY := (
-${DATA}
-  );
 
   signal s_is_valid_wb_request : std_logic;
+  signal s_rom_addr : std_logic_vector(C_ADDR_BITS-1 downto 0);
 begin
   -- Wishbone control logic.
   s_is_valid_wb_request <= i_wb_cyc and i_wb_stb;
@@ -59,9 +54,21 @@ begin
   process(i_clk)
   begin
     if rising_edge(i_clk) then
-      o_wb_dat <= C_ROM_ARRAY(to_integer(unsigned(i_wb_adr(C_ADDR_BITS+1 downto 2))));
       o_wb_ack <= s_is_valid_wb_request;
     end if;
   end process;
   o_wb_stall <= '0';
+
+  -- Actual ROM.
+  s_rom_addr <= i_wb_adr(C_ADDR_BITS+1 downto 2);
+
+  process(i_clk)
+  begin
+    if rising_edge(i_clk) then
+      case s_rom_addr is
+${DATA}
+        when others => o_wb_dat <= (others => '0');
+      end case;
+    end if;
+  end process;
 end rtl;
