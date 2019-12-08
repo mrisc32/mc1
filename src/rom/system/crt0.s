@@ -34,6 +34,42 @@ bss_cleared:
 
 
     ; ------------------------------------------------------------------------
+    ; Initialize the memory allocator.
+    ; ------------------------------------------------------------------------
+
+    jl      pc, #mem_init@pc
+
+    ; Add a memory allocation pool for the XRAM.
+    ; Note: By adding this pool first, we give it the highest priority. This
+    ; means that if anyone calls mem_alloc() with MEM_TYPE_ANY, the allocator
+    ; will try to allocate XRAM first.
+    ldhi    s1, #XRAM_START@hi
+    or      s1, s1, #XRAM_START@lo
+    ldhi    s2, #MMIO_START
+    ldw     s2, s2, #XRAMSIZE
+    ldi     s3, #MEM_TYPE_EXT
+    jl      pc, #mem_add_pool@pc
+
+    ; Add a memory allocation pool for the VRAM.
+
+    ; s1 = Start of free VRAM.
+    ldhi    s1, #__vram_free_start@hi
+    or      s1, s1, #__vram_free_start@lo
+
+    ; s2 = Number of free VRAM bytes.
+    ldhi    s2, #MMIO_START
+    ldw     s2, s2, #VRAMSIZE
+    ldhi    s3, #VRAM_START
+    sub     s3, s1, s3  ; s3 = number of pre-occupied bytes at start of VRAM
+    sub     s2, s2, s3
+
+    ; s3 = The memory type.
+    ldi     s3, #MEM_TYPE_VIDEO
+
+    jl      pc, #mem_add_pool@pc
+
+
+    ; ------------------------------------------------------------------------
     ; Clear all CPU registers.
     ; ------------------------------------------------------------------------
 

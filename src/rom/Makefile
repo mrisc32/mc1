@@ -2,6 +2,8 @@
 
 BUILDDIR = out
 
+CC      = mrisc32-elf-gcc
+CCFLAGS = -S -Os -I . -ffreestanding -Wall -Wextra -Werror
 AS      = mrisc32-elf-as
 ASFLAGS = -I .
 LD      = mrisc32-elf-ld
@@ -15,13 +17,18 @@ OBJCOPY = mrisc32-elf-objcopy
 all: ../rtl/rom.vhd
 
 clean:
-	rm -f $(BUILDDIR)/*.o $(BUILDDIR)/*.a $(BUILDDIR)/*.elf $(BUILDDIR)/*.raw
+	rm -f $(BUILDDIR)/*.s \
+	      $(BUILDDIR)/*.o \
+	      $(BUILDDIR)/*.a \
+	      $(BUILDDIR)/*.elf \
+	      $(BUILDDIR)/*.raw
 
 APPOBJS = $(BUILDDIR)/main.o
 
 SYSOBJS = $(BUILDDIR)/crt0.o \
           $(BUILDDIR)/leds.o \
-          $(BUILDDIR)/time.o
+          $(BUILDDIR)/time.o \
+          $(BUILDDIR)/memory.o
 
 ../rtl/rom.vhd: $(BUILDDIR)/rom.raw rom.vhd.in
 	./raw2vhd.py $(BUILDDIR)/rom.raw rom.vhd.in > $@
@@ -43,6 +50,12 @@ $(BUILDDIR)/leds.o: system/leds.s system/mmio.inc
 
 $(BUILDDIR)/time.o: system/time.s system/mmio.inc
 	$(AS) $(ASFLAGS) -o $@ system/time.s
+
+$(BUILDDIR)/memory.s: system/memory.c
+	$(CC) $(CCFLAGS) -o $@ system/memory.c
+
+$(BUILDDIR)/memory.o: $(BUILDDIR)/memory.s
+	$(AS) $(ASFLAGS) -o $@ $(BUILDDIR)/memory.s
 
 $(BUILDDIR)/main.o: app/main.s system/memory.inc
 	$(AS) $(ASFLAGS) -o $@ app/main.s
