@@ -121,13 +121,13 @@ def lerp(first, last, count):
 
 
 def translate_command(cmd, args):
-    if cmd == "nop":
-        code = 0x00000000
-    elif cmd == "jmp":
-        code = 0x10000000 | (args[0] & 0x00ffffff)
+    if cmd == "jmp":
+        code = 0x00000000 | (args[0] & 0x00ffffff)
     elif cmd == "jsr":
-        code = 0x20000000 | (args[0] & 0x00ffffff)
+        code = 0x10000000 | (args[0] & 0x00ffffff)
     elif cmd == "rts":
+        code = 0x20000000
+    elif cmd == "nop":
         code = 0x30000000
     elif cmd == "waitx":
         code = 0x40000000 | (args[0] & 0x0000ffff)

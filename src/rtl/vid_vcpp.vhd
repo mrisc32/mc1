@@ -80,10 +80,10 @@ architecture rtl of vid_vcpp is
 
   subtype T_INSTR is std_logic_vector(3 downto 0);
 
-  constant C_INSTR_NOP : T_INSTR    := 4x"0";
-  constant C_INSTR_JMP : T_INSTR    := 4x"1";
-  constant C_INSTR_JSR : T_INSTR    := 4x"2";
-  constant C_INSTR_RTS : T_INSTR    := 4x"3";
+  constant C_INSTR_JMP : T_INSTR    := 4x"0";
+  constant C_INSTR_JSR : T_INSTR    := 4x"1";
+  constant C_INSTR_RTS : T_INSTR    := 4x"2";
+  constant C_INSTR_NOP : T_INSTR    := 4x"3";
   constant C_INSTR_WAITX : T_INSTR  := 4x"4";
   constant C_INSTR_WAITY : T_INSTR  := 4x"5";
   constant C_INSTR_SETPAL : T_INSTR := 4x"6";

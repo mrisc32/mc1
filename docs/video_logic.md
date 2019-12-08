@@ -21,16 +21,16 @@ Each video control command (VCC) is 32 bits wide.
 
 The four most significant bits give the command, according to:
 
-| Code (bin) | Command | Description                                     |
+| Code (dec) | Command | Description                                     |
 |------------|---------|-------------------------------------------------|
-| 0000       | NOP     | No operation                                    |
-| 0001       | JMP     | Jump to a target address                        |
-| 0010       | JSR     | Jump to a subroutine (push return address)      |
-| 0011       | RTS     | Return from a subroutine (pop return address)   |
-| 0100       | WAITX   | Wait until the given raster column is reached   |
-| 0101       | WAITY   | Wait until the given raster row is reached      |
-| 0110       | SETPAL  | Set the palette                                 |
-| 1000       | SETREG  | Set the value of a video control register       |
+| 0          | JMP     | Jump to a target address                        |
+| 1          | JSR     | Jump to a subroutine (push return address)      |
+| 2          | RTS     | Return from a subroutine (pop return address)   |
+| 3          | NOP     | No operation                                    |
+| 4          | WAITX   | Wait until the given raster column is reached   |
+| 5          | WAITY   | Wait until the given raster row is reached      |
+| 6          | SETPAL  | Set the palette                                 |
+| 8          | SETREG  | Set the value of a video control register       |
 
 ### NOP
 
