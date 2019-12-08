@@ -4,7 +4,7 @@
 ; some initialization and then calls main.
 ; ----------------------------------------------------------------------------
 
-.include "config.inc"
+.include "system/memory.inc"
 
 STACK_START   = RAM_START + RAM_SIZE  ; Place the stack at the top of RAM.
 

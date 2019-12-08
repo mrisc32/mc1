@@ -3,7 +3,8 @@
 ; This is the main boot program.
 ; ----------------------------------------------------------------------------
 
-.include "config.inc"
+.include "system/memory.inc"
+.include "system/mmio.inc"
 
 VCP_START = RAM_START
 VCP_SIZE  = 1024 * 4
