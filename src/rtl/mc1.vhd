@@ -242,7 +242,7 @@ begin
   mmio_1: entity work.mmio
     generic map (
       CPU_CLK_HZ => 70000000,   -- TODO(m): Implement me!
-      VRAM_SIZE => 2**LOG2_VRAM_SIZE,
+      VRAM_SIZE => (2**LOG2_VRAM_SIZE)*4,
       XRAM_SIZE => 0,
       VID_FPS => 60*65536,      -- TODO(m): Implement me!
       COLOR_BITS => COLOR_BITS,

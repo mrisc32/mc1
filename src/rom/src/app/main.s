@@ -6,7 +6,7 @@
 .include "system/memory.inc"
 .include "system/mmio.inc"
 
-VCP_START = RAM_START
+VCP_START = VRAM_START
 VCP_SIZE  = 1024 * 4
 FB_START  = VCP_START + VCP_SIZE
 FB_WIDTH  = 640
@@ -123,9 +123,9 @@ init_video:
     ; s1 = WAITY for line (start with line 0)
     ldhi    s1, #0x50000000@hi
 
-    ; s2 = SETREG ADDR, (FB_START - RAM_START)/4
-    ldhi    s2, #(0x80000000 + ((FB_START - RAM_START)/4))@hi
-    or      s2, s2, #(0x80000000 + ((FB_START - RAM_START)/4))@lo
+    ; s2 = SETREG ADDR, (FB_START - VRAM_START)/4
+    ldhi    s2, #(0x80000000 + ((FB_START - VRAM_START)/4))@hi
+    or      s2, s2, #(0x80000000 + ((FB_START - VRAM_START)/4))@lo
 
     ; First line.
     stw     s1, s11, #0                 ; WAITY   ...

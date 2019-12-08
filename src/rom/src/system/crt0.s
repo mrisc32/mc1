@@ -5,8 +5,7 @@
 ; ----------------------------------------------------------------------------
 
 .include "system/memory.inc"
-
-STACK_START   = RAM_START + RAM_SIZE  ; Place the stack at the top of RAM.
+.include "system/mmio.inc"
 
     .text
 
@@ -122,10 +121,12 @@ _start:
     ; The default vector length is the max vector register length.
     cpuid   vl, z, z
 
-    ; Initialize the stack.
+    ; Initialize the stack: Place the stack at the top of VRAM.
     ; TODO(m): Set up the thread and frame pointers too.
-    ldhi    sp, #STACK_START@hi
-    add     sp, sp, #STACK_START@lo
+    ldhi    s1, #MMIO_START
+    ldw     s1, s1, #VRAMSIZE
+    ldhi    sp, #VRAM_START
+    add     sp, sp, s1
 
 
     ; ------------------------------------------------------------------------
