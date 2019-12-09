@@ -6,15 +6,19 @@
 .include "system/memory.inc"
 .include "system/mmio.inc"
 
-VCP_START = VRAM_START
-VCP_SIZE  = 1024 * 4
-FB_START  = VCP_START + VCP_SIZE
 FB_WIDTH  = 640
 FB_HEIGHT = 360
 
 NATIVE_WIDTH = 1920
 NATIVE_HEIGHT = 1080
 
+
+; ----------------------------------------------------------------------------
+; Static variables.
+; ----------------------------------------------------------------------------
+
+    .lcomm  vcp_start, 4
+    .lcomm  fb_start, 4
 
     .text
 
@@ -44,11 +48,28 @@ main:
 ; ----------------------------------------------------------------------------
 
 init_video:
-    add     sp, sp, #-4
-    stw     vl, sp, #0
+    add     sp, sp, #-8
+    stw     lr, sp, #0
+    stw     vl, sp, #4
 
-    ldhi    s11, #VCP_START@hi
-    or      s11, s11, #VCP_START@lo ; s11 = start of Video Control Program
+    ; Allocate memory for the VCP.
+    ldi     s1, #16+256*4+4+FB_HEIGHT*12+4
+    ldi     s2, #MEM_TYPE_VIDEO
+    bl      mem_alloc
+    ldhi    s2, #vcp_start@hi
+    stw     s1, s2, #vcp_start@lo
+    bz      s1, init_fail
+
+    ; Allocate memory for the frame buffer.
+    ldi     s1, #FB_WIDTH * FB_HEIGHT
+    ldi     s2, #MEM_TYPE_VIDEO
+    bl      mem_alloc
+    ldhi    s2, #fb_start@hi
+    stw     s1, s2, #fb_start@lo
+    bz      s1, init_fail
+
+    ldhi    s11, #vcp_start@hi
+    ldw     s11, s11, #vcp_start@lo ; s11 = start of Video Control Program
 
     ; VCP prologue.
     ldhi    s12, #(0x82000000 + 0x010000 * FB_WIDTH / NATIVE_WIDTH)@hi  ; SETREG XINCR, ...
@@ -123,9 +144,13 @@ init_video:
     ; s1 = WAITY for line (start with line 0)
     ldhi    s1, #0x50000000@hi
 
-    ; s2 = SETREG ADDR, (FB_START - VRAM_START)/4
-    ldhi    s2, #(0x80000000 + ((FB_START - VRAM_START)/4))@hi
-    or      s2, s2, #(0x80000000 + ((FB_START - VRAM_START)/4))@lo
+    ldhi    s12, #fb_start@hi
+    ldw     s12, s12, #fb_start@lo
+    ldhi    s13, #VRAM_START
+    sub     s12, s12, s13
+    lsr     s12, s12, #2                ; s12 = (fb_start - VRAM_START)/4
+    ldhi    s2, #0x80000000
+    or      s2, s2, s12                 ; s2 = SETREG ADDR, (fb_start - VRAM_START)/4
 
     ; First line.
     stw     s1, s11, #0                 ; WAITY   ...
@@ -154,8 +179,8 @@ init_video:
     stw     s12, s11, #0
 
     ; Clear the frame buffer.
-    ldhi    s9, #FB_START@hi
-    or      s9, s9, #FB_START@lo                ; s9 = start of frame buffer
+    ldhi    s9, #fb_start@hi
+    ldw     s9, s9, #fb_start@lo                ; s9 = start of frame buffer
     cpuid   s10, z, z                           ; s10 = max vector length
     ldi     s11, #(FB_WIDTH * FB_HEIGHT) / 4    ; s11 = number of words
 4$:
@@ -165,8 +190,30 @@ init_video:
     ldea    s9, s9, vl * 4
     bnz     s11, 4$
 
-    ldw     vl, sp, #0
-    add     sp, sp, #4
+    bl      fb_show
+
+init_fail:
+    ldw     lr, sp, #0
+    ldw     vl, sp, #4
+    add     sp, sp, #8
+    ret
+
+
+; ----------------------------------------------------------------------------
+; Show the application frame buffer.
+; ----------------------------------------------------------------------------
+
+fb_show:
+    ; Set the VCP0 jump target to the start of our VCP.
+    ldhi    s1, #vcp_start@hi
+    ldw     s1, s1, #vcp_start@lo
+    bz      s1, 1$
+    ldhi    s2, #VRAM_START
+    sub     s1, s1, s2
+    lsr     s1, s1, #2              ; s1 = JMP (vcp_start - VRAM_START)/4
+    stw     s1, s2, #0              ; Set VCP0 jump target
+
+1$:
     ret
 
 
@@ -218,24 +265,43 @@ main_loop:
 ; ----------------------------------------------------------------------------
 
 draw:
-    add     sp, sp, #-4
+    add     sp, sp, #-8
     stw     lr, sp, #0
+    stw     s20, sp, #4
+
+    mov     s20, s1
 
     ; Select drawing routine based on the state of SWITCHES.
     ldhi    s2, #MMIO_START
     ldw     s2, s2, #SWITCHES
-    and     s2, s2, #1
-    bz      s2, 1$
 
+    ; Show funky?
+    and     s3, s2, #1
+    bz      s3, 1$
+
+    bl      fb_show
+    mov     s1, s20
     bl      funky
-    bz      z, 2$
+    b       3$
 
 1$:
+    ; Show mandelbrot?
+    and     s3, s2, #2
+    bz      s3, 2$
+
+    bl      fb_show
+    mov     s1, s20
     bl      mandelbrot
+    b       3$
 
 2$:
+    ; Default: Show VCON.
+    bl      vcon_show
+
+3$:
     ldw     lr, sp, #0
-    add     sp, sp, #4
+    ldw     s20, sp, #4
+    add     sp, sp, #8
     ret
 
 
@@ -245,8 +311,17 @@ draw:
 ; ----------------------------------------------------------------------------
 
 mandelbrot:
-    add     sp, sp, #-4
+    add     sp, sp, #-16
+    stw     s16, sp, #12
+    stw     s17, sp, #8
+    stw     s18, sp, #4
     stw     s20, sp, #0
+
+    and     s1, s1, #127
+    slt     s2, s1, #64
+    bs      s2, 1$
+    sub     s1, #128, s1
+1$:
 
     ldw     s13, pc, #coord_step@pc
     ldw     s17, pc, #max_num_iterations@pc
@@ -263,8 +338,9 @@ mandelbrot:
 
     fmul    s13, s13, s20           ; s13 = coord_step * zoom_factor
 
-    ldhi    s14, #FB_START@hi       ; s14 = pixel_data
-    or      s14, s14, #FB_START@lo
+    ldhi    s14, #fb_start@hi
+    ldw     s14, s14, #fb_start@lo  ; s14 = pixel_data
+    bz      s14, mandelbrot_fail
 
     ldi     s16, #FB_HEIGHT ; s16 = loop counter for y
     asr     s3, s16, #1
@@ -322,8 +398,12 @@ inner_loop_done:
     fadd    s2, s2, s13     ; im(c) = im(c) + coord_step
     bgt     s16, outer_loop_y
 
+mandelbrot_fail:
     ldw     s20, sp, #0
-    add     sp, sp, #4
+    ldw     s18, sp, #4
+    ldw     s17, sp, #8
+    ldw     s16, sp, #12
+    add     sp, sp, #16
     ret
 
 
@@ -350,9 +430,10 @@ coord_step:
 ; ----------------------------------------------------------------------------
 
 funky:
-    add     sp, sp, #-8
-    stw		s20, sp, #0
-    stw		s21, sp, #4
+    add     sp, sp, #-12
+    stw     s20, sp, #0
+    stw     s21, sp, #4
+    stw     vl, sp, #8
 
     add     s1, s1, s1              ; Increase animation speed
 
@@ -365,8 +446,9 @@ funky:
     ldhi    s21, #sine1024@hi
     or      s21, s21, #sine1024@lo  ; s21 = start of 1024-entry sine table
 
-    ldhi    s6, #FB_START@hi        ; s6 = video frame buffer
-    or      s6, s6, #FB_START@lo
+    ldhi    s6, #fb_start@hi
+    ldw     s6, s6, #fb_start@lo    ; s6 = video frame buffer
+    bz      s6, funky_fail
 
     ldi     s8, #FB_HEIGHT          ; s8 = y counter
 loop_y:
@@ -395,14 +477,16 @@ loop_x:
     bgt     s7, #loop_x
     bgt     s8, #loop_y
 
-    ldw		s20, sp, #0
-    ldw		s21, sp, #4
-    add     sp, sp, #8
-
-    j	    lr, #0
+funky_fail:
+    ldw     s20, sp, #0
+    ldw     s21, sp, #4
+    ldw     vl, sp, #8
+    add     sp, sp, #12
+    ret
 
 
     .section .rodata
+    .p2align 2
 
 sine1024:
     ; This is a 1024-entry LUT of sin(x), in Q15 format.

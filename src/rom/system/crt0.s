@@ -29,8 +29,8 @@ _start:
     cpuid   s3, z, z
 clear_bss_loop:
     min     vl, s2, s3
-    stw     vz, s1, #4
     sub     s2, s2, vl
+    stw     vz, s1, #4
     ldea    s1, s1, vl*4
     bnz     s2, clear_bss_loop
 bss_cleared:
