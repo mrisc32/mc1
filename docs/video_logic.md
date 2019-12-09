@@ -32,24 +32,13 @@ The four most significant bits give the command, according to:
 | 6          | SETPAL  | Set the palette                                 |
 | 8          | SETREG  | Set the value of a video control register       |
 
-### NOP
-
-The NOP command is encoded as follows:
-
-| Bits  | Description            |
-|-------|------------------------|
-| 31-28 | 0000                   |
-|  27-0 | (unused)               |
-
-The NOP instruction does nothing (except advancing the program pointer to the next instruction).
-
 ### JMP
 
 The JMP command is encoded as follows:
 
 | Bits  | Description            |
 |-------|------------------------|
-| 31-28 | 0001                   |
+| 31-28 | 0000                   |
 | 27-24 | (unused)               |
 |  23-0 | Target address         |
 
@@ -61,7 +50,7 @@ The JSR command is encoded as follows:
 
 | Bits  | Description            |
 |-------|------------------------|
-| 31-28 | 0010                   |
+| 31-28 | 0001                   |
 | 27-24 | (unused)               |
 |  23-0 | Target address         |
 
@@ -75,12 +64,23 @@ The RTS command is encoded as follows:
 
 | Bits  | Description            |
 |-------|------------------------|
-| 31-28 | 0011                   |
+| 31-28 | 0010                   |
 |  27-0 | (unused)               |
 
 The RTS command pops an instruction address from the top of the internal call stack, and jumps to that address.
 
 Note: Since the stack is never reset, issuing an RTS command without a matching JSR command will result in undefined behaviour.
+
+### NOP
+
+The NOP command is encoded as follows:
+
+| Bits  | Description            |
+|-------|------------------------|
+| 31-28 | 0011                   |
+|  27-0 | (unused)               |
+
+The NOP instruction does nothing (except advancing the program pointer to the next instruction).
 
 ### WAITX
 
