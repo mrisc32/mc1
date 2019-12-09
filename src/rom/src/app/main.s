@@ -194,10 +194,6 @@ main_loop:
     mov     s1, s21
     jl      pc, #draw@pc
 
-    ; Sleep for 1/60 s.
-    ldi     s1, #16
-    jl      pc, #msleep@pc
-
     add     s21, s21, #1
     bz      z, 1$
 
