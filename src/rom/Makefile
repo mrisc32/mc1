@@ -1,13 +1,14 @@
 # -*- mode: Makefile; tab-width: 8; indent-tabs-mode: t; -*-
 
+BUILDDIR = out
+
 AS      = mrisc32-elf-as
-ASFLAGS = -I src
+ASFLAGS = -I .
 LD      = mrisc32-elf-ld
+LDFLAGS = -L$(BUILDDIR)
 AR      = mrisc32-elf-ar
 ARFLAGS = rcs
 OBJCOPY = mrisc32-elf-objcopy
-
-BUILDDIR = out
 
 .PHONY: clean all
 
@@ -29,21 +30,21 @@ $(BUILDDIR)/rom.raw: $(BUILDDIR)/rom.elf
 	$(OBJCOPY) -O binary $< $@
 
 $(BUILDDIR)/rom.elf: $(APPOBJS) $(BUILDDIR)/libsys.a
-	$(LD) -L$(BUILDDIR) -o $@ $(APPOBJS) -lsys
+	$(LD) $(LDFLAGS) -o $@ $(APPOBJS) -lsys
 
 $(BUILDDIR)/libsys.a: $(SYSOBJS)
 	$(AR) $(ARFLAGS) $@ $(SYSOBJS)
 
-$(BUILDDIR)/crt0.o: src/system/crt0.s src/system/memory.inc src/system/mmio.inc
-	$(AS) $(ASFLAGS) -o $@ src/system/crt0.s
+$(BUILDDIR)/crt0.o: system/crt0.s system/memory.inc system/mmio.inc
+	$(AS) $(ASFLAGS) -o $@ system/crt0.s
 
-$(BUILDDIR)/leds.o: src/system/leds.s src/system/mmio.inc
-	$(AS) $(ASFLAGS) -o $@ src/system/leds.s
+$(BUILDDIR)/leds.o: system/leds.s system/mmio.inc
+	$(AS) $(ASFLAGS) -o $@ system/leds.s
 
-$(BUILDDIR)/time.o: src/system/time.s src/system/mmio.inc
-	$(AS) $(ASFLAGS) -o $@ src/system/time.s
+$(BUILDDIR)/time.o: system/time.s system/mmio.inc
+	$(AS) $(ASFLAGS) -o $@ system/time.s
 
-$(BUILDDIR)/main.o: src/app/main.s src/system/memory.inc
-	$(AS) $(ASFLAGS) -o $@ src/app/main.s
+$(BUILDDIR)/main.o: app/main.s system/memory.inc
+	$(AS) $(ASFLAGS) -o $@ app/main.s
 
 

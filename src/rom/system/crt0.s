@@ -13,7 +13,7 @@
 
 _start:
     ; ------------------------------------------------------------------------
-    ; Boot + process/thread startup.
+    ; Clear all CPU registers.
     ; ------------------------------------------------------------------------
 
     ; Set all the scalar registers (except Z and PC) to a known state.
@@ -49,6 +49,7 @@ _start:
     ldi     s30, #0
 
     ; Set all the vector registers to a known state: clear all elements.
+    ; Also: The default vector length is the max vector register length.
     cpuid   vl, z, z
     or      v1, vz, #0
     or      v2, vz, #0
@@ -82,46 +83,13 @@ _start:
     or      v30, vz, #0
     or      v31, vz, #0
 
-    ; Set all the vector register lengths to zero.
-    ; NOTE: Register lengths are currently not implemented in the A1, but this
-    ; is a fast operation and it does not hurt.
-    ldi     vl, #0
-    or      v1, vz, #0
-    or      v2, vz, #0
-    or      v3, vz, #0
-    or      v4, vz, #0
-    or      v5, vz, #0
-    or      v6, vz, #0
-    or      v7, vz, #0
-    or      v8, vz, #0
-    or      v9, vz, #0
-    or      v10, vz, #0
-    or      v11, vz, #0
-    or      v12, vz, #0
-    or      v13, vz, #0
-    or      v14, vz, #0
-    or      v15, vz, #0
-    or      v16, vz, #0
-    or      v17, vz, #0
-    or      v18, vz, #0
-    or      v19, vz, #0
-    or      v20, vz, #0
-    or      v21, vz, #0
-    or      v22, vz, #0
-    or      v23, vz, #0
-    or      v24, vz, #0
-    or      v25, vz, #0
-    or      v26, vz, #0
-    or      v27, vz, #0
-    or      v28, vz, #0
-    or      v29, vz, #0
-    or      v30, vz, #0
-    or      v31, vz, #0
 
-    ; The default vector length is the max vector register length.
-    cpuid   vl, z, z
+    ; ------------------------------------------------------------------------
+    ; Set up the stack area.
+    ; ------------------------------------------------------------------------
 
     ; Initialize the stack: Place the stack at the top of VRAM.
+    ; TODO(m): Use memory allocation for this instead.
     ; TODO(m): Set up the thread and frame pointers too.
     ldhi    s1, #MMIO_START
     ldw     s1, s1, #VRAMSIZE
