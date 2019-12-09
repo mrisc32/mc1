@@ -88,7 +88,7 @@ entity toplevel is
 end toplevel;
 
 architecture rtl of toplevel is
-  signal s_system_rst : std_logic := '1';
+  signal s_system_rst : std_logic;
 
   signal s_pll_cpu_locked : std_logic;
   signal s_pll_vga_locked : std_logic;
@@ -99,27 +99,20 @@ architecture rtl of toplevel is
 
   signal s_vga_rst : std_logic;
   signal s_vga_clk : std_logic;
-  signal s_vga_r : std_logic_vector(3 downto 0);
-  signal s_vga_g : std_logic_vector(3 downto 0);
-  signal s_vga_b : std_logic_vector(3 downto 0);
-  signal s_vga_hs : std_logic;
-  signal s_vga_vs : std_logic;
 
   signal s_io_switches : std_logic_vector(31 downto 0);
   signal s_io_buttons : std_logic_vector(31 downto 0);
   signal s_io_regs_w : T_MMIO_REGS_WO;
 begin
-  -- System reset signal.
-  process(CLOCK_50, RESET_N)
-  begin
-    if RESET_N = '0' then
-      s_system_rst <= '1';
-    elsif rising_edge(CLOCK_50) then
-      if RESET_N = '1' then
-        s_system_rst <= '0';
-      end if;
-    end if;
-  end process;
+  -- System reset signal: This is the reset signal from the board. The stabilizer guarantees that
+  -- the reset signal will be held high for a certain period.
+  reset_stabilizer_1: entity work.reset_stabilizer
+    port map
+    (
+      i_rst_n => RESET_N,
+      i_clk => CLOCK_50,
+      o_rst => s_system_rst
+    );
 
   -- Generate the CPU clock signal.
   -- 70 MHz seems to be a good safe bet, but going higher is certainly possible.
@@ -177,7 +170,7 @@ begin
   -- Instantiate the MC1 machine.
   mc1_1: entity work.mc1
     generic map (
-      COLOR_BITS => s_vga_r'length,
+      COLOR_BITS => VGA_R'length,
       LOG2_VRAM_SIZE => 16,          -- 4*2^16 = 256 KiB
       VIDEO_CONFIG => C_1920_1080
     )
@@ -189,24 +182,17 @@ begin
       -- VGA interface.
       i_vga_rst => s_vga_rst,
       i_vga_clk => s_vga_clk,
-      o_vga_r => s_vga_r,
-      o_vga_g => s_vga_g,
-      o_vga_b => s_vga_b,
-      o_vga_hs => s_vga_hs,
-      o_vga_vs => s_vga_vs,
+      o_vga_r => VGA_R,
+      o_vga_g => VGA_G,
+      o_vga_b => VGA_B,
+      o_vga_hs => VGA_HS,
+      o_vga_vs => VGA_VS,
 
       -- I/O registers.
       i_io_switches => s_io_switches,
       i_io_buttons => s_io_buttons,
       o_io_regs_w => s_io_regs_w
     );
-
-  -- VGA interface.
-  VGA_R <= s_vga_r;
-  VGA_G <= s_vga_g;
-  VGA_B <= s_vga_b;
-  VGA_HS <= s_vga_hs;
-  VGA_VS <= s_vga_vs;
 
   -- I/O: Input.
   s_io_switches(31 downto 10) <= (others => '0');

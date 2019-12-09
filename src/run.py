@@ -34,6 +34,7 @@ def main():
     lib.add_source_files("rtl/prng.vhd")
     lib.add_source_files("rtl/ram_true_dual_port.vhd")
     lib.add_source_files("rtl/reset_conditioner.vhd")
+    lib.add_source_files("rtl/reset_stabilizer.vhd")
     lib.add_source_files("rtl/rom.vhd")
     lib.add_source_files("rtl/synchronizer.vhd")
     lib.add_source_files("rtl/video.vhd")
