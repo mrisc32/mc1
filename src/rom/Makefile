@@ -31,9 +31,10 @@ APP2OBJS = $(BUILDDIR)/app2.o
 APPOBJS = $(APP1OBJS)
 
 SYSOBJS = $(BUILDDIR)/crt0.o \
+          $(BUILDDIR)/mc1-font-8x8.o \
           $(BUILDDIR)/leds.o \
-          $(BUILDDIR)/time.o \
-          $(BUILDDIR)/memory.o
+          $(BUILDDIR)/memory.o \
+          $(BUILDDIR)/time.o
 
 ../rtl/rom.vhd: $(BUILDDIR)/rom.raw rom.vhd.in
 	./raw2vhd.py $(BUILDDIR)/rom.raw rom.vhd.in > $@
@@ -49,6 +50,17 @@ $(BUILDDIR)/libsys.a: $(SYSOBJS)
 
 $(BUILDDIR)/crt0.o: system/crt0.s system/memory.inc system/mmio.inc
 	$(AS) $(ASFLAGS) -o $@ system/crt0.s
+
+$(BUILDDIR)/mc1-font-8x8.o: $(BUILDDIR)/mc1-font-8x8.s
+	$(AS) $(ASFLAGS) -o $@ $<
+
+$(BUILDDIR)/mc1-font-8x8.s: system/mc1-font-8x8.raw
+	# Trim out ASCII code points 32..127 (the printable ASCII chars).
+	cat system/mc1-font-8x8.raw | \
+	    tail -c +257  | \
+	    head -c -1024 \
+	    > $(BUILDDIR)/mc1-font-8x8-part.raw
+	./raw2asm.py $(BUILDDIR)/mc1-font-8x8-part.raw mc1_font_8x8 > $@
 
 $(BUILDDIR)/leds.o: system/leds.s system/mmio.inc
 	$(AS) $(ASFLAGS) -o $@ system/leds.s
