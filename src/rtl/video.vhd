@@ -171,12 +171,14 @@ begin
   -- Instantiate the pixel pipeline.
   pixel_pipe_1: entity work.vid_pixel
     generic map (
-      X_COORD_BITS => s_raster_x'length
+      X_COORD_BITS => s_raster_x'length,
+      Y_COORD_BITS => s_raster_y'length
     )
     port map(
       i_rst => i_rst,
       i_clk => i_clk,
       i_raster_x => s_raster_x,
+      i_raster_y => s_raster_y,
       o_mem_read_en => s_pix_mem_read_en,
       o_mem_read_addr => s_pix_mem_read_addr,
       i_mem_data => i_read_dat,

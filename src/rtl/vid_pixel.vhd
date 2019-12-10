@@ -58,7 +58,8 @@ use work.vid_types.all;
 
 entity vid_pixel is
   generic(
-    X_COORD_BITS : positive
+    X_COORD_BITS : positive;
+    Y_COORD_BITS : positive
   );
   port(
     i_rst : in std_logic;
@@ -66,6 +67,7 @@ entity vid_pixel is
 
     -- Raster control signals.
     i_raster_x : in std_logic_vector(X_COORD_BITS-1 downto 0);
+    i_raster_y : in std_logic_vector(Y_COORD_BITS-1 downto 0);
 
     -- RAM interface.
     o_mem_read_en : out std_logic;
@@ -100,6 +102,8 @@ architecture rtl of vid_pixel is
   signal s_xc_hpos : signed(23 downto 0);
   signal s_xc_next_active : std_logic;
   signal s_xc_active : std_logic;
+  signal s_xc_next_in_blanking_area : std_logic;
+  signal s_xc_in_blanking_area : std_logic;
   signal s_xc_next_pos : std_logic_vector(C_FP_BITS-1 downto 0);
   signal s_xc_pos : std_logic_vector(C_FP_BITS-1 downto 0);
   signal s_xc_pos_plus_incr : std_logic_vector(C_FP_BITS-1 downto 0);
@@ -125,13 +129,16 @@ architecture rtl of vid_pixel is
   signal s_pa_mem_read_en : std_logic;
   signal s_pa_shift : std_logic_vector(4 downto 0);
   signal s_pa_active : std_logic;
+  signal s_pa_in_blanking_area : std_logic;
 
   signal s_pf1_shift : std_logic_vector(4 downto 0);
   signal s_pf1_active : std_logic;
+  signal s_pf1_in_blanking_area : std_logic;
 
   signal s_pf2_data : std_logic_vector(31 downto 0);
   signal s_pf2_shift : std_logic_vector(4 downto 0);
   signal s_pf2_active : std_logic;
+  signal s_pf2_in_blanking_area : std_logic;
 
   signal s_sh_shifted_idx : std_logic_vector(7 downto 0);
   signal s_sh_shifted_rgba16 : std_logic_vector(15 downto 0);
@@ -139,7 +146,7 @@ architecture rtl of vid_pixel is
   signal s_sh_data : std_logic_vector(31 downto 0);
   signal s_sh_next_is_truecolor : std_logic;
   signal s_sh_is_truecolor : std_logic;
-  signal s_sh_active : std_logic;
+  signal s_sh_in_blanking_area : std_logic;
 
   signal s_palf_next_data : std_logic_vector(31 downto 0);
   signal s_palf_data : std_logic_vector(31 downto 0);
@@ -186,6 +193,11 @@ begin
   -- XCOORD
   -----------------------------------------------------------------------------
 
+  -- Are we in the blanking area (i.e. is any of the X or Y raster coordinates
+  -- negative)?
+  s_xc_next_in_blanking_area <= i_raster_x(i_raster_x'left) or
+                                i_raster_y(i_raster_y'left);
+
   -- Determine if we're in the active region (i.e. between HSTRT and HSTOP).
   s_xc_hpos <= xcoord_to_signed24(i_raster_x);
   s_xc_next_active <= '1' when s_xc_hpos >= signed(i_regs.HSTRT) and
@@ -205,9 +217,11 @@ begin
     if i_rst = '1' then
       s_xc_pos <= (others => '0');
       s_xc_active <= '0';
+      s_xc_in_blanking_area <= '1';
     elsif rising_edge(i_clk) then
       s_xc_pos <= s_xc_next_pos;
       s_xc_active <= s_xc_next_active;
+      s_xc_in_blanking_area <= s_xc_next_in_blanking_area;
     end if;
   end process;
 
@@ -277,10 +291,13 @@ begin
     if i_rst = '1' then
       s_pa_shift <= (others => '0');
       s_pa_active <= '0';
+      s_pa_in_blanking_area <= '1';
       s_pa_prev_addr <=  24x"123456";  -- Unlikely address.
+      s_pa_mem_read_en <= '0';
     elsif rising_edge(i_clk) then
       s_pa_shift <= s_pa_next_shift;
       s_pa_active <= s_xc_active;
+      s_pa_in_blanking_area <= s_xc_in_blanking_area;
       if s_pa_next_mem_read_en then
         s_pa_prev_addr <= s_pa_addr;
       end if;
@@ -303,9 +320,11 @@ begin
     if i_rst = '1' then
       s_pf1_shift <= (others => '0');
       s_pf1_active <= '0';
+      s_pf1_in_blanking_area <= '1';
     elsif rising_edge(i_clk) then
       s_pf1_shift <= s_pa_shift;
       s_pf1_active <= s_pa_active;
+      s_pf1_in_blanking_area <= s_pa_in_blanking_area;
     end if;
   end process;
 
@@ -321,12 +340,17 @@ begin
       s_pf2_data <= (others => '0');
       s_pf2_shift <= (others => '0');
       s_pf2_active <= '0';
+      s_pf2_in_blanking_area <= '1';
     elsif rising_edge(i_clk) then
-      if i_mem_ack = '1' then
+      if s_pf1_active = '0' then
+        -- Force palette color #0 ("background") for the inactive area.
+        s_pf2_data <= (others => '0');
+      elsif i_mem_ack = '1' then
         s_pf2_data <= i_mem_data;
       end if;
       s_pf2_shift <= s_pf1_shift;
       s_pf2_active <= s_pf1_active;
+      s_pf2_in_blanking_area <= s_pf1_in_blanking_area;
     end if;
   end process;
 
@@ -356,9 +380,10 @@ begin
                     rgba16_to_rgba32(s_sh_shifted_rgba16);
 
   -- Is this a palette lookup or truecolor pixel?
+  -- Note: We force palette mode in the inactive area.
   IsTruecolorMux: with i_regs.CMODE(3 downto 0) select
     s_sh_next_is_truecolor <=
-        '1' when C_CMODE_RGBA32 | C_CMODE_RGBA16,
+        s_pf2_active when C_CMODE_RGBA32 | C_CMODE_RGBA16,
         '0' when others;
 
   -- SHIFT registers.
@@ -367,11 +392,11 @@ begin
     if i_rst = '1' then
       s_sh_data <= (others => '0');
       s_sh_is_truecolor <= '0';
-      s_sh_active <= '0';
+      s_sh_in_blanking_area <= '1';
     elsif rising_edge(i_clk) then
       s_sh_data <= s_sh_next_data;
       s_sh_is_truecolor <= s_sh_next_is_truecolor;
-      s_sh_active <= s_pf2_active;
+      s_sh_in_blanking_area <= s_pf2_in_blanking_area;
     end if;
   end process;
 
@@ -381,7 +406,7 @@ begin
   -----------------------------------------------------------------------------
 
   -- Select which color source to use (truecolor or palette).
-  s_palf_next_data <= (others => '0') when s_sh_active = '0' else
+  s_palf_next_data <= (others => '0') when s_sh_in_blanking_area = '1' else
                       s_sh_data when s_sh_is_truecolor = '1' else
                       i_pal_data;
 
