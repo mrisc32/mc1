@@ -183,19 +183,27 @@ main_loop:
     ldhi    s20, #MMIO_START
     ldi     s21, #1
 1$:
-    ; Write the rendered frame count to LEDS.
-    stw     s21, s20, #LEDS
-
-    ; Write the machine frame number to the segment displays.
-    ldw     s1, s20, #VIDFRAMENO
-    jl      pc, #print_dec@pc
-
     ; Draw something to the screen.
     mov     s1, s21
     jl      pc, #draw@pc
 
+    ; Write the raster Y position to the segment displays.
+    ldw     s1, s20, #VIDY
+    jl      pc, #print_dec@pc
+
+    ; Write the rendered frame count to LEDS.
+    stw     s21, s20, #LEDS
+
+    ; Wait for the next vertical blanking interval. We busy lopp since we
+    ; don't have interrupts yet.
+    ldw     s2, s20, #VIDFRAMENO
+2$:
+    ldw     s1, s20, #VIDFRAMENO
+    sne     s1, s1, s2
+    bns     s1, 2$
+
     add     s21, s21, #1
-    bz      z, 1$
+    j       pc, #1$@pc      ; Infinite loop...
 
     ldw     lr, sp, #0
     ldw     s20, sp, #4
@@ -386,13 +394,6 @@ loop_x:
 
     bgt     s7, #loop_x
     bgt     s8, #loop_y
-
-    ldhi    s10, #MMIO_START
-    ldw     s12, s10, #VIDFRAMENO
-wait_vblank:
-    ldw     s11, s10, #VIDFRAMENO
-    sne     s11, s11, s12
-    bns     s11, #wait_vblank
 
     ldw		s20, sp, #0
     ldw		s21, sp, #4
