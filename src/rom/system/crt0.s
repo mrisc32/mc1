@@ -7,11 +7,32 @@
 .include "system/memory.inc"
 .include "system/mmio.inc"
 
-    .text
+    .section .entry
 
     .globl  _start
 
 _start:
+    ; ------------------------------------------------------------------------
+    ; Clear the BSS data.
+    ; ------------------------------------------------------------------------
+
+    ldhi    s2, #__bss_size@hi
+    or      s2, s2, #__bss_size@lo
+    bz      s2, bss_cleared
+    lsr     s2, s2, #2      ; BSS size is always a multiple of 4 bytes.
+
+    ldhi    s1, #__bss_start@hi
+    or      s1, s1, #__bss_start@lo
+    cpuid   s3, z, z
+clear_bss_loop:
+    min     vl, s2, s3
+    stw     vz, s1, #4
+    sub     s2, s2, vl
+    ldea    s1, s1, vl*4
+    bnz     s2, clear_bss_loop
+bss_cleared:
+
+
     ; ------------------------------------------------------------------------
     ; Clear all CPU registers.
     ; ------------------------------------------------------------------------
@@ -109,8 +130,7 @@ _start:
     add     s2, s2, #argv@lo
 
     ; Jump to main().
-    ldhi    s15, #main@hi
-    jl      s15, #main@lo
+    jl      pc, #main@pc
 
 
     ; ------------------------------------------------------------------------
@@ -135,7 +155,7 @@ _start:
     nop
 
 
-    .data
+    .section .rodata
 
 argv:
     .word   arg0

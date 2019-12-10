@@ -354,7 +354,8 @@ funky:
     add     s2, s13, #-1
     ldea    v4, s2, #-1             ; v4 is a ramp from vl-1 downto 0
 
-    add     s21, pc, #sine1024@pc   ; s21 = start of 1024-entry sine table
+    ldhi    s21, #sine1024@hi
+    or      s21, s21, #sine1024@lo  ; s21 = start of 1024-entry sine table
 
     ldhi    s6, #FB_START@hi        ; s6 = video frame buffer
     or      s6, s6, #FB_START@lo
@@ -399,6 +400,8 @@ wait_vblank:
 
     j	    lr, #0
 
+
+    .section .rodata
 
 sine1024:
     ; This is a 1024-entry LUT of sin(x), in Q15 format.

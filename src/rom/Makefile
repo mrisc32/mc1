@@ -5,7 +5,7 @@ BUILDDIR = out
 AS      = mrisc32-elf-as
 ASFLAGS = -I .
 LD      = mrisc32-elf-ld
-LDFLAGS = -L$(BUILDDIR)
+LDFLAGS = -L$(BUILDDIR) --script link.ld
 AR      = mrisc32-elf-ar
 ARFLAGS = rcs
 OBJCOPY = mrisc32-elf-objcopy
@@ -29,7 +29,7 @@ SYSOBJS = $(BUILDDIR)/crt0.o \
 $(BUILDDIR)/rom.raw: $(BUILDDIR)/rom.elf
 	$(OBJCOPY) -O binary $< $@
 
-$(BUILDDIR)/rom.elf: $(APPOBJS) $(BUILDDIR)/libsys.a
+$(BUILDDIR)/rom.elf: $(APPOBJS) $(BUILDDIR)/libsys.a link.ld
 	$(LD) $(LDFLAGS) -o $@ $(APPOBJS) -lsys
 
 $(BUILDDIR)/libsys.a: $(SYSOBJS)
