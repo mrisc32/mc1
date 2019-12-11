@@ -25,6 +25,8 @@ clean:
 
 APP1OBJS = $(BUILDDIR)/app1.o
 
+APP2OBJS = $(BUILDDIR)/app2.o
+
 # Select which app to build into the ROM here:
 APPOBJS = $(APP1OBJS)
 
@@ -62,4 +64,10 @@ $(BUILDDIR)/memory.o: $(BUILDDIR)/memory.s
 
 $(BUILDDIR)/app1.o: app1/app1.s system/memory.inc
 	$(AS) $(ASFLAGS) -o $@ app1/app1.s
+
+$(BUILDDIR)/app2.s: app2/app2.c
+	$(CC) $(CCFLAGS) -o $@ app2/app2.c
+
+$(BUILDDIR)/app2.o: $(BUILDDIR)/app2.s
+	$(AS) $(ASFLAGS) -o $@ $(BUILDDIR)/app2.s
 
