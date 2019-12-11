@@ -23,7 +23,10 @@ clean:
 	      $(BUILDDIR)/*.elf \
 	      $(BUILDDIR)/*.raw
 
-APPOBJS = $(BUILDDIR)/main.o
+APP1OBJS = $(BUILDDIR)/app1.o
+
+# Select which app to build into the ROM here:
+APPOBJS = $(APP1OBJS)
 
 SYSOBJS = $(BUILDDIR)/crt0.o \
           $(BUILDDIR)/leds.o \
@@ -57,7 +60,6 @@ $(BUILDDIR)/memory.s: system/memory.c
 $(BUILDDIR)/memory.o: $(BUILDDIR)/memory.s
 	$(AS) $(ASFLAGS) -o $@ $(BUILDDIR)/memory.s
 
-$(BUILDDIR)/main.o: app/main.s system/memory.inc
-	$(AS) $(ASFLAGS) -o $@ app/main.s
-
+$(BUILDDIR)/app1.o: app1/app1.s system/memory.inc
+	$(AS) $(ASFLAGS) -o $@ app1/app1.s
 
