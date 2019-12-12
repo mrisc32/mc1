@@ -21,6 +21,10 @@
 #ifndef SYSTEM_LEDS_H_
 #define SYSTEM_LEDS_H_
 
+/// @brief Set the LED:s of the board.
+/// @param bits Each bit represents one LED (bit #0 is LED #0).
+void set_leds(unsigned bits);
+
 /// @brief Print a hexadecimal number to the board segment displays.
 /// @param number The number to print.
 void print_hex(unsigned number);

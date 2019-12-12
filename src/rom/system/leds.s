@@ -8,6 +8,19 @@
     .text
 
 ; ----------------------------------------------------------------------------
+; void set_leds(unsigned bits)
+; Set the leds of the boards.
+; ----------------------------------------------------------------------------
+
+    .globl set_leds
+
+set_leds:
+    ldhi    s2, #MMIO_START
+    stw     s1, s2, #LEDS
+    j       lr
+
+
+; ----------------------------------------------------------------------------
 ; void print_hex(unsigned number)
 ; Print a hexadecimal number to the board segment displays.
 ; ----------------------------------------------------------------------------
