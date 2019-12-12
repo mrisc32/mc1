@@ -19,6 +19,7 @@
 //--------------------------------------------------------------------------------------------------
 
 #include <system/memory.h>
+#include <system/vconsole.h>
 
 //--------------------------------------------------------------------------------------------------
 // Private
@@ -74,6 +75,17 @@ static int init_mem_pool(mem_pool_t* pool, void* start, size_t size, unsigned ty
   pool->start = ((size_t)start) + blocks_array_size;
   pool->size = size - blocks_array_size;
   pool->type = type;
+
+#if 0
+  // TODO(m): This generates bad code with references like #*.LC0@pchi
+  vcon_print("Alloc pool: 0x");
+  vcon_print_hex(pool->start);
+  vcon_print(", ");
+  vcon_print_dec(pool->size);
+  vcon_print(" free bytes (type: ");
+  vcon_print_hex(pool->type);
+  vcon_print(")\n");
+#endif
 
   return 1;
 }

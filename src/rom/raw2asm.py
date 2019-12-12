@@ -6,7 +6,11 @@ import struct
 from pathlib import Path
 
 
-def convert(raw_filename, symbol):
+def reverse_bits(x):
+    return ((x >> 7) & 1) | ((x >> 5) & 2) | ((x >> 3) & 4) | ((x >> 1) & 8) | ((x << 1) & 16) | ((x << 3) & 32) | ((x << 5) & 64) | ((x << 7) & 128)
+
+
+def convert(raw_filename, symbol, rev):
     # Read the raw file.
     with open(raw_filename, 'rb') as f:
         raw_data = f.read()
@@ -22,6 +26,8 @@ def convert(raw_filename, symbol):
     raw_data_8bit = struct.unpack('B' * len(raw_data), raw_data)
     col = 99
     for x in raw_data_8bit:
+        if rev:
+            x = reverse_bits(x)
         if col >= 8:
             asm_source = asm_source + '\n\t.byte\t'
             col = 0
@@ -39,10 +45,11 @@ def main():
             description='Convert a raw file to an assembler source file')
     parser.add_argument('raw', metavar='RAW_FILE', help='the raw file to convert')
     parser.add_argument('symbol', metavar='SYMBOL', help='the data symbol name')
+    parser.add_argument('--rev', action='store_true', help='reverse the bits of each byte')
     args = parser.parse_args()
 
     # Convert the file.
-    convert(args.raw, args.symbol)
+    convert(args.raw, args.symbol, args.rev)
 
 
 if __name__ == "__main__":

@@ -7,6 +7,9 @@
 .include "system/memory.inc"
 .include "system/mmio.inc"
 
+STACK_SIZE = 4*1024
+
+
     .section .entry
 
     .globl  _start
@@ -34,6 +37,80 @@ bss_cleared:
 
 
     ; ------------------------------------------------------------------------
+    ; Set up the stack area.
+    ; ------------------------------------------------------------------------
+
+    ; Initialize the stack: Place the stack at the top of VRAM.
+    ; TODO(m): Use memory allocation for this instead.
+    ; TODO(m): Set up the thread and frame pointers too.
+    ldhi    s1, #MMIO_START
+    ldw     s1, s1, #VRAMSIZE
+    ldhi    sp, #VRAM_START
+    add     sp, sp, s1
+
+
+    ; ------------------------------------------------------------------------
+    ; Initialize the video console.
+    ; ------------------------------------------------------------------------
+
+    jl      pc, #vcon_memory_requirement@pc
+    mov     s21, s1                 ; s21 = vcon size
+
+    ldhi    s2, #MMIO_START
+    ldw     s2, s2, #VRAMSIZE
+    ldhi    s3, #VRAM_START
+    add     s3, s3, s2              ; s3 = VRAM end
+
+    ldi     s2, #STACK_SIZE
+    add     s2, s1, s2              ; s2 = stack size + vconsole size
+    sub     s20, s3, s2             ; s20 = start of vcon (end of free VRAM)
+
+    mov     s1, s20
+    jl      pc, #vcon_init@pc
+
+
+    ; ------------------------------------------------------------------------
+    ; Boot text: Print some memory information etc.
+    ; ------------------------------------------------------------------------
+
+    ldea    s1, pc, #boot_text_1@pc
+    jl      pc, #vcon_print@pc
+
+    ldea    s1, pc, #vram_text_1@pc
+    ldhi    s2, #VRAM_START
+    ldhi    s3, #MMIO_START
+    ldw     s3, s3, #VRAMSIZE
+    jl      pc, #print_mem_info@pc
+
+    ldea    s1, pc, #xram_text_1@pc
+    ldhi    s2, #XRAM_START
+    ldhi    s3, #MMIO_START
+    ldw     s3, s3, #XRAMSIZE
+    jl      pc, #print_mem_info@pc
+
+    ldea    s1, pc, #bss_text_1@pc
+    ldhi    s2, #__bss_start@hi
+    or      s2, s2, #__bss_start@lo
+    ldhi    s3, #__bss_size@hi
+    or      s3, s3, #__bss_size@lo
+    jl      pc, #print_mem_info@pc
+
+    ldea    s1, pc, #vcon_text_1@pc
+    mov     s2, s20
+    mov     s3, s21
+    jl      pc, #print_mem_info@pc
+
+    ldea    s1, pc, #stack_text_1@pc
+    ldi     s3, #STACK_SIZE
+    mov     s2, sp
+    sub     s2, s2, s3
+    jl      pc, #print_mem_info@pc
+
+    ldea    s1, pc, #boot_text_2@pc
+    jl      pc, #vcon_print@pc
+
+
+    ; ------------------------------------------------------------------------
     ; Initialize the memory allocator.
     ; ------------------------------------------------------------------------
 
@@ -51,21 +128,10 @@ bss_cleared:
     jl      pc, #mem_add_pool@pc
 
     ; Add a memory allocation pool for the VRAM.
-
-    ; s1 = Start of free VRAM.
     ldhi    s1, #__vram_free_start@hi
-    or      s1, s1, #__vram_free_start@lo
-
-    ; s2 = Number of free VRAM bytes.
-    ldhi    s2, #MMIO_START
-    ldw     s2, s2, #VRAMSIZE
-    ldhi    s3, #VRAM_START
-    sub     s3, s1, s3  ; s3 = number of pre-allocated bytes at start of VRAM
-    sub     s2, s2, s3
-
-    ; s3 = The memory type.
-    ldi     s3, #MEM_TYPE_VIDEO
-
+    or      s1, s1, #__vram_free_start@lo   ; s1 = Start of free VRAM
+    sub     s2, s20, s1                     ; s2 = Number of free VRAM bytes
+    ldi     s3, #MEM_TYPE_VIDEO             ; s3 = The memory type.
     jl      pc, #mem_add_pool@pc
 
 
@@ -73,7 +139,7 @@ bss_cleared:
     ; Clear all CPU registers.
     ; ------------------------------------------------------------------------
 
-    ; Set all the scalar registers (except Z and PC) to a known state.
+    ; Set all the scalar registers (except Z, SP and PC) to a known state.
     ldi     s1, #0
     ldi     s2, #0
     ldi     s3, #0
@@ -99,11 +165,10 @@ bss_cleared:
     ldi     s23, #0
     ldi     s24, #0
     ldi     s25, #0
-    ldi     s26, #0
-    ldi     s27, #0
-    ldi     s28, #0
-    ldi     s29, #0
-    ldi     s30, #0
+    ldi     fp, #0
+    ldi     tp, #0
+    ldi     vl, #0
+    ldi     lr, #0
 
     ; Set all the vector registers to a known state: clear all elements.
     ; Also: The default vector length is the max vector register length.
@@ -139,19 +204,6 @@ bss_cleared:
     or      v29, vz, #0
     or      v30, vz, #0
     or      v31, vz, #0
-
-
-    ; ------------------------------------------------------------------------
-    ; Set up the stack area.
-    ; ------------------------------------------------------------------------
-
-    ; Initialize the stack: Place the stack at the top of VRAM.
-    ; TODO(m): Use memory allocation for this instead.
-    ; TODO(m): Set up the thread and frame pointers too.
-    ldhi    s1, #MMIO_START
-    ldw     s1, s1, #VRAMSIZE
-    ldhi    sp, #VRAM_START
-    add     sp, sp, s1
 
 
     ; ------------------------------------------------------------------------
@@ -191,11 +243,75 @@ bss_cleared:
     nop
 
 
+    ; ------------------------------------------------------------------------
+    ; Print memory area info.
+    ; s1 = text
+    ; s2 = mem start
+    ; s3 = mem size
+    ; ------------------------------------------------------------------------
+
+print_mem_info:
+    add     sp, sp, #-12
+    stw     lr, sp, #0
+    stw     s20, sp, #4
+    stw     s21, sp, #8
+
+    mov     s20, s2
+    mov     s21, s3
+
+    jl      pc, #vcon_print@pc
+
+    mov     s1, s20
+    jl      pc, #vcon_print_hex@pc
+
+    ldea    s1, pc, #mem_info_text_2@pc
+    jl      pc, #vcon_print@pc
+
+    mov     s1, s21
+    jl      pc, #vcon_print_dec@pc
+
+    ldea    s1, pc, #mem_info_text_3@pc
+    jl      pc, #vcon_print@pc
+
+    ldw     lr, sp, #0
+    ldw     s20, sp, #4
+    ldw     s21, sp, #8
+    add     sp, sp, #12
+    j       lr
+
+
     .section .rodata
 
+    .p2align 2
 argv:
     .word   arg0
 
 arg0:
     ; We provide a fake program name (just to have a valid call to main).
     .asciz  "program"
+
+boot_text_1:
+    .asciz  "MC1: An MRISC32 computer\n"
+
+boot_text_2:
+    .ascii  "ABCDEFGHIJKLMNOPQRSTUVWXYZ\n"
+    .ascii  "abcdefghijklmnopqrstuvwxyz\n"
+    .ascii  "0123456789\n"
+    .ascii  ",.!?\"#$%&()[]{}<>=+-*/|\\~\n"
+    .ascii  "A\tB\tC\tD\n"
+    .byte   0
+
+vram_text_1:
+    .asciz  "VRAM:  0x"
+xram_text_1:
+    .asciz  "XRAM:  0x"
+bss_text_1:
+    .asciz  "BSS:   0x"
+vcon_text_1:
+    .asciz  "VCON:  0x"
+stack_text_1:
+    .asciz  "Stack: 0x"
+mem_info_text_2:
+    .asciz  ", "
+mem_info_text_3:
+    .asciz  " bytes\n"

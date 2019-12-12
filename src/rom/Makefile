@@ -34,7 +34,8 @@ SYSOBJS = $(BUILDDIR)/crt0.o \
           $(BUILDDIR)/mc1-font-8x8.o \
           $(BUILDDIR)/leds.o \
           $(BUILDDIR)/memory.o \
-          $(BUILDDIR)/time.o
+          $(BUILDDIR)/time.o \
+          $(BUILDDIR)/vconsole.o
 
 ../rtl/rom.vhd: $(BUILDDIR)/rom.raw rom.vhd.in
 	./raw2vhd.py $(BUILDDIR)/rom.raw rom.vhd.in > $@
@@ -60,7 +61,7 @@ $(BUILDDIR)/mc1-font-8x8.s: system/mc1-font-8x8.raw
 	    tail -c +257  | \
 	    head -c -1024 \
 	    > $(BUILDDIR)/mc1-font-8x8-part.raw
-	./raw2asm.py $(BUILDDIR)/mc1-font-8x8-part.raw mc1_font_8x8 > $@
+	./raw2asm.py --rev $(BUILDDIR)/mc1-font-8x8-part.raw mc1_font_8x8 > $@
 
 $(BUILDDIR)/leds.o: system/leds.s system/mmio.inc
 	$(AS) $(ASFLAGS) -o $@ system/leds.s
@@ -73,6 +74,9 @@ $(BUILDDIR)/memory.s: system/memory.c
 
 $(BUILDDIR)/memory.o: $(BUILDDIR)/memory.s
 	$(AS) $(ASFLAGS) -o $@ $(BUILDDIR)/memory.s
+
+$(BUILDDIR)/vconsole.o: system/vconsole.s system/mmio.inc system/memory.inc
+	$(AS) $(ASFLAGS) -o $@ system/vconsole.s
 
 $(BUILDDIR)/app1.o: app1/app1.s system/memory.inc
 	$(AS) $(ASFLAGS) -o $@ app1/app1.s
