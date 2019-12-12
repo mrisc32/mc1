@@ -60,7 +60,7 @@ bss_cleared:
     ldhi    s2, #MMIO_START
     ldw     s2, s2, #VRAMSIZE
     ldhi    s3, #VRAM_START
-    sub     s3, s1, s3  ; s3 = number of pre-occupied bytes at start of VRAM
+    sub     s3, s1, s3  ; s3 = number of pre-allocated bytes at start of VRAM
     sub     s2, s2, s3
 
     ; s3 = The memory type.

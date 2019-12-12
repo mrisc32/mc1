@@ -571,8 +571,8 @@ begin
         when 11x"1f6" => o_wb_dat <= x"0cbf7928";
         when 11x"1f7" => o_wb_dat <= x"6c850003";
         when 11x"1f8" => o_wb_dat <= x"cc800017";
-        when 11x"1f9" => o_wb_dat <= x"8cc20009";
-        when 11x"1fa" => o_wb_dat <= x"78c60200";
+        when 11x"1f9" => o_wb_dat <= x"8cc20008";
+        when 11x"1fa" => o_wb_dat <= x"78c60080";
         when 11x"1fb" => o_wb_dat <= x"88860004";
         when 11x"1fc" => o_wb_dat <= x"0082081a";
         when 11x"1fd" => o_wb_dat <= x"c8800012";
@@ -615,7 +615,7 @@ begin
         when 11x"222" => o_wb_dat <= x"c15ffffd";
         when 11x"223" => o_wb_dat <= x"0c83000c";
         when 11x"224" => o_wb_dat <= x"0ca30008";
-        when 11x"225" => o_wb_dat <= x"00240a19";
+        when 11x"225" => o_wb_dat <= x"00250819";
         when 11x"226" => o_wb_dat <= x"c83ffff9";
         when 11x"227" => o_wb_dat <= x"e9000000";
         when 11x"228" => o_wb_dat <= x"00e01010";

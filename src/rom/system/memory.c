@@ -25,7 +25,7 @@
 //--------------------------------------------------------------------------------------------------
 
 #define MAX_NUM_POOLS 4         // Maximum number of supported memory pools.
-#define MIN_MAX_NUM_ALLOCS 512  // Minimum size of a memory pool.
+#define MIN_MAX_NUM_ALLOCS 128  // Minimum size of a memory pool.
 #define ALLOC_ALIGN 4           // Alignment in bytes (must be a power of two).
 
 // A single allocation block.
@@ -49,8 +49,8 @@ static mem_pool_t s_pools[MAX_NUM_POOLS];
 static int s_num_pools;
 
 static int calc_max_num_allocs(size_t size) {
-  // We aim at using about 1.5% of the memory pool for the allocation array.
-  int max_num_allocs = (int)(size / (64u * sizeof(alloc_block_t)));
+  // We aim at using about 3% of the memory pool for the allocation array.
+  int max_num_allocs = (int)(size / (32u * sizeof(alloc_block_t)));
   max_num_allocs = max_num_allocs < MIN_MAX_NUM_ALLOCS ? MIN_MAX_NUM_ALLOCS : max_num_allocs;
 
   // If we can't fit a reasonable allocation array in the RAM, fail!
@@ -85,7 +85,7 @@ static size_t ensure_aligned(size_t size) {
 
 static void* allocate_from(mem_pool_t* pool, size_t size) {
   // We can't do empty allocations nor allocate more blocks than max_num_allocs.
-  if (size == 0 || pool->num_allocs < pool->max_num_allocs) {
+  if (size == 0 || pool->num_allocs >= pool->max_num_allocs) {
     return NULL;
   }
 
@@ -103,7 +103,7 @@ static void* allocate_from(mem_pool_t* pool, size_t size) {
     size_t prev_block_end = (i > 0) ? pool->blocks[i - 1].start + pool->blocks[i - 1].size :
                                       pool->start;
     size_t block_start = (i < pool->num_allocs) ? pool->blocks[i].start :
-                                                 (pool->start + pool->size);
+                                                  (pool->start + pool->size);
     size_t free_bytes = block_start - prev_block_end;
     if (size <= free_bytes && free_bytes < best_free_bytes) {
       best_idx = i;
@@ -162,7 +162,7 @@ void mem_add_pool(void* start, size_t size, unsigned type) {
   }
 }
 
-void* mem_alloc(size_t num_bytes, size_t types) {
+void* mem_alloc(size_t num_bytes, unsigned types) {
   void* ptr = NULL;
 
   // Try all the available pools. The first added pool has priority.
