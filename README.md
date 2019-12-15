@@ -30,19 +30,15 @@ Examples of things that a video control program can accomplish are:
 
 This means that it is possible to mix resolutions and color modes in a single frame, and you can fill the screen with rich colors and high resolution content even with very limited video RAM resources.
 
-The pixel pipeline of the video logic supports the following color modes:
-* 32-bit true color (RGBA8888).
-* 16-bit true color (RGBA5551).
-* 8-bit palette (256 colors).
-* 4-bit palette (16 colors).
-* 2-bit palette (4 colors).
-* 1-bit palette (2 colors).
-
 For more details, see the [video logic documentation](docs/video_logic.md).
+
+### I/O
+
+Primitive I/O, such as reading buttons and switches and writing to leds and seven-segment displays, is provided as memory mapped I/O (see [docs/mmio.md](MMIO)), directly accessible for the CPU.
 
 ## Operating system
 
-No operating system is planned at this point. There will most likely be libraries of helper routines for certain tasks (e.g. I/O).
+No operating system is planned at this point. Common system routines (such as memory allocation and I/O) are stored in the boot ROM, and will be exposed (e.g. via a jump table) to programs that are loaded from an SD card or similar.
 
 ## Planned features
 
@@ -57,5 +53,4 @@ The following things are not yet implemented, but planned:
 * Memory:
   * Support for off-chip RAM (e.g. DRAM or SRAM) - perhaps with an on-chip L2 cache.
 * I/O:
-  * For debugging/control, simple FPGA board I/O such as buttons and leds will be memory mapped into the CPU address space.
   * A Micro SD interface may be added to read programs and data, and perhaps an interface for mouse/keyboard (e.g. PS/2).
