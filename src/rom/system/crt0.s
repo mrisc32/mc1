@@ -291,10 +291,10 @@ arg0:
     .asciz  "program"
 
 boot_text_1:
-    .asciz  "MC1: An MRISC32 computer\n"
+    .asciz  "MC1 - The MRISC32 computer\n\n"
 
 boot_text_2:
-    .ascii  "ABCDEFGHIJKLMNOPQRSTUVWXYZ\n"
+    .ascii  "\nABCDEFGHIJKLMNOPQRSTUVWXYZ\n"
     .ascii  "abcdefghijklmnopqrstuvwxyz\n"
     .ascii  "0123456789\n"
     .ascii  ",.!?\"#$%&()[]{}<>=+-*/|\\~\n"
