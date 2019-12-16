@@ -106,9 +106,6 @@ bss_cleared:
     sub     s2, s2, s3
     jl      pc, #print_mem_info@pc
 
-    ldea    s1, pc, #boot_text_2@pc
-    jl      pc, #vcon_print@pc
-
 
     ; ------------------------------------------------------------------------
     ; Initialize the memory allocator.
@@ -133,6 +130,14 @@ bss_cleared:
     sub     s2, s20, s1                     ; s2 = Number of free VRAM bytes
     ldi     s3, #MEM_TYPE_VIDEO             ; s3 = The memory type.
     jl      pc, #mem_add_pool@pc
+
+
+    ; ------------------------------------------------------------------------
+    ; Font test: Some dummy printouts.
+    ; ------------------------------------------------------------------------
+
+    ldea    s1, pc, #font_test_text_1@pc
+    jl      pc, #vcon_print@pc
 
 
     ; ------------------------------------------------------------------------
@@ -293,14 +298,6 @@ arg0:
 boot_text_1:
     .asciz  "MC1 - The MRISC32 computer\n\n"
 
-boot_text_2:
-    .ascii  "\nABCDEFGHIJKLMNOPQRSTUVWXYZ\n"
-    .ascii  "abcdefghijklmnopqrstuvwxyz\n"
-    .ascii  "0123456789\n"
-    .ascii  ",.!?\"#$%&()[]{}<>=+-*/|\\~\n"
-    .ascii  "A\tB\tC\tD\n"
-    .byte   0
-
 vram_text_1:
     .asciz  "VRAM:  0x"
 xram_text_1:
@@ -315,3 +312,11 @@ mem_info_text_2:
     .asciz  ", "
 mem_info_text_3:
     .asciz  " bytes\n"
+
+font_test_text_1:
+    .ascii  "\nABCDEFGHIJKLMNOPQRSTUVWXYZ\n"
+    .ascii  "abcdefghijklmnopqrstuvwxyz\n"
+    .ascii  "0123456789\n"
+    .ascii  ",.!?\"#$%&()[]{}<>=+-*/|\\~\n"
+    .ascii  "A\tB\tC\tD\n"
+    .byte   0

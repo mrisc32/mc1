@@ -76,16 +76,14 @@ static int init_mem_pool(mem_pool_t* pool, void* start, size_t size, unsigned ty
   pool->size = size - blocks_array_size;
   pool->type = type;
 
-#if 0
-  // TODO(m): This generates bad code with references like #*.LC0@pchi
-  vcon_print("Alloc pool: 0x");
+  // Print memory pool information.
+  vcon_print("Memory pool:\n  0x");
   vcon_print_hex(pool->start);
   vcon_print(", ");
   vcon_print_dec(pool->size);
-  vcon_print(" free bytes (type: ");
+  vcon_print(" bytes free\n  Type: ");
   vcon_print_hex(pool->type);
-  vcon_print(")\n");
-#endif
+  vcon_print("\n");
 
   return 1;
 }
