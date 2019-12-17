@@ -27,6 +27,7 @@ void vcon_init(void* addr);
 
 // Public API.
 void vcon_show();
+void vcon_clear();
 void vcon_set_colors(unsigned col0, unsigned col1);
 void vcon_print(const char* text);
 void vcon_print_hex(unsigned x);
