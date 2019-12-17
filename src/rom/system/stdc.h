@@ -18,20 +18,19 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
-#ifndef SYSTEM_VCONSOLE_H_
-#define SYSTEM_VCONSOLE_H_
+#ifndef SYSTEM_STDC_H_
+#define SYSTEM_STDC_H_
 
-// These are meant to be called from the ROM boot routine.
-unsigned vcon_memory_requirement(void);
-void vcon_init(void* addr);
+#include <system/types.h>
 
-// Public API.
-void vcon_show();
-void vcon_clear();
-void vcon_set_colors(unsigned col0, unsigned col1);
-void vcon_print(const char* text);
-void vcon_print_hex(unsigned x);
-void vcon_print_dec(int x);
+// stdlib.h
+void* malloc(size_t size);
+void free(void* ptr);
 
-#endif // SYSTEM_VCONSOLE_H_
+// string.h
+void* memset(void* ptr, int value, size_t num);
+void* memcpy(void* destination, const void* source, size_t num);
+// TODO(m): Add memmove.
+
+#endif  // SYSTEM_STDC_H_
 

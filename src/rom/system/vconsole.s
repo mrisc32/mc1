@@ -50,6 +50,9 @@ vcon_memory_requirement:
     .p2align 2
 
 vcon_init:
+    add     sp, sp, #-4
+    stw     lr, sp, #0
+
     ; Get the native resolution of the video logic.
     ldhi    s2, #MMIO_START
     ldw     s3, s2, #VIDWIDTH           ; s3 = native video width (e.g. 1920)
@@ -128,14 +131,15 @@ vcon_init:
     or      s7, s7, #0x50007fff@lo
     stw     s7, s1, #0                  ; WAITY  32767
 
-    ; Clear the col, row coordinate.
-    ldhi    s7, #vcon_col@hi
-    stw     z, s7, #vcon_col@lo
-    ldhi    s7, #vcon_row@hi
-    stw     z, s7, #vcon_row@lo
+    ; Clear the screen.
+    jl      pc, #vcon_clear@pc
 
     ; Activate the vconsole VCP.
-    j       pc, #vcon_show@pc
+    jl      pc, #vcon_show@pc
+
+    ldw     lr, sp, #0
+    add     sp, sp, #4
+    j       lr
 
 
 ; ----------------------------------------------------------------------------
@@ -155,6 +159,30 @@ vcon_show:
     stw     s1, s2, #0                ; JMP vcp_start
 
     j       lr
+
+
+; ----------------------------------------------------------------------------
+; void vcon_clear()
+; Clear the VCON frame buffer and reset the coordinates.
+; ----------------------------------------------------------------------------
+
+    .globl  vcon_clear
+    .p2align 2
+
+vcon_clear:
+    ; Clear the col, row coordinate.
+    ldhi    s1, #vcon_col@hi
+    stw     z, s1, #vcon_col@lo
+    ldhi    s1, #vcon_row@hi
+    stw     z, s1, #vcon_row@lo
+
+    ; Clear the frame buffer.
+    ldhi    s1, #vcon_fb_start@hi
+    ldw     s1, s1, #vcon_fb_start@lo
+    ldi     s2, #0
+    ldi     s3, #VCON_FB_SIZE
+
+    j       pc, #memset@pc
 
 
 ; ----------------------------------------------------------------------------

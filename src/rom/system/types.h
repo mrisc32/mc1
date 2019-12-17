@@ -18,20 +18,26 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
-#ifndef SYSTEM_VCONSOLE_H_
-#define SYSTEM_VCONSOLE_H_
+#ifndef SYSTEM_TYPES_H_
+#define SYSTEM_TYPES_H_
 
-// These are meant to be called from the ROM boot routine.
-unsigned vcon_memory_requirement(void);
-void vcon_init(void* addr);
+// stdint.h
+typedef signed char int8_t;
+typedef unsigned char uint8_t;
+typedef short int16_t;
+typedef unsigned short uint16_t;
+typedef int int32_t;
+typedef unsigned int uint32_t;
+typedef long long int64_t;
+typedef unsigned long long uint64_t;
 
-// Public API.
-void vcon_show();
-void vcon_clear();
-void vcon_set_colors(unsigned col0, unsigned col1);
-void vcon_print(const char* text);
-void vcon_print_hex(unsigned x);
-void vcon_print_dec(int x);
+// stddef.h
+typedef unsigned int size_t;
 
-#endif // SYSTEM_VCONSOLE_H_
+// stddef.h
+#ifndef NULL
+#define NULL ((void*)0)
+#endif
+
+#endif  // SYSTEM_TYPES_H_
 
