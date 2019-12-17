@@ -182,26 +182,7 @@ vcon_clear:
     ldi     s2, #0
     ldi     s3, #VCON_FB_SIZE
 
-    ; TODO(m): Make a generic "memset" routine.
-    add     sp, sp, #-4
-    stw     vl, sp, #0
-
-    cpuid   vl, z, z
-    mov     s4, vl          ; s4 = max vector length
-    shuf    s2, s2, #0      ; Duplicate value to all four bytes of the word
-    mov     v1, s2          ; Set all words of v1 to the value
-    lsr     s3, s3, #2
-1$:
-    min     vl, s3, s4
-    sub     s3, s3, vl
-    stw     v1, s1, #4
-    ldea    s1, s1, vl*4
-    bnz     s3, 1$
-
-    ldw     vl, sp, #0
-    add     sp, sp, #4
-
-    j       lr
+    j       pc, #memset@pc
 
 
 ; ----------------------------------------------------------------------------

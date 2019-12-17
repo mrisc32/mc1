@@ -21,11 +21,7 @@
 #ifndef SYSTEM_MEMORY_H_
 #define SYSTEM_MEMORY_H_
 
-typedef unsigned int size_t;
-
-#ifndef NULL
-#define NULL ((void*)0)
-#endif
+#include <system/types.h>
 
 // Memory types.
 #define MEM_TYPE_VIDEO 0x00000001 ///< Memory that can be accessed by the video hardware.

@@ -34,6 +34,7 @@ SYSOBJS = $(BUILDDIR)/crt0.o \
           $(BUILDDIR)/mc1-font-8x8.o \
           $(BUILDDIR)/leds.o \
           $(BUILDDIR)/memory.o \
+          $(BUILDDIR)/stdc.o \
           $(BUILDDIR)/time.o \
           $(BUILDDIR)/vconsole.o
 
@@ -65,6 +66,9 @@ $(BUILDDIR)/mc1-font-8x8.s: system/mc1-font-8x8.raw
 
 $(BUILDDIR)/leds.o: system/leds.s system/mmio.inc
 	$(AS) $(ASFLAGS) -o $@ system/leds.s
+
+$(BUILDDIR)/stdc.o: system/stdc.s system/memory.inc
+	$(AS) $(ASFLAGS) -o $@ system/stdc.s
 
 $(BUILDDIR)/time.o: system/time.s system/mmio.inc
 	$(AS) $(ASFLAGS) -o $@ system/time.s
