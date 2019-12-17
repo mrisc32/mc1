@@ -28,6 +28,10 @@
 // Private
 //--------------------------------------------------------------------------------------------------
 
+// Uncomment this to enable memory allocator debugging.
+// NOTE: Currently the logic does not work without this enabled (something is buggy).
+#define ENABLE_DEBUG
+
 #define MAX_NUM_POOLS 4         // Maximum number of supported memory pools.
 #define MIN_MAX_NUM_ALLOCS 128  // Minimum size of a memory pool.
 #define ALLOC_ALIGN 4           // Alignment in bytes (must be a power of two).
@@ -99,6 +103,9 @@ static size_t ensure_aligned(size_t size) {
 static void* allocate_from(mem_pool_t* pool, size_t size) {
   // We can't do empty allocations nor allocate more blocks than max_num_allocs.
   if (size == 0 || pool->num_allocs >= pool->max_num_allocs) {
+#ifdef ENABLE_DEBUG
+    vcon_print("allocate_from: No more blocks\n");
+#endif // ENABLE_DEBUG
     return NULL;
   }
 
@@ -119,6 +126,11 @@ static void* allocate_from(mem_pool_t* pool, size_t size) {
                                                   (pool->start + pool->size);
     size_t free_bytes = block_start - prev_block_end;
     if (size <= free_bytes && free_bytes < best_free_bytes) {
+#ifdef ENABLE_DEBUG
+      vcon_print("allocate_from: Found idx: ");
+      vcon_print_dec(i);
+      vcon_print("\n");
+#endif // ENABLE_DEBUG
       best_idx = i;
       best_block_start = prev_block_end;
       best_free_bytes = free_bytes;
@@ -127,6 +139,9 @@ static void* allocate_from(mem_pool_t* pool, size_t size) {
 
   // Could we not find a slot?
   if (best_idx < 0) {
+#ifdef ENABLE_DEBUG
+    vcon_print("allocate_from: No block found\n");
+#endif // ENABLE_DEBUG
     return NULL;
   }
 
@@ -193,10 +208,24 @@ void* mem_alloc(size_t num_bytes, unsigned types) {
     }
   }
 
+#ifdef ENABLE_DEBUG
+  vcon_print("mem_alloc:\t0x");
+  vcon_print_hex((size_t)ptr);
+  vcon_print(", ");
+  vcon_print_dec(num_bytes);
+  vcon_print(" bytes\n");
+#endif // ENABLE_DEBUG
+
   return ptr;
 }
 
 void mem_free(void* ptr) {
+#ifdef ENABLE_DEBUG
+  vcon_print("mem_free:\t0x");
+  vcon_print_hex((size_t)ptr);
+  vcon_print("\n");
+#endif // ENABLE_DEBUG
+
   for (int i = 0; i < s_num_pools; ++i) {
     if (free_from(&s_pools[i], ptr)) {
       break;
