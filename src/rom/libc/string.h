@@ -18,20 +18,16 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
-#ifndef SYSTEM_STDC_H_
-#define SYSTEM_STDC_H_
+#ifndef LIBC_STRING_H_
+#define LIBC_STRING_H_
 
-#include <system/types.h>
+#include <system/mem_copy.h>
+#include <system/mem_fill.h>
 
-// stdlib.h
-void* malloc(size_t size);
-void* calloc(size_t size);
-void free(void* ptr);
+#define memcpy(destination, source, num) mem_copy_fwd(destination, source, num)
+#define memset(ptr, value, num) mem_fill(ptr, value, num)
 
-// string.h
-void* memset(void* ptr, int value, size_t num);
-void* memcpy(void* destination, const void* source, size_t num);
 // TODO(m): Add memmove.
 
-#endif  // SYSTEM_STDC_H_
+#endif  // LIBC_STRING_H_
 

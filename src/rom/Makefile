@@ -3,7 +3,7 @@
 BUILDDIR = out
 
 CC      = mrisc32-elf-gcc
-CCFLAGS = -S -Os -I . -ffreestanding -Wall -Wextra -Werror
+CCFLAGS = -S -Os -I . -I libc -ffreestanding -Wall -Wextra -Werror
 AS      = mrisc32-elf-as
 ASFLAGS = -I .
 LD      = mrisc32-elf-ld
@@ -69,7 +69,6 @@ SYSOBJS = $(BUILDDIR)/crt0.o \
           $(BUILDDIR)/mem_copy.o \
           $(BUILDDIR)/mem_fill.o \
           $(BUILDDIR)/memory.o \
-          $(BUILDDIR)/stdc.o \
           $(BUILDDIR)/time.o \
           $(BUILDDIR)/vconsole.o
 
@@ -104,9 +103,6 @@ $(BUILDDIR)/memory.s: system/memory.c
 
 $(BUILDDIR)/memory.o: $(BUILDDIR)/memory.s
 	$(AS) $(ASFLAGS) -o $@ $(BUILDDIR)/memory.s
-
-$(BUILDDIR)/stdc.o: system/stdc.s system/memory.inc
-	$(AS) $(ASFLAGS) -o $@ system/stdc.s
 
 $(BUILDDIR)/time.o: system/time.s system/mmio.inc
 	$(AS) $(ASFLAGS) -o $@ system/time.s
