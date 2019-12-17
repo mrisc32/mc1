@@ -263,9 +263,8 @@ vcon_print:
     ldi     s7, #VCON_COLS
     mul     s6, s4, s7
     ldub    v1, s5, #1                  ; Load entire glyph (8 bytes)
-    lsl     s6, s6, #3
-    add     s6, s6, s3
-    add     s6, s8, s6                  ; s6 = FB + (row * VCON_COLS * 8) + col
+    ldea    s6, s3, s6*8
+    add     s6, s8, s6                  ; s6 = FB + col + (row * VCON_COLS * 8)
     stb     v1, s6, s7                  ; Store glyph with stride = VCON_COLS
 
     add     s3, s3, #1
