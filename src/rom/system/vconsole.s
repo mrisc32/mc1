@@ -273,15 +273,40 @@ vcon_print:
     bs      s5, 1$
 
 3$:
+    ; New line
     ldi     s3, #0
     add     s4, s4, #1
     slt     s5, s4, #VCON_ROWS
     bs      s5, 1$
 
+    ; End of frame buffer.
     ldi     s4, #VCON_ROWS-1
 
     ; Scroll screen up one row.
-    ; TODO(m): Implement me!
+
+    ; 1) Move entire frame buffer.
+    ; Clobbered registers: s5, s6, s7, s9
+    add     s7, s8, #VCON_COLS*8        ; s7 = source (start of FB + one row)
+    mov     s9, s8                      ; s9 = target (start of FB)
+    cpuid   s5, z, z
+    ldi     s6, #(VCON_COLS*8 * (VCON_ROWS-1)) / 4  ; Number of words to move
+6$:
+    min     vl, s5, s6
+    sub     s6, s6, vl
+    ldw     v1, s7, #4
+    ldea    s7, s7, vl*4
+    stw     v1, s9, #4
+    ldea    s9, s9, vl*4
+    bnz     s6, 6$
+
+    ; 2) Clear last row (continue writing at s9 and forward).
+    ldi     s6, #(VCON_COLS*8) / 4      ; Number of words to clear
+7$:
+    min     vl, s5, s6
+    sub     s6, s6, vl
+    stw     vz, s9, #4
+    ldea    s9, s9, vl*4
+    bnz     s6, 7$
 
     j       pc, #1$@pc
 
