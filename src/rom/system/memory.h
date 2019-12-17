@@ -28,6 +28,9 @@
 #define MEM_TYPE_EXT   0x00000002 ///< External memory.
 #define MEM_TYPE_ANY   0x00000003 ///< Any memory type.
 
+// Extra flags to mem_alloc().
+#define MEM_CLEAR      0x00000100 ///< Clear the allocated memory (zero fill).
+
 /// @brief Initialize the memory allocator.
 /// @param vram_start The first free VRAM address.
 /// @param vram_stop The number of free VRAM bytes.

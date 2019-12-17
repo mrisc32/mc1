@@ -182,7 +182,7 @@ vcon_clear:
     ldi     s2, #0
     ldi     s3, #VCON_FB_SIZE
 
-    j       pc, #memset@pc
+    j       pc, #mem_fill@pc
 
 
 ; ----------------------------------------------------------------------------

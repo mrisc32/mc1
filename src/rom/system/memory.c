@@ -19,7 +19,10 @@
 //--------------------------------------------------------------------------------------------------
 
 #include <system/memory.h>
+
+#include <system/mem_fill.h>
 #include <system/vconsole.h>
+
 
 //--------------------------------------------------------------------------------------------------
 // Private
@@ -181,6 +184,10 @@ void* mem_alloc(size_t num_bytes, unsigned types) {
     if ((pool->type & types) != 0) {
       ptr = allocate_from(pool, num_bytes);
       if (ptr != NULL) {
+        // Optionally zero-fill the newly allocated buffer.
+        if ((types & MEM_CLEAR) != 0) {
+          mem_fill(ptr, 0, num_bytes);
+        }
         break;
       }
     }
