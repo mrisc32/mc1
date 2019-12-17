@@ -23,9 +23,17 @@
 
 #include <system/memory.h>
 
-#define malloc(size) mem_alloc(size, MEM_TYPE_ANY)
-#define calloc(size) mem_alloc(size, MEM_TYPE_ANY | MEM_CLEAR)
-#define free(ptr) mem_free(ptr)
+static inline void* malloc(size_t size) {
+  return mem_alloc(size, MEM_TYPE_ANY);
+}
+
+static inline void* calloc(size_t size) {
+  return mem_alloc(size, MEM_TYPE_ANY | MEM_CLEAR);
+}
+
+static inline void free(void* ptr) {
+  return mem_free(ptr);
+}
 
 #endif  // LIBC_STDLIB_H_
 

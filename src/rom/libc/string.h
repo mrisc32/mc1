@@ -24,10 +24,13 @@
 #include <system/mem_copy.h>
 #include <system/mem_fill.h>
 
-#define memcpy(destination, source, num) mem_copy_fwd(destination, source, num)
-#define memset(ptr, value, num) mem_fill(ptr, value, num)
+static inline void* memcpy(void* destination, const void* source, size_t num) {
+  return mem_copy_fwd(destination, source, num);
+}
 
-// TODO(m): Add memmove.
+static inline void* memset(void* ptr, int value, size_t num) {
+  return mem_fill(ptr, value, num);
+}
 
 #endif  // LIBC_STRING_H_
 
