@@ -89,6 +89,8 @@ architecture rtl of vid_vcpp is
   constant C_INSTR_SETPAL : T_INSTR := 4x"6";
   constant C_INSTR_SETREG : T_INSTR := 4x"8";
 
+  signal s_cancel_pc_to_if2 : std_logic;
+
   -- PC signals
   signal s_stall_pc : std_logic;
   signal s_pc_next_read_addr : T_ADDR;
@@ -173,6 +175,13 @@ architecture rtl of vid_vcpp is
   end;
 begin
   -----------------------------------------------------------------------------
+  -- Global pipeline control logic.
+  -----------------------------------------------------------------------------
+
+  s_cancel_pc_to_if2 <= i_restart_frame or s_id_apply_jump_target;
+
+
+  -----------------------------------------------------------------------------
   -- PC
   -----------------------------------------------------------------------------
 
@@ -193,7 +202,7 @@ begin
       -- get the first i_restart_frame.
       s_pc_read_addr <= C_VCP_START_ADDRESS;
     elsif rising_edge(i_clk) then
-      if s_stall_pc = '0' then
+      if s_stall_pc = '0' or s_cancel_pc_to_if2 = '1' then
         s_pc_read_addr <= s_pc_next_read_addr;
       end if;
     end if;
@@ -207,8 +216,7 @@ begin
   -- Do we need to send a read request to the memory (i.e. are we requesting a
   -- new word)?
   s_if1_next_expect_ack <= '0' when (s_stall_if1 = '1' and s_if2_have_data = '1') or
-                                    i_restart_frame = '1' or
-                                    s_id_apply_jump_target = '1' else
+                                    s_cancel_pc_to_if2 = '1' else
                            '1';
 
   -- Outputs to the memory interface.
@@ -239,7 +247,9 @@ begin
   -----------------------------------------------------------------------------
 
   -- Do we have the data that we need?
-  s_if2_have_data <= i_mem_ack when s_if1_expect_ack = '1' else s_if2_have_cached_data;
+  s_if2_have_data <= '0' when s_cancel_pc_to_if2 = '1' else
+                     i_mem_ack when s_if1_expect_ack = '1' else
+                     s_if2_have_cached_data;
 
   -- IF registers.
   process(i_clk, i_rst)
@@ -252,34 +262,43 @@ begin
       s_if2_is_valid_instr <= '0';
       s_if2_pc_plus_1 <= (others => '0');
     elsif rising_edge(i_clk) then
-      if s_stall_if2 = '0' then
-        if s_if2_have_latched_data = '1' then
-          s_if2_data <= s_if2_latched_data;
-        elsif i_mem_ack = '1' then
-          s_if2_data <= i_mem_data;
-        end if;
-        s_if2_have_cached_data <= s_if2_have_data;
-        s_if2_pc_plus_1 <= s_if1_pc_plus_1;
-      end if;
-
-      -- During stalls we need to latch read data for later.
-      if i_mem_ack = '1' then
-        s_if2_latched_data <= i_mem_data;
-      end if;
-      if s_stall_if2 = '0' then
+      if s_cancel_pc_to_if2 = '1' then
+        s_if2_data <= (others => '0');
+        s_if2_have_cached_data <= '0';
+        s_if2_latched_data <= (others => '0');
         s_if2_have_latched_data <= '0';
+        s_if2_is_valid_instr <= '0';
+        s_if2_pc_plus_1 <= (others => '0');
       else
-        if i_mem_ack = '1' then
-          s_if2_have_latched_data <= '1';
+        if s_stall_if2 = '0' then
+          if s_if2_have_latched_data = '1' then
+            s_if2_data <= s_if2_latched_data;
+          elsif i_mem_ack = '1' then
+            s_if2_data <= i_mem_data;
+          end if;
+          s_if2_have_cached_data <= s_if2_have_data;
+          s_if2_pc_plus_1 <= s_if1_pc_plus_1;
         end if;
-      end if;
 
-      s_if2_is_valid_instr <= s_if2_have_data and not (i_restart_frame or s_id_apply_jump_target);
+        -- During stalls we need to latch read data for later.
+        if i_mem_ack = '1' then
+          s_if2_latched_data <= i_mem_data;
+        end if;
+        if s_stall_if2 = '0' then
+          s_if2_have_latched_data <= '0';
+        else
+          if i_mem_ack = '1' then
+            s_if2_have_latched_data <= '1';
+          end if;
+        end if;
+
+        s_if2_is_valid_instr <= s_if2_have_data;
+      end if;
     end if;
   end process;
 
   -- Stall IF1?
-  s_stall_if1 <= (not s_if2_have_data) or s_stall_if2;
+  s_stall_if1 <= ((not s_if2_have_data) or s_stall_if2) and not s_cancel_pc_to_if2;
 
 
   -----------------------------------------------------------------------------
