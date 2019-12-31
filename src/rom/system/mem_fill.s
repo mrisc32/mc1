@@ -57,5 +57,5 @@ tail:
 
 done:
     mov     vl, s6          ; Restore vl
-    j       lr
+    ret
 

@@ -29,14 +29,14 @@ main:
     stw     lr, sp, #0
 
     ; Init video.
-    jl      pc, #init_video@pc
+    bl      init_video
 
     ; Enter the main loop.
-    jl      pc, #main_loop@pc
+    bl      main_loop
 
     ldw     lr, sp, #0
     add     sp, sp, #4
-    j       lr
+    ret
 
 
 ; ----------------------------------------------------------------------------
@@ -134,7 +134,7 @@ init_video:
     or      s12, s12, #(0x84000000+NATIVE_WIDTH)@lo
     stw     s12, s11, #8
     add     s11, s11, #12
-    j       pc, #3$@pc
+    b       3$
 
     ; Consecutive lines.
 2$:
@@ -167,7 +167,7 @@ init_video:
 
     ldw     vl, sp, #0
     add     sp, sp, #4
-    j       lr
+    ret
 
 
 ; ----------------------------------------------------------------------------
@@ -185,11 +185,11 @@ main_loop:
 1$:
     ; Draw something to the screen.
     mov     s1, s21
-    jl      pc, #draw@pc
+    bl      draw
 
     ; Write the raster Y position to the segment displays.
     ldw     s1, s20, #VIDY
-    jl      pc, #print_dec@pc
+    bl      print_dec
 
     ; Write the rendered frame count to LEDS.
     stw     s21, s20, #LEDS
@@ -203,13 +203,13 @@ main_loop:
     bns     s1, 2$
 
     add     s21, s21, #1
-    j       pc, #1$@pc      ; Infinite loop...
+    b       1$                  ; Infinite loop...
 
     ldw     lr, sp, #0
     ldw     s20, sp, #4
     ldw     s21, sp, #8
     add     sp, sp, #12
-    j       lr
+    ret
 
 
 ; ----------------------------------------------------------------------------
@@ -227,16 +227,16 @@ draw:
     and     s2, s2, #1
     bz      s2, 1$
 
-    jl      pc, #funky@pc
+    bl      funky
     bz      z, 2$
 
 1$:
-    jl      pc, #mandelbrot@pc
+    bl      mandelbrot
 
 2$:
     ldw     lr, sp, #0
     add     sp, sp, #4
-    j       lr
+    ret
 
 
 ; ----------------------------------------------------------------------------
@@ -324,7 +324,7 @@ inner_loop_done:
 
     ldw     s20, sp, #0
     add     sp, sp, #4
-    j       lr
+    ret
 
 
 max_num_iterations:

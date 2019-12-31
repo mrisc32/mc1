@@ -38,7 +38,7 @@ VCON_COL1 = 0xffeb6d70
 
 vcon_memory_requirement:
     ldi     s1, #VCON_VCP_SIZE+VCON_FB_SIZE
-    j       lr
+    ret
 
 
 ; ----------------------------------------------------------------------------
@@ -132,14 +132,14 @@ vcon_init:
     stw     s7, s1, #0                  ; WAITY  32767
 
     ; Clear the screen.
-    jl      pc, #vcon_clear@pc
+    bl      vcon_clear
 
     ; Activate the vconsole VCP.
-    jl      pc, #vcon_show@pc
+    bl      vcon_show
 
     ldw     lr, sp, #0
     add     sp, sp, #4
-    j       lr
+    ret
 
 
 ; ----------------------------------------------------------------------------
@@ -158,7 +158,7 @@ vcon_show:
     lsr     s1, s1, #2                ; s1 = (vcon_vcp_start - VRAM_START) / 4
     stw     s1, s2, #0                ; JMP vcp_start
 
-    j       lr
+    ret
 
 
 ; ----------------------------------------------------------------------------
@@ -182,7 +182,7 @@ vcon_clear:
     ldi     s2, #0
     ldi     s3, #VCON_FB_SIZE
 
-    j       pc, #mem_fill@pc
+    b       mem_fill
 
 
 ; ----------------------------------------------------------------------------
@@ -199,7 +199,7 @@ vcon_set_colors:
     stw     s1, s3, #0
     stw     s2, s3, #4
 
-    j       lr
+    ret
 
 
 ; ----------------------------------------------------------------------------
@@ -238,7 +238,7 @@ vcon_print:
     seq     s6, s5, #13
     bns     s6, 4$
     ldi     s3, #0
-    j       pc, #1$@pc
+    b       1$
 
 4$:
     ; Tab?
@@ -248,7 +248,7 @@ vcon_print:
     bic     s3, s3, #7
     slt     s6, s3, #VCON_COLS
     bs      s6, 1$
-    j       pc, #3$@pc
+    b       3$
 
 5$:
     ; Printable char.
@@ -307,7 +307,7 @@ vcon_print:
     ldea    s9, s9, vl*4
     bnz     s6, 7$
 
-    j       pc, #1$@pc
+    b       1$
 
 2$:
     ldhi    s5, #vcon_col@hi
@@ -317,7 +317,7 @@ vcon_print:
     stw     s4, s5, #vcon_row@lo
 
     mov     vl, s10                     ; Restore vl
-    j       lr
+    ret
 
 
 ; ----------------------------------------------------------------------------
@@ -347,11 +347,11 @@ vcon_print_hex:
 
     ; Call the regular printing routine.
     mov     s1, sp
-    jl      pc, #vcon_print@pc
+    bl      vcon_print
 
     ldw     lr, sp, #12
     add     sp, sp, #16
-    j       lr
+    ret
 
 
 ; ----------------------------------------------------------------------------
@@ -396,11 +396,11 @@ vcon_print_dec:
 2$:
     ; Call the regular printing routine.
     ldea    s1, sp, s2
-    jl      pc, #vcon_print@pc
+    bl      vcon_print
 
     ldw     lr, sp, #12
     add     sp, sp, #16
-    j       lr
+    ret
 
 
     .section .rodata

@@ -53,7 +53,7 @@ bss_cleared:
     ; Initialize the video console.
     ; ------------------------------------------------------------------------
 
-    jl      pc, #vcon_memory_requirement@pc
+    bl      vcon_memory_requirement
     mov     s21, s1                 ; s21 = vcon size
 
     ldhi    s2, #MMIO_START
@@ -66,7 +66,7 @@ bss_cleared:
     sub     s20, s3, s2             ; s20 = start of vcon (end of free VRAM)
 
     mov     s1, s20
-    jl      pc, #vcon_init@pc
+    bl      vcon_init
 
 
     ; ------------------------------------------------------------------------
@@ -74,44 +74,44 @@ bss_cleared:
     ; ------------------------------------------------------------------------
 
     ldea    s1, pc, #boot_text_1@pc
-    jl      pc, #vcon_print@pc
+    bl      vcon_print
 
     ldea    s1, pc, #vram_text_1@pc
     ldhi    s2, #VRAM_START
     ldhi    s3, #MMIO_START
     ldw     s3, s3, #VRAMSIZE
-    jl      pc, #print_mem_info@pc
+    bl      print_mem_info
 
     ldea    s1, pc, #xram_text_1@pc
     ldhi    s2, #XRAM_START
     ldhi    s3, #MMIO_START
     ldw     s3, s3, #XRAMSIZE
-    jl      pc, #print_mem_info@pc
+    bl      print_mem_info
 
     ldea    s1, pc, #bss_text_1@pc
     ldhi    s2, #__bss_start@hi
     or      s2, s2, #__bss_start@lo
     ldhi    s3, #__bss_size@hi
     or      s3, s3, #__bss_size@lo
-    jl      pc, #print_mem_info@pc
+    bl      print_mem_info
 
     ldea    s1, pc, #vcon_text_1@pc
     mov     s2, s20
     mov     s3, s21
-    jl      pc, #print_mem_info@pc
+    bl      print_mem_info
 
     ldea    s1, pc, #stack_text_1@pc
     ldi     s3, #STACK_SIZE
     mov     s2, sp
     sub     s2, s2, s3
-    jl      pc, #print_mem_info@pc
+    bl      print_mem_info
 
 
     ; ------------------------------------------------------------------------
     ; Initialize the memory allocator.
     ; ------------------------------------------------------------------------
 
-    jl      pc, #mem_init@pc
+    bl      mem_init
 
     ; Add a memory allocation pool for the XRAM.
     ; Note: By adding this pool first, we give it the highest priority. This
@@ -122,14 +122,14 @@ bss_cleared:
     ldhi    s2, #MMIO_START
     ldw     s2, s2, #XRAMSIZE
     ldi     s3, #MEM_TYPE_EXT
-    jl      pc, #mem_add_pool@pc
+    bl      mem_add_pool
 
     ; Add a memory allocation pool for the VRAM.
     ldhi    s1, #__vram_free_start@hi
     or      s1, s1, #__vram_free_start@lo   ; s1 = Start of free VRAM
     sub     s2, s20, s1                     ; s2 = Number of free VRAM bytes
     ldi     s3, #MEM_TYPE_VIDEO             ; s3 = The memory type.
-    jl      pc, #mem_add_pool@pc
+    bl      mem_add_pool
 
 
     ; ------------------------------------------------------------------------
@@ -137,7 +137,7 @@ bss_cleared:
     ; ------------------------------------------------------------------------
 
     ldea    s1, pc, #font_test_text_1@pc
-    jl      pc, #vcon_print@pc
+    bl      vcon_print
 
 
     ; ------------------------------------------------------------------------
@@ -223,7 +223,7 @@ bss_cleared:
     add     s2, s2, #argv@lo
 
     ; Jump to main().
-    jl      pc, #main@pc
+    bl      main
 
 
     ; ------------------------------------------------------------------------
@@ -239,7 +239,7 @@ bss_cleared:
 
     ; Loop forever...
 1$:
-    j       pc, #1$@pc
+    b       1$
 
     nop
     nop
@@ -264,25 +264,25 @@ print_mem_info:
     mov     s20, s2
     mov     s21, s3
 
-    jl      pc, #vcon_print@pc
+    bl      vcon_print
 
     mov     s1, s20
-    jl      pc, #vcon_print_hex@pc
+    bl      vcon_print_hex
 
     ldea    s1, pc, #mem_info_text_2@pc
-    jl      pc, #vcon_print@pc
+    bl      vcon_print
 
     mov     s1, s21
-    jl      pc, #vcon_print_dec@pc
+    bl      vcon_print_dec
 
     ldea    s1, pc, #mem_info_text_3@pc
-    jl      pc, #vcon_print@pc
+    bl      vcon_print
 
     ldw     lr, sp, #0
     ldw     s20, sp, #4
     ldw     s21, sp, #8
     add     sp, sp, #12
-    j       lr
+    ret
 
 
     .section .rodata

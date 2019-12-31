@@ -33,5 +33,5 @@ msleep:
     bnz     s1, 1$
 
 3$:
-    j       lr
+    ret
 
