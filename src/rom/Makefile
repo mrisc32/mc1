@@ -14,14 +14,15 @@ OBJCOPY = mrisc32-elf-objcopy
 
 .PHONY: clean all
 
-all: ../rtl/rom.vhd
+all: $(BUILDDIR)/rom.vhd
 
 clean:
 	rm -f $(BUILDDIR)/*.s \
 	      $(BUILDDIR)/*.o \
 	      $(BUILDDIR)/*.a \
 	      $(BUILDDIR)/*.elf \
-	      $(BUILDDIR)/*.raw
+	      $(BUILDDIR)/*.raw \
+	      $(BUILDDIR)/*.vhd
 
 
 #-----------------------------------------------------------------------------
@@ -49,7 +50,7 @@ $(BUILDDIR)/app2.o: $(BUILDDIR)/app2.s
 # ROM image
 #-----------------------------------------------------------------------------
 
-../rtl/rom.vhd: $(BUILDDIR)/rom.raw rom.vhd.in
+$(BUILDDIR)/rom.vhd: $(BUILDDIR)/rom.raw rom.vhd.in
 	./raw2vhd.py $(BUILDDIR)/rom.raw rom.vhd.in > $@
 
 $(BUILDDIR)/rom.raw: $(BUILDDIR)/rom.elf
