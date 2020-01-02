@@ -27,11 +27,11 @@ void set_leds(unsigned bits);
 
 /// @brief Print a hexadecimal number to the board segment displays.
 /// @param number The number to print.
-void print_hex(unsigned number);
+void sevseg_print_hex(unsigned number);
 
 /// @brief Print a signed decimal number to the board segment displays.
 /// @param number The number to print.
-void print_dec(int number);
+void sevseg_print_dec(int number);
 
 #endif  // SYSTEM_LEDS_H_
 

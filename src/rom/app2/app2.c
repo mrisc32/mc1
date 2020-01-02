@@ -23,14 +23,14 @@
 #include <system/time.h>
 
 int main(void) {
-  print_dec(123456);
+  sevseg_print_dec(123456);
 
   void* ptr = mem_alloc(1234, MEM_TYPE_ANY);
 
   for (int i = 1000; i > 0; --i) {
-    print_dec(i);
+    sevseg_print_dec(i);
     msleep(1000);
-    print_hex((unsigned)ptr);
+    sevseg_print_hex((unsigned)ptr);
     msleep(1000);
   }
 

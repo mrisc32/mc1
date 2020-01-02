@@ -21,13 +21,13 @@ set_leds:
 
 
 ; ----------------------------------------------------------------------------
-; void print_hex(unsigned number)
+; void sevseg_print_hex(unsigned number)
 ; Print a hexadecimal number to the board segment displays.
 ; ----------------------------------------------------------------------------
 
-    .globl  print_hex
+    .globl  sevseg_print_hex
 
-print_hex:
+sevseg_print_hex:
     ldea    s2, pc, #hex_to_segment_lut@pc
     ldhi    s3, #MMIO_START
     ldea    s3, s3, #SEGDISP0
@@ -46,13 +46,13 @@ print_hex:
 
 
 ; ----------------------------------------------------------------------------
-; void print_dec(int number)
+; void sevseg_print_dec(int number)
 ; Print a decimal number to the board segment displays.
 ; ----------------------------------------------------------------------------
 
-    .globl  print_dec
+    .globl  sevseg_print_dec
 
-print_dec:
+sevseg_print_dec:
     ldea    s2, pc, #hex_to_segment_lut@pc
     ldhi    s3, #MMIO_START
     ldea    s3, s3, #SEGDISP0
@@ -95,6 +95,8 @@ print_dec:
 ;             4   2
 ;              -3-
 ; ----------------------------------------------------------------------------
+
+    .section .rodata
 
 hex_to_segment_lut:
     .byte   0b0111111   ; 0

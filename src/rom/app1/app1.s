@@ -236,7 +236,7 @@ main_loop:
 
     ; Write the raster Y position to the segment displays.
     ldw     s1, s20, #VIDY
-    bl      print_dec
+    bl      sevseg_print_dec
 
     ; Write the rendered frame count to LEDS.
     stw     s21, s20, #LEDS
