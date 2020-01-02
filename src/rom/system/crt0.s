@@ -133,14 +133,6 @@ bss_cleared:
 
 
     ; ------------------------------------------------------------------------
-    ; Font test: Some dummy printouts.
-    ; ------------------------------------------------------------------------
-
-    ldea    s1, pc, #font_test_text_1@pc
-    bl      vcon_print
-
-
-    ; ------------------------------------------------------------------------
     ; Clear all CPU registers.
     ; ------------------------------------------------------------------------
 
@@ -313,10 +305,3 @@ mem_info_text_2:
 mem_info_text_3:
     .asciz  " bytes\n"
 
-font_test_text_1:
-    .ascii  "\nABCDEFGHIJKLMNOPQRSTUVWXYZ\n"
-    .ascii  "abcdefghijklmnopqrstuvwxyz\n"
-    .ascii  "0123456789\n"
-    .ascii  ",.!?\"#$%&()[]{}<>=+-*/|\\~\n"
-    .ascii  "A\tB\tC\tD\n"
-    .byte   0
