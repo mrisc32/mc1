@@ -35,7 +35,6 @@ def main():
     lib.add_source_files("rtl/ram_true_dual_port.vhd")
     lib.add_source_files("rtl/reset_conditioner.vhd")
     lib.add_source_files("rtl/reset_stabilizer.vhd")
-    lib.add_source_files("rtl/rom.vhd")
     lib.add_source_files("rtl/synchronizer.vhd")
     lib.add_source_files("rtl/video.vhd")
     lib.add_source_files("rtl/vid_palette.vhd")
@@ -46,6 +45,9 @@ def main():
     lib.add_source_files("rtl/vid_vcpp_stack.vhd")
     lib.add_source_files("rtl/vid_vcpp.vhd")
     lib.add_source_files("rtl/vram.vhd")
+
+    # Add the MC1 boot ROM (must be generated with "make").
+    lib.add_source_files("rom/out/rom.vhd")
 
     # Add the MRISC32-A1 implementation.
     mrisc32 = vu.add_library("mrisc32")
