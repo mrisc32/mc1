@@ -32,6 +32,7 @@ void vcon_set_colors(unsigned col0, unsigned col1);
 void vcon_print(const char* text);
 void vcon_print_hex(unsigned x);
 void vcon_print_dec(int x);
+int vcon_putc(const int c);
 
 #endif // SYSTEM_VCONSOLE_H_
 

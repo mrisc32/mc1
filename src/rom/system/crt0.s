@@ -108,6 +108,24 @@ bss_cleared:
 
 
     ; ------------------------------------------------------------------------
+    ; Run the selftest.
+    ; ------------------------------------------------------------------------
+
+    ldea    s1, pc, #selftest_text@pc
+    bl      vcon_print
+    ldea    s1, pc, #selftest_callback@pc
+    bl      selftest_run
+
+    ; s1 contains the pass/fail status (pass = all bits set).
+    ldea    s2, pc, #selftest_pass_text@pc
+    bs      s1, 1f
+    ldea    s2, pc, #selftest_fail_text@pc
+1:
+    mov     s1, s2
+    bl      vcon_print
+
+
+    ; ------------------------------------------------------------------------
     ; Initialize the memory allocator.
     ; ------------------------------------------------------------------------
 
@@ -130,14 +148,6 @@ bss_cleared:
     sub     s2, s20, s1                     ; s2 = Number of free VRAM bytes
     ldi     s3, #MEM_TYPE_VIDEO             ; s3 = The memory type.
     bl      mem_add_pool
-
-
-    ; ------------------------------------------------------------------------
-    ; Font test: Some dummy printouts.
-    ; ------------------------------------------------------------------------
-
-    ldea    s1, pc, #font_test_text_1@pc
-    bl      vcon_print
 
 
     ; ------------------------------------------------------------------------
@@ -285,6 +295,19 @@ print_mem_info:
     ret
 
 
+    ; ------------------------------------------------------------------------
+    ; Callback routine for the selftest.
+    ; s1 = pass/fail (-1/0)
+    ; s2 = test no.
+    ; ------------------------------------------------------------------------
+
+selftest_callback:
+    ldi     s3, #33
+    and     s4, s1, #9
+    add     s1, s3, s4      ; s1 = "*" for pass, "!" for fail
+    b       vcon_putc
+
+
     .section .rodata
 
     .p2align 2
@@ -313,10 +336,10 @@ mem_info_text_2:
 mem_info_text_3:
     .asciz  " bytes\n"
 
-font_test_text_1:
-    .ascii  "\nABCDEFGHIJKLMNOPQRSTUVWXYZ\n"
-    .ascii  "abcdefghijklmnopqrstuvwxyz\n"
-    .ascii  "0123456789\n"
-    .ascii  ",.!?\"#$%&()[]{}<>=+-*/|\\~\n"
-    .ascii  "A\tB\tC\tD\n"
-    .byte   0
+selftest_text:
+    .asciz  "\nSelftest: "
+selftest_pass_text:
+    .asciz  " PASS\n\n"
+selftest_fail_text:
+    .asciz  " FAIL\n\n"
+

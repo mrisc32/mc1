@@ -403,6 +403,31 @@ vcon_print_dec:
     ret
 
 
+; ----------------------------------------------------------------------------
+; int vcon_putc(const int c)
+; Print a single ASCII character.
+; ----------------------------------------------------------------------------
+
+    .globl  vcon_putc
+    .p2align 2
+
+vcon_putc:
+    add     sp, sp, #-12
+    stw     lr, sp, #4
+    stw     s1, sp, #8
+
+    ; Store the character as a string on the stack and call vcon_print.
+    stb     s1, sp, #0
+    stb     z, sp, #1
+    mov     s1, sp
+    bl      vcon_print
+
+    ldw     lr, sp, #4
+    ldw     s1, sp, #8
+    add     sp, sp, #12
+    ret
+
+
     .section .rodata
 hex_to_ascii:
     .ascii  "0123456789ABCDEF"
