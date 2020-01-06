@@ -38,21 +38,23 @@ entity reset_stabilizer is
 end reset_stabilizer;
 
 architecture rtl of reset_stabilizer is
+  constant C_ALL_ONES : unsigned(STABLE_COUNT_BITS-1 downto 0) := (others => '1');
+
   signal s_next_stable_count : unsigned(STABLE_COUNT_BITS-1 downto 0);
   signal s_is_stable : std_logic;
 
   signal s_stable_rst : std_logic := '1';
-  signal s_stable_count : unsigned(STABLE_COUNT_BITS-1 downto 0) := to_unsigned(1, STABLE_COUNT_BITS);
+  signal s_stable_count : unsigned(STABLE_COUNT_BITS-1 downto 0) := to_unsigned(0, STABLE_COUNT_BITS);
 begin
   -- The signal s_is_stable will be 1 every 2^STABLE_COUNT_BITS cycles.
   s_next_stable_count <= s_stable_count + to_unsigned(1, STABLE_COUNT_BITS);
-  s_is_stable <= '1' when s_stable_count = to_unsigned(0, STABLE_COUNT_BITS) else '0';
+  s_is_stable <= '1' when s_stable_count = C_ALL_ONES else '0';
 
   process(i_clk, i_rst_n)
   begin
     if i_rst_n = '0' then
       s_stable_rst <= '1';
-      s_stable_count <= to_unsigned(1, STABLE_COUNT_BITS);
+      s_stable_count <= to_unsigned(0, STABLE_COUNT_BITS);
     elsif rising_edge(i_clk) then
       if s_is_stable = '1' then
         s_stable_rst <= '0';

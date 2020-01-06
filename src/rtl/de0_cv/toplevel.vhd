@@ -107,8 +107,10 @@ begin
   -- System reset signal: This is the reset signal from the board. The stabilizer guarantees that
   -- the reset signal will be held high for a certain period.
   reset_stabilizer_1: entity work.reset_stabilizer
-    port map
-    (
+    generic map (
+      STABLE_COUNT_BITS => 23  -- Hold reset high for 2^23 50 MHz cycles (168 ms).
+    )
+    port map (
       i_rst_n => RESET_N,
       i_clk => CLOCK_50,
       o_rst => s_system_rst
