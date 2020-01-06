@@ -62,7 +62,7 @@ init_video:
 
     ; Allocate memory for the frame buffer.
     ldi     s1, #FB_WIDTH * FB_HEIGHT
-    ldi     s2, #MEM_TYPE_VIDEO
+    ldi     s2, #MEM_TYPE_VIDEO | MEM_CLEAR
     bl      mem_alloc
     ldhi    s2, #fb_start@hi
     stw     s1, s2, #fb_start@lo
@@ -178,25 +178,19 @@ init_video:
     or      s12, s12, #0x50007fff@lo
     stw     s12, s11, #0
 
-    ; Clear the frame buffer.
-    ldhi    s9, #fb_start@hi
-    ldw     s9, s9, #fb_start@lo                ; s9 = start of frame buffer
-    cpuid   s10, z, z                           ; s10 = max vector length
-    ldi     s11, #(FB_WIDTH * FB_HEIGHT) / 4    ; s11 = number of words
-4$:
-    min     vl, s10, s11
-    sub     s11, s11, vl
-    stw     vz, s9, #4              ; Store zeroes in the frame buffer
-    ldea    s9, s9, vl * 4
-    bnz     s11, 4$
-
     bl      fb_show
 
-init_fail:
+init_done:
     ldw     lr, sp, #0
     ldw     vl, sp, #4
     add     sp, sp, #8
     ret
+
+init_fail:
+    addpchi s1, #fail_text@pchi
+    add     s1, s1, #fail_text+4@pclo
+    bl      vcon_print
+    b       init_done
 
 
 ; ----------------------------------------------------------------------------
@@ -581,3 +575,7 @@ sine1024:
     .half   -6786, -6590, -6393, -6195, -5998, -5800, -5602, -5404, -5205, -5007, -4808, -4609
     .half   -4410, -4210, -4011, -3811, -3612, -3412, -3212, -3012, -2811, -2611, -2410, -2210
     .half   -2009, -1809, -1608, -1407, -1206, -1005, -804, -603, -402, -201
+
+fail_text:
+    .asciz  "\nAPP1: Failed to initialize :-(\n"
+
