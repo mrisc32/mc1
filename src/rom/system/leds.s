@@ -13,6 +13,7 @@
 ; ----------------------------------------------------------------------------
 
     .globl set_leds
+    .p2align 2
 
 set_leds:
     ldhi    s2, #MMIO_START
@@ -26,6 +27,7 @@ set_leds:
 ; ----------------------------------------------------------------------------
 
     .globl  sevseg_print_hex
+    .p2align 2
 
 sevseg_print_hex:
     ldea    s2, pc, #hex_to_segment_lut@pc
@@ -51,6 +53,7 @@ sevseg_print_hex:
 ; ----------------------------------------------------------------------------
 
     .globl  sevseg_print_dec
+    .p2align 2
 
 sevseg_print_dec:
     ldea    s2, pc, #hex_to_segment_lut@pc

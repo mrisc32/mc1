@@ -13,6 +13,7 @@ STACK_SIZE = 4*1024
     .section .entry
 
     .globl  _start
+    .p2align 2
 
 _start:
     ; ------------------------------------------------------------------------
@@ -240,22 +241,9 @@ bss_cleared:
     ; Terminate the program.
     ; ------------------------------------------------------------------------
 
-    ; We use extra nop:s to flush the pipeline.
-    nop
-    nop
-    nop
-    nop
-    nop
-
     ; Loop forever...
 1$:
     b       1$
-
-    nop
-    nop
-    nop
-    nop
-    nop
 
 
     ; ------------------------------------------------------------------------

@@ -27,7 +27,7 @@ NATIVE_HEIGHT = 1080
 ; ----------------------------------------------------------------------------
 
     .globl  main
-
+    .p2align 2
 main:
     add     sp, sp, #-4
     stw     lr, sp, #0
@@ -47,6 +47,7 @@ main:
 ; Init video.
 ; ----------------------------------------------------------------------------
 
+    .p2align 2
 init_video:
     add     sp, sp, #-8
     stw     lr, sp, #0
@@ -197,6 +198,7 @@ init_fail:
 ; Show the application frame buffer.
 ; ----------------------------------------------------------------------------
 
+    .p2align 2
 fb_show:
     ; Set the VCP0 jump target to the start of our VCP.
     ldhi    s1, #vcp_start@hi
@@ -215,6 +217,7 @@ fb_show:
 ; Main loop.
 ; ----------------------------------------------------------------------------
 
+    .p2align 2
 main_loop:
     add     sp, sp, #-12
     stw     lr, sp, #0
@@ -258,6 +261,7 @@ main_loop:
 ; s1 = frame number (0, 1, ...)
 ; ----------------------------------------------------------------------------
 
+    .p2align 2
 draw:
     add     sp, sp, #-8
     stw     lr, sp, #0
@@ -304,6 +308,7 @@ draw:
 ; s1 = frame number (0, 1, ...)
 ; ----------------------------------------------------------------------------
 
+    .p2align 2
 mandelbrot:
     add     sp, sp, #-16
     stw     s16, sp, #12
@@ -423,6 +428,7 @@ coord_step:
 ; s1 = frame number (0, 1, ...)
 ; ----------------------------------------------------------------------------
 
+    .p2align 2
 funky:
     add     sp, sp, #-12
     stw     s20, sp, #0
