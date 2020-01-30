@@ -1,6 +1,6 @@
 [submodule "src/mrisc32-a1"]
 	path = src/mrisc32-a1
-	url = git@github.com:mbitsnbites/mrisc32-a1.git
+	url = git@github.com:mrisc32/mrisc32-a1.git
 [submodule "src/rom/selftest"]
 	path = src/rom/selftest
-	url = git@github.com:mbitsnbites/mrisc32-selftest.git
+	url = git@github.com:mrisc32/mrisc32-selftest.git
