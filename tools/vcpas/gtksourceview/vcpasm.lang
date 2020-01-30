@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
  Language definition for MC1 VCP assembler language.
- https://github.com/mbitsnbites/mc1
+ https://github.com/mrisc32/mc1
 
  Copyright (c) 2019 Marcus Geelnard
 
