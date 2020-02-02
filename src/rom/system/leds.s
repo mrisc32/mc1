@@ -30,7 +30,8 @@ set_leds:
     .p2align 2
 
 sevseg_print_hex:
-    ldea    s2, pc, #hex_to_segment_lut@pc
+    addpchi s2, #hex_to_segment_lut@pchi
+    add     s2, s2, #hex_to_segment_lut+4@pclo
     ldhi    s3, #MMIO_START
     ldea    s3, s3, #SEGDISP0
 
@@ -56,7 +57,8 @@ sevseg_print_hex:
     .p2align 2
 
 sevseg_print_dec:
-    ldea    s2, pc, #hex_to_segment_lut@pc
+    addpchi s2, #hex_to_segment_lut@pchi
+    add     s2, s2, #hex_to_segment_lut+4@pclo
     ldhi    s3, #MMIO_START
     ldea    s3, s3, #SEGDISP0
 
