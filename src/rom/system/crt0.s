@@ -74,34 +74,40 @@ bss_cleared:
     ; Boot text: Print some memory information etc.
     ; ------------------------------------------------------------------------
 
-    ldea    s1, pc, #boot_text_1@pc
+    addpchi s1, #boot_text_1@pchi
+    add     s1, s1, #boot_text_1+4@pclo
     bl      vcon_print
 
-    ldea    s1, pc, #vram_text_1@pc
+    addpchi s1, #vram_text_1@pchi
+    add     s1, s1, #vram_text_1+4@pclo
     ldhi    s2, #VRAM_START
     ldhi    s3, #MMIO_START
     ldw     s3, s3, #VRAMSIZE
     bl      print_mem_info
 
-    ldea    s1, pc, #xram_text_1@pc
+    addpchi s1, #xram_text_1@pchi
+    add     s1, s1, #xram_text_1+4@pclo
     ldhi    s2, #XRAM_START
     ldhi    s3, #MMIO_START
     ldw     s3, s3, #XRAMSIZE
     bl      print_mem_info
 
-    ldea    s1, pc, #bss_text_1@pc
+    addpchi s1, #bss_text_1@pchi
+    add     s1, s1, #bss_text_1+4@pclo
     ldhi    s2, #__bss_start@hi
     or      s2, s2, #__bss_start@lo
     ldhi    s3, #__bss_size@hi
     or      s3, s3, #__bss_size@lo
     bl      print_mem_info
 
-    ldea    s1, pc, #vcon_text_1@pc
+    addpchi s1, #vcon_text_1@pchi
+    add     s1, s1, #vcon_text_1+4@pclo
     mov     s2, s20
     mov     s3, s21
     bl      print_mem_info
 
-    ldea    s1, pc, #stack_text_1@pc
+    addpchi s1, #stack_text_1@pchi
+    add     s1, s1, #stack_text_1+4@pclo
     ldi     s3, #STACK_SIZE
     mov     s2, sp
     sub     s2, s2, s3
@@ -112,15 +118,18 @@ bss_cleared:
     ; Run the selftest.
     ; ------------------------------------------------------------------------
 
-    ldea    s1, pc, #selftest_text@pc
+    addpchi s1, #selftest_text@pchi
+    add     s1, s1, #selftest_text+4@pclo
     bl      vcon_print
     ldea    s1, pc, #selftest_callback@pc
     bl      selftest_run
 
     ; s1 contains the pass/fail status (pass = all bits set).
-    ldea    s2, pc, #selftest_pass_text@pc
+    addpchi s2, #selftest_pass_text@pchi
+    add     s2, s2, #selftest_pass_text+4@pclo
     bs      s1, 1f
-    ldea    s2, pc, #selftest_fail_text@pc
+    addpchi s2, #selftest_fail_text@pchi
+    add     s2, s2, #selftest_fail_text+4@pclo
 1:
     mov     s1, s2
     bl      vcon_print
@@ -267,13 +276,15 @@ print_mem_info:
     mov     s1, s20
     bl      vcon_print_hex
 
-    ldea    s1, pc, #mem_info_text_2@pc
+    addpchi s1, #mem_info_text_2@pchi
+    add     s1, s1, #mem_info_text_2+4@pclo
     bl      vcon_print
 
     mov     s1, s21
     bl      vcon_print_dec
 
-    ldea    s1, pc, #mem_info_text_3@pc
+    addpchi s1, #mem_info_text_3@pchi
+    add     s1, s1, #mem_info_text_3+4@pclo
     bl      vcon_print
 
     ldw     lr, sp, #0
