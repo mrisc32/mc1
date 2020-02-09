@@ -79,8 +79,9 @@ selftest:
 #-----------------------------------------------------------------------------
 
 SYSOBJS = $(OUT)/crt0.o \
-          $(OUT)/mc1-font-8x8.o \
+          $(OUT)/framebuffer.o \
           $(OUT)/leds.o \
+          $(OUT)/mc1-font-8x8.o \
           $(OUT)/mem_copy.o \
           $(OUT)/mem_fill.o \
           $(OUT)/memory.o \
@@ -92,6 +93,12 @@ $(OUT)/libsys.a: $(SYSOBJS)
 
 $(OUT)/crt0.o: system/crt0.s system/memory.inc system/mmio.inc
 	$(AS) $(ASFLAGS) -o $@ system/crt0.s
+
+$(OUT)/framebuffer.s: system/framebuffer.c system/memory.h
+	$(CC) $(CCFLAGS) -o $@ system/framebuffer.c
+
+$(OUT)/framebuffer.o: $(OUT)/framebuffer.s
+	$(AS) $(ASFLAGS) -o $@ $(OUT)/framebuffer.s
 
 $(OUT)/leds.o: system/leds.s system/mmio.inc
 	$(AS) $(ASFLAGS) -o $@ system/leds.s
