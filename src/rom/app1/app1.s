@@ -19,6 +19,7 @@ NATIVE_HEIGHT = 1080
 
     .lcomm  vcp_start, 4
     .lcomm  fb_start, 4
+    .lcomm  current_prg_no, 4
 
     .text
 
@@ -32,8 +33,10 @@ main:
     add     sp, sp, #-4
     stw     lr, sp, #0
 
-    ; Init video.
-    bl      init_video
+    ; Set the default program.
+    ldi     s1, #-1
+    addpchi s15, #current_prg_no@pchi
+    stw     s1, s15, #current_prg_no+4@pclo
 
     ; Enter the main loop.
     bl      main_loop
@@ -57,18 +60,24 @@ init_video:
     ldi     s1, #16+256*4+4+FB_HEIGHT*12+4
     ldi     s2, #MEM_TYPE_VIDEO
     bl      mem_alloc
-    ldhi    s2, #vcp_start@hi
-    stw     s1, s2, #vcp_start@lo
+    ldhi    s15, #vcp_start@hi
+    stw     s1, s15, #vcp_start@lo
     bz      s1, init_fail
 
     ; Allocate memory for the frame buffer.
     ldi     s1, #FB_WIDTH * FB_HEIGHT
     ldi     s2, #MEM_TYPE_VIDEO | MEM_CLEAR
     bl      mem_alloc
-    ldhi    s2, #fb_start@hi
-    stw     s1, s2, #fb_start@lo
-    bz      s1, init_fail
+    ldhi    s15, #fb_start@hi
+    stw     s1, s15, #fb_start@lo
+    bnz     s1, init_allocation_ok
 
+    ldhi    s1, #vcp_start@hi
+    ldw     s1, s1, #vcp_start@lo
+    bl      mem_free
+    b       init_fail
+
+init_allocation_ok:
     ldhi    s11, #vcp_start@hi
     ldw     s11, s11, #vcp_start@lo ; s11 = start of Video Control Program
 
@@ -195,6 +204,36 @@ init_fail:
 
 
 ; ----------------------------------------------------------------------------
+; De-init video.
+; ----------------------------------------------------------------------------
+
+    .p2align 2
+deinit_video:
+    add     sp, sp, #-4
+    stw     lr, sp, #0
+
+    ldhi    s1, #vcp_start@hi
+    ldw     s1, s1, #vcp_start@lo
+    bz      s1, 1f
+    bl      mem_free
+    ldhi    s15, #vcp_start@hi
+    stw     z, s15, #vcp_start@lo
+1:
+
+    ldhi    s1, #fb_start@hi
+    ldw     s1, s1, #fb_start@lo
+    bz      s1, 2f
+    bl      mem_free
+    ldhi    s15, #fb_start@hi
+    stw     z, s15, #fb_start@lo
+2:
+
+    ldw     lr, sp, #0
+    add     sp, sp, #4
+    ret
+
+
+; ----------------------------------------------------------------------------
 ; Show the application frame buffer.
 ; ----------------------------------------------------------------------------
 
@@ -273,30 +312,48 @@ draw:
     ldhi    s2, #MMIO_START
     ldw     s2, s2, #SWITCHES
 
-    ; Show funky?
-    and     s3, s2, #1
-    bz      s3, 1$
+    ; Is this the same program as the last frame?
+    addpchi s3, #current_prg_no@pchi
+    ldea    s3, s3, #current_prg_no+4@pclo
+    ldw     s4, s3, #0
+    stw     s2, s3, #0
+    seq     s3, s2, s4      ; s3 = true for no program change
 
-    bl      fb_show
-    mov     s1, s20
-    bl      funky
-    b       3$
+    seq     s4, s2, #0
+    bs      s4, draw_vcon
+    seq     s4, s2, #1
+    bs      s4, draw_funky
+    seq     s4, s2, #2
+    bs      s4, draw_mandel
 
-1$:
-    ; Show mandelbrot?
-    and     s3, s2, #2
-    bz      s3, 2$
+    ; Fall through to draw_vcon
 
-    bl      fb_show
-    mov     s1, s20
-    bl      mandelbrot
-    b       3$
-
-2$:
-    ; Default: Show VCON.
+draw_vcon:
+    ; Show VCON.
+    bs      s3, 1f
+    bl      deinit_video
     bl      vcon_show
+1:  b       draw_done
 
-3$:
+draw_funky:
+    ; Show funky
+    bs      s3, 1f
+    bl      init_video
+    bl      fb_show
+1:  mov     s1, s20
+    bl      funky
+    b       draw_done
+
+draw_mandel:
+    ; Show mandelbrot
+    bs      s3, 1f
+    bl      init_video
+    bl      fb_show
+1:  mov     s1, s20
+    bl      mandelbrot
+    b       draw_done
+
+draw_done:
     ldw     lr, sp, #0
     ldw     s20, sp, #4
     add     sp, sp, #8
