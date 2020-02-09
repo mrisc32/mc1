@@ -164,7 +164,7 @@ static int free_from(mem_pool_t* pool, void* ptr) {
     if (pool->blocks[i].start == (size_t)ptr) {
       // Move all following blocks to the left.
       --pool->num_allocs;
-      for (int j = i; j < pool->num_allocs; ++j) {
+      for (int j = i; j <= pool->num_allocs; ++j) {
         pool->blocks[j] = pool->blocks[j + 1];
       }
       return 1;
@@ -223,13 +223,18 @@ void mem_free(void* ptr) {
 #ifdef ENABLE_DEBUG
   vcon_print("mem_free:\t0x");
   vcon_print_hex((size_t)ptr);
-  vcon_print("\n");
 #endif // ENABLE_DEBUG
 
   for (int i = 0; i < s_num_pools; ++i) {
     if (free_from(&s_pools[i], ptr)) {
-      break;
+#ifdef ENABLE_DEBUG
+      vcon_print(" - OK\n");
+#endif
+      return;
     }
   }
+#ifdef ENABLE_DEBUG
+  vcon_print(" - FAIL!\n");
+#endif
 }
 
