@@ -3,8 +3,7 @@
 ; Memory defintions
 ; ----------------------------------------------------------------------------
 
-; Memory areas
-
+; Fixed memory areas
 ROM_START     = 0x00000000
 VRAM_START    = 0x40000000
 XRAM_START    = 0x80000000

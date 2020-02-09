@@ -23,6 +23,11 @@
 
 #include <system/types.h>
 
+// Fixed memory areas.
+#define ROM_START  0x00000000
+#define VRAM_START 0x40000000
+#define XRAM_START 0x80000000
+
 // Memory types.
 #define MEM_TYPE_VIDEO 0x00000001 ///< Memory that can be accessed by the video hardware.
 #define MEM_TYPE_EXT   0x00000002 ///< External memory.
