@@ -32,7 +32,9 @@ clean:
 # Applications
 #-----------------------------------------------------------------------------
 
-APP1OBJS = $(OUT)/app1.o
+APP1OBJS = $(OUT)/app1.o \
+           $(OUT)/funky.o \
+           $(OUT)/mandelbrot.o
 
 APP2OBJS = $(OUT)/app2.o
 
@@ -41,6 +43,13 @@ APPOBJS = $(APP1OBJS)
 
 $(OUT)/app1.o: app1/app1.s system/memory.inc
 	$(AS) $(ASFLAGS) -o $@ app1/app1.s
+
+$(OUT)/funky.o: app1/funky.s
+	$(AS) $(ASFLAGS) -o $@ app1/funky.s
+
+$(OUT)/mandelbrot.o: app1/mandelbrot.s
+	$(AS) $(ASFLAGS) -o $@ app1/mandelbrot.s
+
 
 $(OUT)/app2.s: app2/app2.c
 	$(CC) $(CCFLAGS) -o $@ app2/app2.c
