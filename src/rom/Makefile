@@ -41,8 +41,11 @@ APP2OBJS = $(OUT)/app2.o
 # Select which app to build into the ROM here:
 APPOBJS = $(APP1OBJS)
 
-$(OUT)/app1.o: app1/app1.s system/memory.inc
-	$(AS) $(ASFLAGS) -o $@ app1/app1.s
+$(OUT)/app1.s: app1/app1.c
+	$(CC) $(CCFLAGS) -o $@ app1/app1.c
+
+$(OUT)/app1.o: $(OUT)/app1.s
+	$(AS) $(ASFLAGS) -o $@ $(OUT)/app1.s
 
 $(OUT)/funky.o: app1/funky.s
 	$(AS) $(ASFLAGS) -o $@ app1/funky.s
