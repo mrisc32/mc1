@@ -17,7 +17,7 @@
 msleep:
     ble     s1, 3$
 
-    ldhi    s3, #MMIO_START
+    ldi     s3, #MMIO_START
     ldw     s3, s3, #CPUCLK
     add     s3, s3, #500
     ldi     s4, #1000

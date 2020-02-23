@@ -44,9 +44,9 @@ mandelbrot:
     ; Calculate a zoom factor.
     itof    s1, s1, z
     fmul    s1, s1, s1
-    ldhi    s2, #0x3c23c000         ; ~0.01
+    ldi     s2, #0x3c23c000         ; ~0.01
     fmul    s2, s1, s2
-    ldhi    s3, #0x3f800000         ; 1.0
+    ldi     s3, #0x3f800000         ; 1.0
     fadd    s2, s2, s3              ;
     fdiv    s20, s3, s2             ; s20 = 1.0 / (1.0 + frameno^2 * 0.01)
 

@@ -39,8 +39,7 @@ funky:
     add     s2, s13, #-1
     ldea    v4, s2, #-1             ; v4 is a ramp from vl-1 downto 0
 
-    ldhi    s21, #sine1024@hi
-    or      s21, s21, #sine1024@lo  ; s21 = start of 1024-entry sine table
+    ldi     s21, #sine1024@pc       ; s21 = start of 1024-entry sine table
 
     ldi     s8, #FB_HEIGHT          ; s8 = y counter
 loop_y:

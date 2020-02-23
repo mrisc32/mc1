@@ -54,7 +54,7 @@ vcon_init:
     stw     lr, sp, #0
 
     ; Get the native resolution of the video logic.
-    ldhi    s2, #MMIO_START
+    ldi     s2, #MMIO_START
     ldw     s3, s2, #VIDWIDTH           ; s3 = native video width (e.g. 1920)
     ldw     s4, s2, #VIDHEIGHT          ; s4 = native video height (e.g. 1080)
 
@@ -67,36 +67,33 @@ vcon_init:
     ldhi    s7, #vcon_fb_start@hi
     stw     s6, s7, #vcon_fb_start@lo
 
-    ldhi    s7, #VRAM_START
+    ldi     s7, #VRAM_START
     sub     s6, s6, s7
     lsr     s6, s6, #2                  ; s6 = FB base in video address space
 
     ; Generate the VCP: Prologue.
-    ldhi    s8, #(0x010000*VCON_WIDTH)@hi
-    or      s8, s8, #(0x010000*VCON_WIDTH)@lo
+    ldi     s8, #0x010000*VCON_WIDTH
     div     s8, s8, s3                  ; s8 = (0x010000 * VCON_WIDTH) / native width
-    ldhi    s7, #0x82000000
+    ldi     s7, #0x82000000
     or      s7, s7, s8
     stw     s7, s1, #0                  ; SETREG  XINCR, ...
 
-    ldhi    s7, #0x84000000
+    ldi     s7, #0x84000000
     or      s7, s7, s3
     stw     s7, s1, #4                  ; SETREG  HSTOP, native width
 
-    ldhi    s7, #0x85000000
+    ldi     s7, #0x85000000
     or      s7, s7, #5
     stw     s7, s1, #8                  ; SETREG  CMODE, 5
 
-    ldhi    s7, #0x60000000
+    ldi     s7, #0x60000000
     or      s7, s7, #1
     stw     s7, s1, #12                 ; SETPAL  0, 1
 
-    ldhi    s7, #VCON_COL0@hi
-    or      s7, s7, #VCON_COL0@lo
+    ldi     s7, #VCON_COL0
     stw     s7, s1, #16                 ; COLOR 0
 
-    ldhi    s7, #VCON_COL1@hi
-    or      s7, s7, #VCON_COL1@lo
+    ldi     s7, #VCON_COL1
     stw     s7, s1, #20                 ; COLOR 1
 
     add     s7, s1, #16
@@ -106,8 +103,8 @@ vcon_init:
     add     s1, s1, #24
 
     ; Generate the VCP: Per row memory pointers.
-    ldhi    s7, #0x80000000
-    ldhi    s8, #0x50000000
+    ldi     s7, #0x80000000
+    ldi     s8, #0x50000000
     ldi     s11, #VCON_HEIGHT
     ldi     s9, #0
 1$:
@@ -127,8 +124,7 @@ vcon_init:
     bns     s10, 1$
 
     ; Generate the VCP: Epilogue.
-    ldhi    s7, #0x50007fff@hi
-    or      s7, s7, #0x50007fff@lo
+    ldi     s7, #0x50007fff
     stw     s7, s1, #0                  ; WAITY  32767
 
     ; Clear the screen.
@@ -153,7 +149,7 @@ vcon_init:
 vcon_show:
     ldhi    s1, #vcon_vcp_start@hi
     ldw     s1, s1, #vcon_vcp_start@lo
-    ldhi    s2, #VRAM_START
+    ldi     s2, #VRAM_START
     sub     s1, s1, s2
     lsr     s1, s1, #2                ; s1 = (vcon_vcp_start - VRAM_START) / 4
     stw     s1, s2, #0                ; JMP vcp_start
@@ -213,8 +209,7 @@ vcon_set_colors:
 vcon_print:
     mov     s10, vl                     ; Preserve vl (without using the stack)
 
-    ldhi    s2, #mc1_font_8x8@hi
-    or      s2, s2, #mc1_font_8x8@lo    ; s2 = font
+    ldi     s2, #mc1_font_8x8@pc        ; s2 = font
 
     ldhi    s3, #vcon_col@hi
     ldw     s3, s3, #vcon_col@lo        ; s3 = col
@@ -333,8 +328,7 @@ vcon_print_hex:
     stw     lr, sp, #12
 
     ; Build an ASCII string on the stack.
-    ldhi    s4, #hex_to_ascii@hi
-    or      s4, s4, #hex_to_ascii@lo
+    ldi     s4, #hex_to_ascii@pc
     ldi     s2, #8
     stb     z, sp, s2           ; Zero termination
 1$:
@@ -367,8 +361,7 @@ vcon_print_dec:
     stw     lr, sp, #12
 
     ; Build an ASCII string on the stack.
-    ldhi    s4, #hex_to_ascii@hi
-    or      s4, s4, #hex_to_ascii@lo
+    ldi     s4, #hex_to_ascii@pc
     ldi     s2, #11
     stb     z, sp, s2           ; Zero termination
 

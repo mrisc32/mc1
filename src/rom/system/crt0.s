@@ -74,40 +74,32 @@ bss_cleared:
     ; Boot text: Print some memory information etc.
     ; ------------------------------------------------------------------------
 
-    addpchi s1, #boot_text_1@pchi
-    add     s1, s1, #boot_text_1+4@pclo
+    ldi     s1, #boot_text_1@pc
     bl      vcon_print
 
-    addpchi s1, #vram_text_1@pchi
-    add     s1, s1, #vram_text_1+4@pclo
-    ldhi    s2, #VRAM_START
-    ldhi    s3, #MMIO_START
+    ldi     s1, #vram_text_1@pc
+    ldi     s2, #VRAM_START
+    ldi     s3, #MMIO_START
     ldw     s3, s3, #VRAMSIZE
     bl      print_mem_info
 
-    addpchi s1, #xram_text_1@pchi
-    add     s1, s1, #xram_text_1+4@pclo
-    ldhi    s2, #XRAM_START
-    ldhi    s3, #MMIO_START
+    ldi     s1, #xram_text_1@pc
+    ldi     s2, #XRAM_START
+    ldi     s3, #MMIO_START
     ldw     s3, s3, #XRAMSIZE
     bl      print_mem_info
 
-    addpchi s1, #bss_text_1@pchi
-    add     s1, s1, #bss_text_1+4@pclo
-    ldhi    s2, #__bss_start@hi
-    or      s2, s2, #__bss_start@lo
-    ldhi    s3, #__bss_size@hi
-    or      s3, s3, #__bss_size@lo
+    ldi     s1, #bss_text_1@pc
+    ldi     s2, #__bss_start
+    ldi     s3, #__bss_size
     bl      print_mem_info
 
-    addpchi s1, #vcon_text_1@pchi
-    add     s1, s1, #vcon_text_1+4@pclo
+    ldi     s1, #vcon_text_1@pc
     mov     s2, s20
     mov     s3, s21
     bl      print_mem_info
 
-    addpchi s1, #stack_text_1@pchi
-    add     s1, s1, #stack_text_1+4@pclo
+    ldi     s1, #stack_text_1@pc
     ldi     s3, #STACK_SIZE
     mov     s2, sp
     sub     s2, s2, s3
@@ -118,18 +110,15 @@ bss_cleared:
     ; Run the selftest.
     ; ------------------------------------------------------------------------
 
-    addpchi s1, #selftest_text@pchi
-    add     s1, s1, #selftest_text+4@pclo
+    ldi     s1, #selftest_text@pc
     bl      vcon_print
-    ldea    s1, pc, #selftest_callback@pc
+    ldi     s1, #selftest_callback@pc
     bl      selftest_run
 
     ; s1 contains the pass/fail status (pass = all bits set).
-    addpchi s2, #selftest_pass_text@pchi
-    add     s2, s2, #selftest_pass_text+4@pclo
+    ldi     s2, #selftest_pass_text@pc
     bs      s1, 1f
-    addpchi s2, #selftest_fail_text@pchi
-    add     s2, s2, #selftest_fail_text+4@pclo
+    ldi     s2, #selftest_fail_text@pc
 1:
     mov     s1, s2
     bl      vcon_print
@@ -145,18 +134,16 @@ bss_cleared:
     ; Note: By adding this pool first, we give it the highest priority. This
     ; means that if anyone calls mem_alloc() with MEM_TYPE_ANY, the allocator
     ; will try to allocate XRAM first.
-    ldhi    s1, #XRAM_START@hi
-    or      s1, s1, #XRAM_START@lo
-    ldhi    s2, #MMIO_START
+    ldi     s1, #XRAM_START
+    ldi     s2, #MMIO_START
     ldw     s2, s2, #XRAMSIZE
     ldi     s3, #MEM_TYPE_EXT
     bl      mem_add_pool
 
     ; Add a memory allocation pool for the VRAM.
-    ldhi    s1, #__vram_free_start@hi
-    or      s1, s1, #__vram_free_start@lo   ; s1 = Start of free VRAM
-    sub     s2, s20, s1                     ; s2 = Number of free VRAM bytes
-    ldi     s3, #MEM_TYPE_VIDEO             ; s3 = The memory type.
+    ldi     s1, #__vram_free_start  ; s1 = Start of free VRAM
+    sub     s2, s20, s1             ; s2 = Number of free VRAM bytes
+    ldi     s3, #MEM_TYPE_VIDEO     ; s3 = The memory type
     bl      mem_add_pool
 
 
@@ -239,11 +226,10 @@ bss_cleared:
     ldi     s1, #1
 
     ; s2 = argv
-    ldhi    s2, #argv@hi
-    add     s2, s2, #argv@lo
+    ldi     s2, #argv@pc
 
     ; Jump to main().
-    bl      main
+    call    #main@pc
 
 
     ; ------------------------------------------------------------------------
@@ -276,15 +262,13 @@ print_mem_info:
     mov     s1, s20
     bl      vcon_print_hex
 
-    addpchi s1, #mem_info_text_2@pchi
-    add     s1, s1, #mem_info_text_2+4@pclo
+    ldi     s1, #mem_info_text_2@pc
     bl      vcon_print
 
     mov     s1, s21
     bl      vcon_print_dec
 
-    addpchi s1, #mem_info_text_3@pchi
-    add     s1, s1, #mem_info_text_3+4@pclo
+    ldi     s1, #mem_info_text_3@pc
     bl      vcon_print
 
     ldw     lr, sp, #0
