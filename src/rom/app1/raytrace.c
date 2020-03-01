@@ -85,8 +85,8 @@ static const OBJ objs[] = {
 // Ground position (z-pos), and textures (tiled).
 static const FLOAT Groundpos = 0.0f;
 static const TEXTURE Groundtxt[2] = {
-    {{0.0f, 0.1f, 0.5f}, 0.8f, 0.44f, 0.02f},
-    {{0.6f, 1.0f, 0.5f}, 0.8f, 0.44f, 0.01f},
+    {{0.3f, 0.3f, 0.2f}, 0.8f, 0.1f, 0.02f},
+    {{0.4f, 0.4f, 0.3f}, 0.8f, 0.1f, 0.01f},
 };
 
 // Only one light-source is supported (and it's white).
@@ -102,7 +102,7 @@ static const VECTOR Cameraup = {0.0f, 0.0f, 3.16228f*((FLOAT)HEIGHT/(FLOAT)WIDTH
 static const FLOAT Ambient = 0.3f;
 
 // Skycolors (Skycolor[0] = horizon, Skycolor[1] = zenit ).
-static const VECTOR Skycolor[2] = {{0.5f, 0.3f, 0.7f}, {0.0f, 0.0f, 0.2f}};
+static const VECTOR Skycolor[2] = {{0.3f, 0.6f, 1.0f}, {0.0f, 0.0f, 0.2f}};
 
 
 //--------------------------------------------------------------------------------------------------
