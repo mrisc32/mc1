@@ -240,8 +240,8 @@ static void ReflectVector(VECTOR* v2, const VECTOR* v1, const VECTOR* n) {
   FLOAT a, b;
 
   b = n->x * n->x + n->y * n->y + n->z * n->z;    // b = |n|^2
-  a = v1->x * n->x + v1->y * n->y + v1->z * n->z; // a = v1·n 
-  a = -2.0f * a / b;                              // a = -2*(v1·n)/|n|^2
+  a = v1->x * n->x + v1->y * n->y + v1->z * n->z; // a = v1 dot n
+  a = -2.0f * a / b;                              // a = -2*(v1 dot n)/|n|^2
   v2->x = v1->x + a * n->x;                       // v2 = v1 + n*a
   v2->y = v1->y + a * n->y;
   v2->z = v1->z + a * n->z;
@@ -417,12 +417,16 @@ static void TraceScene(uint32_t* pixels) {
 static fb_t* s_fb;
 
 void raytrace_init(void) {
-  s_fb = fb_create(WIDTH, HEIGHT, MODE_RGBA8888);
+  if (s_fb == NULL) {
+    s_fb = fb_create(WIDTH, HEIGHT, MODE_RGBA8888);
+  }
 }
 
 void raytrace_deinit(void) {
-  fb_destroy(s_fb);
-  s_fb = NULL;
+  if (s_fb != NULL) {
+    fb_destroy(s_fb);
+    s_fb = NULL;
+  }
 }
 
 void raytrace(int frame_no) {

@@ -78,26 +78,50 @@ static void set_palette(fb_t* fb) {
   }
 }
 
-int main(void) {
-  fb_t* fb = fb_create(FB_WIDTH, FB_HEIGHT, MODE_PAL8);
-  if (!fb) {
-    return 1;
-  }
+static fb_t* s_common_fb;
 
-  set_palette(fb);
+static void common_fb_init(void) {
+  if (s_common_fb == NULL) {
+    s_common_fb = fb_create(FB_WIDTH, FB_HEIGHT, MODE_PAL8);
+    if (s_common_fb) {
+      set_palette(s_common_fb);
+      fb_show(s_common_fb);
+    }
+  }
+}
+
+static void commont_fb_deinit(void) {
+  if (s_common_fb != NULL) {
+    fb_destroy(s_common_fb);
+    s_common_fb = NULL;
+  }
+}
+
+int main(void) {
+  uint32_t switches_old = 0xffffffffu;
 
   int frame_no = 0;
   while (1) {
-    // Select program with the board switches.
     uint32_t switches = MMIO(SWITCHES);
+    if (switches != switches_old) {
+      commont_fb_deinit();
+      raytrace_deinit();
+      switches_old = switches;
+    }
+
+    // Select program with the board switches.
     if (switches == 1) {
-      fb_show(fb);
-      mandelbrot(frame_no, fb->pixels);
+      common_fb_init();
+      if (s_common_fb != NULL) {
+        mandelbrot(frame_no, s_common_fb->pixels);
+      }
     } else if (switches == 2) {
-      fb_show(fb);
-      funky(frame_no, fb->pixels);
+      common_fb_init();
+      if (s_common_fb != NULL) {
+        funky(frame_no, s_common_fb->pixels);
+      }
     } else if (switches == 4) {
-      // TODO(m): We need to call init/deinit too etc.
+      raytrace_init();
       raytrace(frame_no);
     } else {
       vcon_show();
@@ -110,8 +134,6 @@ int main(void) {
     wait_vblank();
     ++frame_no;
   }
-
-  fb_destroy(fb);
 
   return 0;
 }
