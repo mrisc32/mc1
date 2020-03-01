@@ -28,6 +28,9 @@ static const int FB_HEIGHT = 360;
 
 void mandelbrot(int frame_no, void* fb_start);
 void funky(int frame_no, void* fb_start);
+void raytrace_init(void);
+void raytrace_deinit(void);
+void raytrace(int frame_no);
 
 static void wait_vblank() {
   // Wait for the next vertical blanking interval. We busy lopp since we don't have interrupts yet.
@@ -93,6 +96,9 @@ int main(void) {
     } else if (switches == 2) {
       fb_show(fb);
       funky(frame_no, fb->pixels);
+    } else if (switches == 4) {
+      // TODO(m): We need to call init/deinit too etc.
+      raytrace(frame_no);
     } else {
       vcon_show();
     }

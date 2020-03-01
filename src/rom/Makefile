@@ -34,7 +34,8 @@ clean:
 
 APP1OBJS = $(OUT)/app1.o \
            $(OUT)/funky.o \
-           $(OUT)/mandelbrot.o
+           $(OUT)/mandelbrot.o \
+           $(OUT)/raytrace.o
 
 APP2OBJS = $(OUT)/app2.o
 
@@ -52,6 +53,12 @@ $(OUT)/funky.o: app1/funky.s
 
 $(OUT)/mandelbrot.o: app1/mandelbrot.s
 	$(AS) $(ASFLAGS) -o $@ app1/mandelbrot.s
+
+$(OUT)/raytrace.s: app1/raytrace.c
+	$(CC) $(CCFLAGS) -o $@ app1/raytrace.c
+
+$(OUT)/raytrace.o: $(OUT)/raytrace.s
+	$(AS) $(ASFLAGS) -o $@ $(OUT)/raytrace.s
 
 
 $(OUT)/app2.s: app2/app2.c
