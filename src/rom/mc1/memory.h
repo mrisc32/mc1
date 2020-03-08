@@ -59,5 +59,10 @@ void* mem_alloc(size_t num_bytes, unsigned types);
 /// @param ptr Pointer to the start of the memory block to free.
 void mem_free(void* ptr);
 
+/// @brief Query how much memory is free.
+/// @param types Memory type(s) to allocate from (must be non-zero).
+/// @returns the total number of bytes that are free for allocation.
+size_t mem_query_free(unsigned types);
+
 #endif  // MC1_MEMORY_H_
 

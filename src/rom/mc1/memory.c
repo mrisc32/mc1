@@ -173,6 +173,14 @@ static int free_from(mem_pool_t* pool, void* ptr) {
   return 0;
 }
 
+static size_t query_free_from(mem_pool_t* pool) {
+  size_t size = pool->size;
+  for (int i = 0; i < pool->num_allocs; ++i) {
+    size -= pool->blocks[i].size;
+  }
+  return size;
+}
+
 
 //--------------------------------------------------------------------------------------------------
 // Public
@@ -236,5 +244,17 @@ void mem_free(void* ptr) {
 #ifdef ENABLE_DEBUG
   vcon_print(" - FAIL!\n");
 #endif
+}
+
+size_t mem_query_free(unsigned types) {
+  size_t size = 0;
+  for (int i = 0; i < s_num_pools; ++i) {
+    mem_pool_t* pool = &s_pools[i];
+    if ((pool->type & types) != 0) {
+      size += query_free_from(pool);
+    }
+  }
+
+  return size;
 }
 
