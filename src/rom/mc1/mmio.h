@@ -18,10 +18,10 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
-#ifndef SYSTEM_MMIO_H_
-#define SYSTEM_MMIO_H_
+#ifndef MC1_MMIO_H_
+#define MC1_MMIO_H_
 
-#include <system/types.h>
+#include <mc1/types.h>
 
 // MMIO registers.
 #define CLKCNTLO   0
@@ -49,6 +49,6 @@
 // Macro for accessing MMIO registers.
 #define MMIO(reg) *(volatile uint32_t*)(&((volatile uint8_t*)0xc0000000)[reg])
 
-#endif // SYSTEM_MMIO_H_
+#endif // MC1_MMIO_H_
 
 

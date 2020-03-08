@@ -3,7 +3,7 @@
 ; MC1 system library: leds
 ; ----------------------------------------------------------------------------
 
-.include "system/mmio.inc"
+.include "mc1/mmio.inc"
 
     .text
 

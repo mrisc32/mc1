@@ -18,12 +18,19 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
-#ifndef SYSTEM_TIME_H_
-#define SYSTEM_TIME_H_
+#ifndef MC1_MEM_COPY_H_
+#define MC1_MEM_COPY_H_
 
-/// @brief Sleep for a specified number of milliseconds.
-/// @param milliseconds The number of milliseconds to sleep.
-void msleep(unsigned milliseconds);
+#include <mc1/types.h>
 
-#endif  // SYSTEM_TIME_H_
+/// @brief Forward copy a memory block.
+/// @param destination Target memory pointer (start of buffer).
+/// @param source Source memory pointer (start of buffer).
+/// @param num Number of bytes to copy.
+/// @returns the @c destination pointer.
+void* mem_copy_fwd(void* destination, const void* source, size_t num);
+
+// TODO(m): Add mem_copy_bwd()
+
+#endif  // MC1_MEM_COPY_H_
 

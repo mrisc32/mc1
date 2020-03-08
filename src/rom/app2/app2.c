@@ -18,9 +18,9 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
-#include <system/leds.h>
-#include <system/memory.h>
-#include <system/time.h>
+#include <mc1/leds.h>
+#include <mc1/memory.h>
+#include <mc1/time.h>
 
 int main(void) {
   sevseg_print_dec(123456);

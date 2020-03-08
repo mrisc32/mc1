@@ -21,8 +21,8 @@
 #ifndef LIBC_STRING_H_
 #define LIBC_STRING_H_
 
-#include <system/mem_copy.h>
-#include <system/mem_fill.h>
+#include <mc1/mem_copy.h>
+#include <mc1/mem_fill.h>
 
 static inline void* memcpy(void* destination, const void* source, size_t num) {
   return mem_copy_fwd(destination, source, num);

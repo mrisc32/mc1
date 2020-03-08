@@ -18,10 +18,10 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
-#include <system/framebuffer.h>
-#include <system/leds.h>
-#include <system/mmio.h>
-#include <system/vconsole.h>
+#include <mc1/framebuffer.h>
+#include <mc1/leds.h>
+#include <mc1/mmio.h>
+#include <mc1/vconsole.h>
 
 static const int FB_WIDTH = 640;
 static const int FB_HEIGHT = 360;

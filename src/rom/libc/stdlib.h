@@ -21,7 +21,7 @@
 #ifndef LIBC_STDLIB_H_
 #define LIBC_STDLIB_H_
 
-#include <system/memory.h>
+#include <mc1/memory.h>
 
 static inline void* malloc(size_t size) {
   return mem_alloc(size, MEM_TYPE_ANY);

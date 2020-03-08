@@ -18,10 +18,10 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
-#ifndef SYSTEM_MEMORY_H_
-#define SYSTEM_MEMORY_H_
+#ifndef MC1_MEMORY_H_
+#define MC1_MEMORY_H_
 
-#include <system/types.h>
+#include <mc1/types.h>
 
 // Fixed memory areas.
 #define ROM_START  0x00000000
@@ -59,5 +59,5 @@ void* mem_alloc(size_t num_bytes, unsigned types);
 /// @param ptr Pointer to the start of the memory block to free.
 void mem_free(void* ptr);
 
-#endif  // SYSTEM_MEMORY_H_
+#endif  // MC1_MEMORY_H_
 

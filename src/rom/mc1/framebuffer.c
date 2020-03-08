@@ -18,10 +18,10 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
-#include <system/framebuffer.h>
+#include <mc1/framebuffer.h>
 
-#include <system/memory.h>
-#include <system/mmio.h>
+#include <mc1/memory.h>
+#include <mc1/mmio.h>
 
 
 //--------------------------------------------------------------------------------------------------

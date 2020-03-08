@@ -3,8 +3,8 @@
 ; This is the main boot program.
 ; ----------------------------------------------------------------------------
 
-.include "system/memory.inc"
-.include "system/mmio.inc"
+.include "mc1/memory.inc"
+.include "mc1/mmio.inc"
 
 FB_WIDTH  = 640
 FB_HEIGHT = 360

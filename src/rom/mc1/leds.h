@@ -18,8 +18,8 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
-#ifndef SYSTEM_LEDS_H_
-#define SYSTEM_LEDS_H_
+#ifndef MC1_LEDS_H_
+#define MC1_LEDS_H_
 
 /// @brief Set the LED:s of the board.
 /// @param bits Each bit represents one LED (bit #0 is LED #0).
@@ -33,5 +33,5 @@ void sevseg_print_hex(unsigned number);
 /// @param number The number to print.
 void sevseg_print_dec(int number);
 
-#endif  // SYSTEM_LEDS_H_
+#endif  // MC1_LEDS_H_
 

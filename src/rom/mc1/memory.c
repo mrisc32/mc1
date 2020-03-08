@@ -18,10 +18,10 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
-#include <system/memory.h>
+#include <mc1/memory.h>
 
-#include <system/mem_fill.h>
-#include <system/vconsole.h>
+#include <mc1/mem_fill.h>
+#include <mc1/vconsole.h>
 
 
 //--------------------------------------------------------------------------------------------------

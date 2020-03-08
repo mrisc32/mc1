@@ -110,44 +110,44 @@ SYSOBJS = $(OUT)/crt0.o \
 $(OUT)/libsys.a: $(SYSOBJS)
 	$(AR) $(ARFLAGS) $@ $(SYSOBJS)
 
-$(OUT)/crt0.o: system/crt0.s system/memory.inc system/mmio.inc
-	$(AS) $(ASFLAGS) -o $@ system/crt0.s
+$(OUT)/crt0.o: mc1/crt0.s mc1/memory.inc mc1/mmio.inc
+	$(AS) $(ASFLAGS) -o $@ mc1/crt0.s
 
-$(OUT)/framebuffer.s: system/framebuffer.c system/memory.h
-	$(CC) $(CCFLAGS) -o $@ system/framebuffer.c
+$(OUT)/framebuffer.s: mc1/framebuffer.c mc1/memory.h
+	$(CC) $(CCFLAGS) -o $@ mc1/framebuffer.c
 
 $(OUT)/framebuffer.o: $(OUT)/framebuffer.s
 	$(AS) $(ASFLAGS) -o $@ $(OUT)/framebuffer.s
 
-$(OUT)/leds.o: system/leds.s system/mmio.inc
-	$(AS) $(ASFLAGS) -o $@ system/leds.s
+$(OUT)/leds.o: mc1/leds.s mc1/mmio.inc
+	$(AS) $(ASFLAGS) -o $@ mc1/leds.s
 
 $(OUT)/mc1-font-8x8.o: $(OUT)/mc1-font-8x8.s
 	$(AS) $(ASFLAGS) -o $@ $<
 
-$(OUT)/mc1-font-8x8.s: system/mc1-font-8x8.raw
+$(OUT)/mc1-font-8x8.s: mc1/mc1-font-8x8.raw
 	# Trim out ASCII code points 32..127 (the printable ASCII chars).
-	cat system/mc1-font-8x8.raw | \
+	cat mc1/mc1-font-8x8.raw | \
 	    tail -c +257  | \
 	    head -c -1024 \
 	    > $(OUT)/mc1-font-8x8-part.raw
 	./raw2asm.py --rev $(OUT)/mc1-font-8x8-part.raw mc1_font_8x8 > $@
 
-$(OUT)/mem_copy.o: system/mem_copy.s
-	$(AS) $(ASFLAGS) -o $@ system/mem_copy.s
+$(OUT)/mem_copy.o: mc1/mem_copy.s
+	$(AS) $(ASFLAGS) -o $@ mc1/mem_copy.s
 
-$(OUT)/mem_fill.o: system/mem_fill.s
-	$(AS) $(ASFLAGS) -o $@ system/mem_fill.s
+$(OUT)/mem_fill.o: mc1/mem_fill.s
+	$(AS) $(ASFLAGS) -o $@ mc1/mem_fill.s
 
-$(OUT)/memory.s: system/memory.c
-	$(CC) $(CCFLAGS) -o $@ system/memory.c
+$(OUT)/memory.s: mc1/memory.c
+	$(CC) $(CCFLAGS) -o $@ mc1/memory.c
 
 $(OUT)/memory.o: $(OUT)/memory.s
 	$(AS) $(ASFLAGS) -o $@ $(OUT)/memory.s
 
-$(OUT)/time.o: system/time.s system/mmio.inc
-	$(AS) $(ASFLAGS) -o $@ system/time.s
+$(OUT)/time.o: mc1/time.s mc1/mmio.inc
+	$(AS) $(ASFLAGS) -o $@ mc1/time.s
 
-$(OUT)/vconsole.o: system/vconsole.s system/mmio.inc system/memory.inc
-	$(AS) $(ASFLAGS) -o $@ system/vconsole.s
+$(OUT)/vconsole.o: mc1/vconsole.s mc1/mmio.inc mc1/memory.inc
+	$(AS) $(ASFLAGS) -o $@ mc1/vconsole.s
 

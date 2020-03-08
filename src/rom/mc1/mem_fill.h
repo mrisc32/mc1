@@ -18,10 +18,10 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
-#ifndef SYSTEM_MEM_FILL_H_
-#define SYSTEM_MEM_FILL_H_
+#ifndef MC1_MEM_FILL_H_
+#define MC1_MEM_FILL_H_
 
-#include <system/types.h>
+#include <mc1/types.h>
 
 /// @brief Fill memory with a value.
 ///
@@ -32,5 +32,5 @@
 /// @returns the @c ptr pointer.
 void* mem_fill(void* ptr, int value, size_t num);
 
-#endif  // SYSTEM_MEM_FILL_H_
+#endif  // MC1_MEM_FILL_H_
 

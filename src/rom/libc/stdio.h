@@ -21,7 +21,7 @@
 #ifndef LIBC_STDIO_H_
 #define LIBC_STDIO_H_
 
-#include <system/vconsole.h>
+#include <mc1/vconsole.h>
 
 // We don't really support files (yet), so just provide the types.
 typedef struct FILE_struct_t FILE;

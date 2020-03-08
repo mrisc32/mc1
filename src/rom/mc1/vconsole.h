@@ -18,19 +18,21 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
-#ifndef SYSTEM_MEM_COPY_H_
-#define SYSTEM_MEM_COPY_H_
+#ifndef MC1_VCONSOLE_H_
+#define MC1_VCONSOLE_H_
 
-#include <system/types.h>
+// These are meant to be called from the ROM boot routine.
+unsigned vcon_memory_requirement(void);
+void vcon_init(void* addr);
 
-/// @brief Forward copy a memory block.
-/// @param destination Target memory pointer (start of buffer).
-/// @param source Source memory pointer (start of buffer).
-/// @param num Number of bytes to copy.
-/// @returns the @c destination pointer.
-void* mem_copy_fwd(void* destination, const void* source, size_t num);
+// Public API.
+void vcon_show();
+void vcon_clear();
+void vcon_set_colors(unsigned col0, unsigned col1);
+void vcon_print(const char* text);
+void vcon_print_hex(unsigned x);
+void vcon_print_dec(int x);
+int vcon_putc(const int c);
 
-// TODO(m): Add mem_copy_bwd()
-
-#endif  // SYSTEM_MEM_COPY_H_
+#endif // MC1_VCONSOLE_H_
 

@@ -4,8 +4,8 @@
 ; some initialization and then calls main.
 ; ----------------------------------------------------------------------------
 
-.include "system/memory.inc"
-.include "system/mmio.inc"
+.include "mc1/memory.inc"
+.include "mc1/mmio.inc"
 
 STACK_SIZE = 4*1024
 

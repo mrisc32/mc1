@@ -18,10 +18,10 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
-#ifndef SYSTEM_FRAMEBUFFER_H_
-#define SYSTEM_FRAMEBUFFER_H_
+#ifndef MC1_FRAMEBUFFER_H_
+#define MC1_FRAMEBUFFER_H_
 
-#include <system/types.h>
+#include <mc1/types.h>
 
 typedef enum {
   MODE_RGBA8888 = 0,
@@ -58,5 +58,5 @@ void fb_destroy(fb_t* fb);
 /// @param fb The framebuffer object.
 void fb_show(fb_t* fb);
 
-#endif // SYSTEM_FRAMEBUFFER_H_
+#endif // MC1_FRAMEBUFFER_H_
 

@@ -21,7 +21,7 @@
 #ifndef LIBC_STDINT_H_
 #define LIBC_STDINT_H_
 
-#include <system/types.h>
+#include <mc1/types.h>
 
 #endif  // LIBC_STDINT_H_
 
