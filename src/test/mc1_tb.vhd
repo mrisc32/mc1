@@ -76,7 +76,7 @@ begin
       o_vga_vs => s_vsync,
 
       -- I/O interfaces.
-      i_io_switches => (others => '0'),
+      i_io_switches => 32x"2",
       i_io_buttons => (others => '0')
     );
 
