@@ -42,9 +42,9 @@ entity rom is
 end rom;
 
 architecture rtl of rom is
-  constant C_ADDR_BITS : positive := 13;
+  constant C_ADDR_BITS : positive := ${ADDR_BITS};
   subtype WORD_T is std_logic_vector(31 downto 0);
-  type MEM_T is array (2**C_ADDR_BITS-1 downto 0) of WORD_T;
+  type MEM_T is array (0 to 2**C_ADDR_BITS-1) of WORD_T;
   signal C_ROM : MEM_T := (
 ${DATA}
   );
