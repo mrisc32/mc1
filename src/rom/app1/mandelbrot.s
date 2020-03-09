@@ -3,22 +3,83 @@
 ; This is the main boot program.
 ; ----------------------------------------------------------------------------
 
+.include "mc1/framebuffer.inc"
 .include "mc1/memory.inc"
 .include "mc1/mmio.inc"
 
-FB_WIDTH  = 640
-FB_HEIGHT = 360
+WIDTH  = 640
+HEIGHT = 360
+
+    .lcomm  s_fb, 4
+
+
+;---------------------------------------------------------------------------------------------------
+; void mandelbrot_init(void)
+;---------------------------------------------------------------------------------------------------
 
     .text
+    .p2align 2
+    .global mandelbrot_init
+mandelbrot_init:
+    add     sp, sp, #-4
+    stw     lr, sp, #0
 
-; ----------------------------------------------------------------------------
+    addpchi s1, #s_fb@pchi
+    ldw     s1, s1, #s_fb@pclo
+    bnz     s1, mandelbrot_init_done
+
+    ; s_fb = fb_create(WIDTH, HEIGHT, MODE_PAL8)
+    ldi     s1, #WIDTH
+    ldi     s2, #HEIGHT
+    ldi     s3, #MODE_PAL8
+    call    fb_create@pc
+    addpchi s2, #s_fb@pchi
+    stw     s1, s2, #s_fb@pclo
+
+    ; set_mandelbrot_palette(s_fb)
+    call    set_mandelbrot_palette@pc
+
+mandelbrot_init_done:
+    ldw     lr, sp, #0
+    add     sp, sp, #4
+    ret
+
+
+;---------------------------------------------------------------------------------------------------
+; void mandelbrot_deinit(void)
+;---------------------------------------------------------------------------------------------------
+
+    .text
+    .p2align 2
+    .global mandelbrot_deinit
+mandelbrot_deinit:
+    add     sp, sp, #-4
+    stw     lr, sp, #0
+
+    ; fb_destroy(s_fb)
+    addpchi s1, #s_fb@pchi
+    ldw     s1, s1, #s_fb@pclo
+    bz      s1, mandelbrot_deinit_done
+    call    fb_destroy@pc
+
+    ; s_fb = NULL
+    addpchi s1, #s_fb@pchi
+    stw     z, s1, #s_fb@pclo
+
+mandelbrot_deinit_done:
+    ldw     lr, sp, #0
+    add     sp, sp, #4
+    ret
+
+
+;---------------------------------------------------------------------------------------------------
 ; Draw a Mandelbrot fractal.
 ;
-; void mandelbrot(int frame_no, void* fb_start)
+; void mandelbrot(int frame_no)
 ;   s1 = frame number (0, 1, ...)
-;   s2 = framebuffer start
-; ----------------------------------------------------------------------------
+;---------------------------------------------------------------------------------------------------
 
+    .text
     .p2align 2
     .global mandelbrot
 mandelbrot:
@@ -28,8 +89,10 @@ mandelbrot:
     stw     s18, sp, #4
     stw     s20, sp, #0
 
-    mov     s14, s2                 ; s14 = pixel_data
-    bz      s14, mandelbrot_fail
+    addpchi s2, #s_fb@pchi
+    ldw     s2, s2, #s_fb@pclo
+    bz      s2, mandelbrot_fail
+    ldw     s14, s2, #FB_PIXELS     ; s14 = pixel_data
 
     and     s1, s1, #127
     slt     s2, s1, #64
@@ -52,20 +115,20 @@ mandelbrot:
 
     fmul    s13, s13, s20           ; s13 = coord_step * zoom_factor
 
-    ldi     s16, #FB_HEIGHT ; s16 = loop counter for y
+    ldi     s16, #HEIGHT    ; s16 = loop counter for y
     asr     s3, s16, #1
     itof    s3, s3, z
     fmul    s3, s13, s3
     ldw     s2, pc, #center_im@pc
-    fsub    s2, s2, s3      ; s2 = min_im = center_im - coord_step * FB_HEIGHT/2
+    fsub    s2, s2, s3      ; s2 = min_im = center_im - coord_step * HEIGHT/2
 
 outer_loop_y:
-    ldi     s15, #FB_WIDTH  ; s15 = loop counter for x
+    ldi     s15, #WIDTH     ; s15 = loop counter for x
     asr     s3, s15, #1
     itof    s3, s3, z
     fmul    s3, s13, s3
     ldw     s1, pc, #center_re@pc
-    fsub    s1, s1, s3      ; s1 = min_re = center_re - coord_step * FB_WIDTH/2
+    fsub    s1, s1, s3      ; s1 = min_re = center_re - coord_step * WIDTH/2
 
 outer_loop_x:
     or      s3, z, z        ; s3 = re(z) = 0.0

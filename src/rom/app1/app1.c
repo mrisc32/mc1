@@ -18,15 +18,13 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
-#include <mc1/framebuffer.h>
 #include <mc1/leds.h>
 #include <mc1/mmio.h>
 #include <mc1/vconsole.h>
 
-static const int FB_WIDTH = 640;
-static const int FB_HEIGHT = 360;
-
-void mandelbrot(int frame_no, void* fb_start);
+void mandelbrot_init(void);
+void mandelbrot_deinit(void);
+void mandelbrot(int frame_no);
 
 void funky_init(void);
 void funky_deinit(void);
@@ -42,65 +40,6 @@ static void wait_vblank() {
   while (vid_frame_no == MMIO(VIDFRAMENO));
 }
 
-static void set_palette(fb_t* fb) {
-  uint32_t* pal = fb->palette;
-
-  // Color 0 is black.
-  pal[0] = 0xff000000;
-
-  // Generate colorful gradients for colors 1..255.
-  int32_t r = 100;
-  int32_t g = 50;
-  int32_t b = 0;
-  int32_t r_inc = 2;
-  int32_t g_inc = 3;
-  int32_t b_inc = 1;
-
-  for (int k = 1; k <= 255; ++k) {
-    pal[k] = 0xff000000u | (b << 16) | (g << 8) | r;
-
-    // Update R, and if necessary adjust the increment value.
-    r += r_inc;
-    if (r < 0 || r > 255) {
-      r_inc = -r_inc;
-      r += r_inc;
-    }
-
-    // Update G, and if necessary adjust the increment value.
-    g += g_inc;
-    if (g < 0 || g > 255) {
-      g_inc = -g_inc;
-      g += g_inc;
-    }
-
-    // Update B, and if necessary adjust the increment value.
-    b += b_inc;
-    if (b < 0 || b > 255) {
-      b_inc = -b_inc;
-      b += b_inc;
-    }
-  }
-}
-
-static fb_t* s_common_fb;
-
-static void common_fb_init(void) {
-  if (s_common_fb == NULL) {
-    s_common_fb = fb_create(FB_WIDTH, FB_HEIGHT, MODE_PAL8);
-    if (s_common_fb) {
-      set_palette(s_common_fb);
-      fb_show(s_common_fb);
-    }
-  }
-}
-
-static void commont_fb_deinit(void) {
-  if (s_common_fb != NULL) {
-    fb_destroy(s_common_fb);
-    s_common_fb = NULL;
-  }
-}
-
 int main(void) {
   uint32_t switches_old = 0xffffffffu;
 
@@ -108,7 +47,7 @@ int main(void) {
   while (1) {
     uint32_t switches = MMIO(SWITCHES);
     if (switches != switches_old) {
-      commont_fb_deinit();
+      mandelbrot_deinit();
       funky_deinit();
       raytrace_deinit();
       switches_old = switches;
@@ -116,10 +55,8 @@ int main(void) {
 
     // Select program with the board switches.
     if (switches == 1) {
-      common_fb_init();
-      if (s_common_fb != NULL) {
-        mandelbrot(frame_no, s_common_fb->pixels);
-      }
+      mandelbrot_init();
+      mandelbrot(frame_no);
     } else if (switches == 2) {
       funky_init();
       funky(frame_no);
