@@ -101,10 +101,17 @@ funky_deinit_done:
     .p2align 2
     .global funky
 funky:
-    add     sp, sp, #-12
+    add     sp, sp, #-16
     stw     s20, sp, #0
     stw     s21, sp, #4
     stw     vl, sp, #8
+    stw     lr, sp, #12
+
+    mov     s20, s1
+    addpchi s1, #s_fb@pchi
+    ldw     s1, s1, #s_fb@pclo
+    call    fb_show@pc
+    mov     s1, s20
 
     addpchi s2, #s_fb@pchi
     ldw     s2, s2, #s_fb@pclo
@@ -152,7 +159,8 @@ funky_fail:
     ldw     s20, sp, #0
     ldw     s21, sp, #4
     ldw     vl, sp, #8
-    add     sp, sp, #12
+    ldw     lr, sp, #12
+    add     sp, sp, #16
     ret
 
 

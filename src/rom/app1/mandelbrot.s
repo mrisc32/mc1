@@ -83,11 +83,18 @@ mandelbrot_deinit_done:
     .p2align 2
     .global mandelbrot
 mandelbrot:
-    add     sp, sp, #-16
-    stw     s16, sp, #12
-    stw     s17, sp, #8
-    stw     s18, sp, #4
-    stw     s20, sp, #0
+    add     sp, sp, #-20
+    stw     s16, sp, #0
+    stw     s17, sp, #4
+    stw     s18, sp, #8
+    stw     s20, sp, #12
+    stw     lr, sp, #16
+
+    mov     s20, s1
+    addpchi s1, #s_fb@pchi
+    ldw     s1, s1, #s_fb@pclo
+    call    fb_show@pc
+    mov     s1, s20
 
     addpchi s2, #s_fb@pchi
     ldw     s2, s2, #s_fb@pclo
@@ -172,11 +179,12 @@ inner_loop_done:
     bgt     s16, outer_loop_y
 
 mandelbrot_fail:
-    ldw     s20, sp, #0
-    ldw     s18, sp, #4
-    ldw     s17, sp, #8
-    ldw     s16, sp, #12
-    add     sp, sp, #16
+    ldw     s16, sp, #0
+    ldw     s17, sp, #4
+    ldw     s18, sp, #8
+    ldw     s20, sp, #12
+    ldw     lr, sp, #16
+    add     sp, sp, #20
     ret
 
 
