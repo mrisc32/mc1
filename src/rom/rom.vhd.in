@@ -42,15 +42,19 @@ entity rom is
 end rom;
 
 architecture rtl of rom is
-  constant C_ADDR_BITS : positive := ${ADDR_BITS};
+  constant C_ADDR_BITS : positive := 13;
+  subtype WORD_T is std_logic_vector(31 downto 0);
+  type MEM_T is array (2**C_ADDR_BITS-1 downto 0) of WORD_T;
+  signal C_ROM : MEM_T := (
+${DATA}
+  );
 
   signal s_is_valid_wb_request : std_logic;
-  signal s_rom_addr : std_logic_vector(C_ADDR_BITS-1 downto 0);
+  signal s_rom_addr : unsigned(C_ADDR_BITS-1 downto 0);
+  signal s_dat : WORD_T := (others => '0');
 begin
-  -- Wishbone control logic.
+  -- Wishbone control logic. We always ack and never stall - we're that fast ;-)
   s_is_valid_wb_request <= i_wb_cyc and i_wb_stb;
-
-  -- We always ack and never stall - we're that fast ;-)
   process(i_clk)
   begin
     if rising_edge(i_clk) then
@@ -60,15 +64,14 @@ begin
   o_wb_stall <= '0';
 
   -- Actual ROM.
-  s_rom_addr <= i_wb_adr(C_ADDR_BITS+1 downto 2);
-
+  s_rom_addr <= unsigned(i_wb_adr(C_ADDR_BITS+1 downto 2));
   process(i_clk)
   begin
     if rising_edge(i_clk) then
-      case s_rom_addr is
-${DATA}
-        when others => o_wb_dat <= (others => '0');
-      end case;
+      s_dat <= C_ROM(to_integer(s_rom_addr));
     end if;
   end process;
+
+  -- Output signal.
+  o_wb_dat <= s_dat;
 end rtl;

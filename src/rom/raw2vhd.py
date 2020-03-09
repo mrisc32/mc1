@@ -28,10 +28,10 @@ def convert(raw_filename, template_filename):
     ADDR_BITS = str(int(math.log(rom_size, 2) - 2))
     DATA = ''
     raw_data_32bit = struct.unpack('<' + ('I' * (rom_size // 4)), raw_data)
-    addr = 0
-    for x in raw_data_32bit:
-        DATA = DATA + (f'        when {ADDR_BITS}x"{addr:x}" => o_wb_dat <= x"{x:08x}";\n')
-        addr = addr + 1
+    for x in range(0, len(raw_data_32bit)):
+        tail = '' if x == (len(raw_data_32bit) - 1) else ',\n'
+        word = raw_data_32bit[x]
+        DATA = DATA + (f'    x"{word:08x}"{tail}')
 
     # Read the VHDL template.
     with open(template_filename, 'r', encoding='utf8') as f:
