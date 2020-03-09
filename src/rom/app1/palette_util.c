@@ -19,30 +19,8 @@
 //--------------------------------------------------------------------------------------------------
 
 #include <mc1/framebuffer.h>
-#include <mc1/leds.h>
-#include <mc1/mmio.h>
-#include <mc1/vconsole.h>
 
-static const int FB_WIDTH = 640;
-static const int FB_HEIGHT = 360;
-
-void mandelbrot(int frame_no, void* fb_start);
-
-void funky_init(void);
-void funky_deinit(void);
-void funky(int frame_no);
-
-void raytrace_init(void);
-void raytrace_deinit(void);
-void raytrace(int frame_no);
-
-static void wait_vblank() {
-  // Wait for the next vertical blanking interval. We busy lopp since we don't have interrupts yet.
-  uint32_t vid_frame_no = MMIO(VIDFRAMENO);
-  while (vid_frame_no == MMIO(VIDFRAMENO));
-}
-
-static void set_palette(fb_t* fb) {
+void set_mandelbrot_palette(fb_t* fb) {
   uint32_t* pal = fb->palette;
 
   // Color 0 is black.
@@ -80,64 +58,5 @@ static void set_palette(fb_t* fb) {
       b += b_inc;
     }
   }
-}
-
-static fb_t* s_common_fb;
-
-static void common_fb_init(void) {
-  if (s_common_fb == NULL) {
-    s_common_fb = fb_create(FB_WIDTH, FB_HEIGHT, MODE_PAL8);
-    if (s_common_fb) {
-      set_palette(s_common_fb);
-      fb_show(s_common_fb);
-    }
-  }
-}
-
-static void commont_fb_deinit(void) {
-  if (s_common_fb != NULL) {
-    fb_destroy(s_common_fb);
-    s_common_fb = NULL;
-  }
-}
-
-int main(void) {
-  uint32_t switches_old = 0xffffffffu;
-
-  int frame_no = 0;
-  while (1) {
-    uint32_t switches = MMIO(SWITCHES);
-    if (switches != switches_old) {
-      commont_fb_deinit();
-      funky_deinit();
-      raytrace_deinit();
-      switches_old = switches;
-    }
-
-    // Select program with the board switches.
-    if (switches == 1) {
-      common_fb_init();
-      if (s_common_fb != NULL) {
-        mandelbrot(frame_no, s_common_fb->pixels);
-      }
-    } else if (switches == 2) {
-      funky_init();
-      funky(frame_no);
-    } else if (switches == 4) {
-      raytrace_init();
-      raytrace(frame_no);
-    } else {
-      vcon_show();
-    }
-
-    // Write the raster Y position to the segment displays.
-    int raster_y = MMIO(VIDY);
-    sevseg_print_dec(raster_y);
-
-    wait_vblank();
-    ++frame_no;
-  }
-
-  return 0;
 }
 

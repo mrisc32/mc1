@@ -1,25 +1,103 @@
 ; -*- mode: mr32asm; tab-width: 4; indent-tabs-mode: nil; -*-
-; ----------------------------------------------------------------------------
-; This is the main boot program.
-; ----------------------------------------------------------------------------
+;---------------------------------------------------------------------------------------------------
+; Copyright (c) 2020 Marcus Geelnard
+;
+; This software is provided 'as-is', without any express or implied warranty. In no event will the
+; authors be held liable for any damages arising from the use of this software.
+;
+; Permission is granted to anyone to use this software for any purpose, including commercial
+; applications, and to alter it and redistribute it freely, subject to the following restrictions:
+;
+;  1. The origin of this software must not be misrepresented; you must not claim that you wrote
+;     the original software. If you use this software in a product, an acknowledgment in the
+;     product documentation would be appreciated but is not required.
+;
+;  2. Altered source versions must be plainly marked as such, and must not be misrepresented as
+;     being the original software.
+;
+;  3. This notice may not be removed or altered from any source distribution.
+;---------------------------------------------------------------------------------------------------
 
+.include "mc1/framebuffer.inc"
 .include "mc1/memory.inc"
 .include "mc1/mmio.inc"
 
-FB_WIDTH  = 640
-FB_HEIGHT = 360
+WIDTH  = 640
+HEIGHT = 360
 
+    .lcomm  s_fb, 4
+
+
+;---------------------------------------------------------------------------------------------------
+; void funky_init(void)
+;---------------------------------------------------------------------------------------------------
 
     .text
+    .p2align 2
+    .global funky_init
+funky_init:
+    add     sp, sp, #-4
+    stw     lr, sp, #0
 
-; ----------------------------------------------------------------------------
+    addpchi s1, #s_fb@pchi
+    ldw     s1, s1, #s_fb@pclo
+    bnz     s1, funky_init_done
+
+    ; s_fb = fb_create(WIDTH, HEIGHT, MODE_PAL8)
+    ldi     s1, #WIDTH
+    ldi     s2, #HEIGHT
+    ldi     s3, #MODE_PAL8
+    call    fb_create@pc
+    addpchi s2, #s_fb@pchi
+    stw     s1, s2, #s_fb@pclo
+
+    ; Set a palette.
+    ; TODO(m): For now we just use the mandelbrot palette. In the future, use a more dynamic
+    ; palette that we update each frame.
+    ; set_mandelbrot_palette(s_fb)
+    call    set_mandelbrot_palette@pc
+
+funky_init_done:
+    ldw     lr, sp, #0
+    add     sp, sp, #4
+    ret
+
+
+;---------------------------------------------------------------------------------------------------
+; void funky_deinit(void)
+;---------------------------------------------------------------------------------------------------
+
+    .text
+    .p2align 2
+    .global funky_deinit
+funky_deinit:
+    add     sp, sp, #-4
+    stw     lr, sp, #0
+
+    ; fb_destroy(s_fb)
+    addpchi s1, #s_fb@pchi
+    ldw     s1, s1, #s_fb@pclo
+    bz      s1, funky_deinit_done
+    call    fb_destroy@pc
+
+    ; s_fb = NULL
+    addpchi s1, #s_fb@pchi
+    stw     z, s1, #s_fb@pclo
+
+funky_deinit_done:
+    ldw     lr, sp, #0
+    add     sp, sp, #4
+    ret
+
+
+;---------------------------------------------------------------------------------------------------
 ; Draw some funky graphics.
 ;
-; void funky(int frame_no, void* fb_start)
+; void funky(int frame_no)
 ;   s1 = frame number (0, 1, ...)
-;   s2 = framebuffer start
-; ----------------------------------------------------------------------------
+;---------------------------------------------------------------------------------------------------
 
+    .text
     .p2align 2
     .global funky
 funky:
@@ -28,10 +106,12 @@ funky:
     stw     s21, sp, #4
     stw     vl, sp, #8
 
-    add     s1, s1, s1              ; Increase animation speed
+    addpchi s2, #s_fb@pchi
+    ldw     s2, s2, #s_fb@pclo
+    bz      s2, funky_fail
+    ldw     s6, s2, #FB_PIXELS      ; s6 = video frame buffer
 
-    mov     s6, s2                  ; s6 = video frame buffer
-    bz      s6, funky_fail
+    add     s1, s1, s1              ; Increase animation speed
 
     cpuid   s13, z, z               ; s13 = memory stride per vector operation
     mov     vl, s13
@@ -41,13 +121,13 @@ funky:
 
     ldi     s21, #sine1024@pc       ; s21 = start of 1024-entry sine table
 
-    ldi     s8, #FB_HEIGHT          ; s8 = y counter
+    ldi     s8, #HEIGHT             ; s8 = y counter
 loop_y:
     add     s8, s8, #-1             ; Decrement the y counter
 
     add     s9, s8, s1
 
-    ldi     s7, #FB_WIDTH/2         ; s7 = x counter
+    ldi     s7, #WIDTH/2            ; s7 = x counter
 loop_x:
     min     vl, s13, s7
     sub     s7, s7, vl              ; Decrement the x counter

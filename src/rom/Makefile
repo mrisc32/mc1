@@ -33,6 +33,7 @@ clean:
 #-----------------------------------------------------------------------------
 
 APP1OBJS = $(OUT)/app1.o \
+           $(OUT)/palette_util.o \
            $(OUT)/funky.o \
            $(OUT)/mandelbrot.o \
            $(OUT)/raytrace.o
@@ -47,6 +48,12 @@ $(OUT)/app1.s: app1/app1.c
 
 $(OUT)/app1.o: $(OUT)/app1.s
 	$(AS) $(ASFLAGS) -o $@ $(OUT)/app1.s
+
+$(OUT)/palette_util.s: app1/palette_util.c
+	$(CC) $(CCFLAGS) -o $@ app1/palette_util.c
+
+$(OUT)/palette_util.o: $(OUT)/palette_util.s
+	$(AS) $(ASFLAGS) -o $@ $(OUT)/palette_util.s
 
 $(OUT)/funky.o: app1/funky.s
 	$(AS) $(ASFLAGS) -o $@ app1/funky.s
