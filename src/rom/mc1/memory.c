@@ -228,22 +228,24 @@ void* mem_alloc(size_t num_bytes, unsigned types) {
 }
 
 void mem_free(void* ptr) {
+  if (ptr != NULL) {
 #ifdef ENABLE_DEBUG
-  vcon_print("mem_free:\t0x");
-  vcon_print_hex((size_t)ptr);
+    vcon_print("mem_free:\t0x");
+    vcon_print_hex((size_t)ptr);
 #endif // ENABLE_DEBUG
 
-  for (int i = 0; i < s_num_pools; ++i) {
-    if (free_from(&s_pools[i], ptr)) {
+    for (int i = 0; i < s_num_pools; ++i) {
+      if (free_from(&s_pools[i], ptr)) {
 #ifdef ENABLE_DEBUG
-      vcon_print(" - OK\n");
+        vcon_print(" - OK\n");
 #endif
-      return;
+        return;
+      }
     }
-  }
 #ifdef ENABLE_DEBUG
-  vcon_print(" - FAIL!\n");
+    vcon_print(" - FAIL!\n");
 #endif
+  }
 }
 
 size_t mem_query_free(unsigned types) {
