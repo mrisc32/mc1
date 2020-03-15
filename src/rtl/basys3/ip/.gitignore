@@ -1,0 +1,8 @@
+doc
+*.dcp
+*.v
+*.vh
+*.vho
+*.vhdl
+*.xdc
+*.xml

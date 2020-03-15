@@ -75,13 +75,13 @@ architecture rtl of toplevel is
   signal s_io_regs_w : T_MMIO_REGS_WO;
 begin
   -- We use btnC as reset.
-  s_reset_n <= not s_io_buttons(0);
+  s_reset_n <= not btnU;
 
   -- System reset signal: This is the reset signal from the board. The stabilizer guarantees that
   -- the reset signal will be held high for a certain period.
   reset_stabilizer_1: entity work.reset_stabilizer
     generic map (
-      STABLE_COUNT_BITS => 23  -- Hold reset high for 2^23 50 MHz cycles (168 ms).
+      STABLE_COUNT_BITS => 23  -- Hold reset high for 2^23 100 MHz cycles (84 ms).
     )
     port map (
       i_rst_n => s_reset_n,
@@ -90,14 +90,22 @@ begin
     );
 
   -- Generate the CPU clock signal.
-  -- TODO(m): Implement me using a PLL!
-  s_cpu_clk <= clk;
-  s_cpu_pll_locked <= '1';
+  pll_1 : entity work.pll_cpu
+    port map (
+      reset => s_system_rst,
+      clk_in1 => clk,
+      clk_out1 => s_cpu_clk,
+      locked => s_cpu_pll_locked
+    );
 
   -- Generate the VGA clock signal.
-  -- TODO(m): Implement me using a PLL!
-  s_vga_clk <= clk;
-  s_vga_pll_locked <= '1';
+  pll_2 : entity work.pll_vga
+    port map (
+      reset => s_system_rst,
+      clk_in1 => clk,
+      clk_out1 => s_vga_clk,
+      locked => s_vga_pll_locked
+    );
 
   -- Reset logic - synchronize the reset signal to the different clock domains.
   s_global_async_rst <= s_system_rst or (not (s_cpu_pll_locked and s_vga_pll_locked));
