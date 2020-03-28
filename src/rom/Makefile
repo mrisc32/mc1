@@ -4,7 +4,7 @@ OUT = out
 SELFTESTOUT = selftest/out
 
 CC      = mrisc32-elf-gcc
-CCFLAGS = -S -Os -I . -I libc -ffreestanding -Wall -Wextra -Werror
+CCFLAGS = -c -Os -I . -I libc -ffreestanding -Wall -Wextra -Werror
 AS      = mrisc32-elf-as
 ASFLAGS = -I .
 LD      = mrisc32-elf-ld
@@ -43,17 +43,11 @@ APP2OBJS = $(OUT)/app2.o
 # Select which app to build into the ROM here:
 APPOBJS = $(APP1OBJS)
 
-$(OUT)/app1.s: app1/app1.c
+$(OUT)/app1.o: app1/app1.c
 	$(CC) $(CCFLAGS) -o $@ app1/app1.c
 
-$(OUT)/app1.o: $(OUT)/app1.s
-	$(AS) $(ASFLAGS) -o $@ $(OUT)/app1.s
-
-$(OUT)/palette_util.s: app1/palette_util.c
+$(OUT)/palette_util.o: app1/palette_util.c
 	$(CC) $(CCFLAGS) -o $@ app1/palette_util.c
-
-$(OUT)/palette_util.o: $(OUT)/palette_util.s
-	$(AS) $(ASFLAGS) -o $@ $(OUT)/palette_util.s
 
 $(OUT)/funky.o: app1/funky.s
 	$(AS) $(ASFLAGS) -o $@ app1/funky.s
@@ -61,18 +55,12 @@ $(OUT)/funky.o: app1/funky.s
 $(OUT)/mandelbrot.o: app1/mandelbrot.s
 	$(AS) $(ASFLAGS) -o $@ app1/mandelbrot.s
 
-$(OUT)/raytrace.s: app1/raytrace.c
+$(OUT)/raytrace.o: app1/raytrace.c
 	$(CC) $(CCFLAGS) -o $@ app1/raytrace.c
 
-$(OUT)/raytrace.o: $(OUT)/raytrace.s
-	$(AS) $(ASFLAGS) -o $@ $(OUT)/raytrace.s
 
-
-$(OUT)/app2.s: app2/app2.c
+$(OUT)/app2.o: app2/app2.c
 	$(CC) $(CCFLAGS) -o $@ app2/app2.c
-
-$(OUT)/app2.o: $(OUT)/app2.s
-	$(AS) $(ASFLAGS) -o $@ $(OUT)/app2.s
 
 
 #-----------------------------------------------------------------------------
@@ -85,8 +73,8 @@ $(OUT)/rom.vhd: $(OUT)/rom.raw rom.vhd.in
 $(OUT)/rom.raw: $(OUT)/rom.elf
 	$(OBJCOPY) -O binary $< $@
 
-$(OUT)/rom.elf: $(APPOBJS) $(OUT)/libsys.a $(OUT)/libselftest.a link.ld
-	$(LD) $(LDFLAGS) -o $@ $(APPOBJS) -lsys -lselftest
+$(OUT)/rom.elf: $(APPOBJS) $(OUT)/libmc1.a $(OUT)/libselftest.a link.ld
+	$(LD) $(LDFLAGS) -o $@ $(APPOBJS) -lmc1 -lselftest
 
 
 #-----------------------------------------------------------------------------
@@ -101,10 +89,10 @@ selftest:
 
 
 #-----------------------------------------------------------------------------
-# libsys.a - System library
+# libmc1.a - MC1 system library
 #-----------------------------------------------------------------------------
 
-SYSOBJS = $(OUT)/crt0.o \
+MC1OBJS = $(OUT)/crt0.o \
           $(OUT)/framebuffer.o \
           $(OUT)/leds.o \
           $(OUT)/mc1-font-8x8.o \
@@ -114,17 +102,14 @@ SYSOBJS = $(OUT)/crt0.o \
           $(OUT)/time.o \
           $(OUT)/vconsole.o
 
-$(OUT)/libsys.a: $(SYSOBJS)
-	$(AR) $(ARFLAGS) $@ $(SYSOBJS)
+$(OUT)/libmc1.a: $(MC1OBJS)
+	$(AR) $(ARFLAGS) $@ $(MC1OBJS)
 
 $(OUT)/crt0.o: mc1/crt0.s mc1/memory.inc mc1/mmio.inc
 	$(AS) $(ASFLAGS) -o $@ mc1/crt0.s
 
-$(OUT)/framebuffer.s: mc1/framebuffer.c mc1/memory.h
+$(OUT)/framebuffer.o: mc1/framebuffer.c mc1/memory.h
 	$(CC) $(CCFLAGS) -o $@ mc1/framebuffer.c
-
-$(OUT)/framebuffer.o: $(OUT)/framebuffer.s
-	$(AS) $(ASFLAGS) -o $@ $(OUT)/framebuffer.s
 
 $(OUT)/leds.o: mc1/leds.s mc1/mmio.inc
 	$(AS) $(ASFLAGS) -o $@ mc1/leds.s
@@ -146,11 +131,8 @@ $(OUT)/mem_copy.o: mc1/mem_copy.s
 $(OUT)/mem_fill.o: mc1/mem_fill.s
 	$(AS) $(ASFLAGS) -o $@ mc1/mem_fill.s
 
-$(OUT)/memory.s: mc1/memory.c
+$(OUT)/memory.o: mc1/memory.c
 	$(CC) $(CCFLAGS) -o $@ mc1/memory.c
-
-$(OUT)/memory.o: $(OUT)/memory.s
-	$(AS) $(ASFLAGS) -o $@ $(OUT)/memory.s
 
 $(OUT)/time.o: mc1/time.s mc1/mmio.inc
 	$(AS) $(ASFLAGS) -o $@ mc1/time.s
