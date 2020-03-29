@@ -21,7 +21,7 @@
 #ifndef MC1_MMIO_H_
 #define MC1_MMIO_H_
 
-#include <mc1/types.h>
+#include <stdint.h>
 
 // MMIO registers.
 #define CLKCNTLO   0

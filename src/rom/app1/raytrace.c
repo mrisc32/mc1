@@ -23,8 +23,10 @@
 // Based on an old experiment called "distray", but simplified.
 //--------------------------------------------------------------------------------------------------
 
-#include <mc1/types.h>
 #include <mc1/framebuffer.h>
+
+#include <stddef.h>
+#include <stdint.h>
 
 
 //--------------------------------------------------------------------------------------------------

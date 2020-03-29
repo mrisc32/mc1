@@ -21,7 +21,7 @@
 #ifndef MC1_MEMORY_H_
 #define MC1_MEMORY_H_
 
-#include <mc1/types.h>
+#include <stddef.h>
 
 // Fixed memory areas.
 #define ROM_START  0x00000000

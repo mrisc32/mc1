@@ -21,7 +21,7 @@
 #ifndef MC1_MEM_COPY_H_
 #define MC1_MEM_COPY_H_
 
-#include <mc1/types.h>
+#include <stddef.h>
 
 /// @brief Forward copy a memory block.
 /// @param destination Target memory pointer (start of buffer).

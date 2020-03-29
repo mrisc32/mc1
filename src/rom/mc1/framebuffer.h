@@ -21,7 +21,8 @@
 #ifndef MC1_FRAMEBUFFER_H_
 #define MC1_FRAMEBUFFER_H_
 
-#include <mc1/types.h>
+#include <stddef.h>
+#include <stdint.h>
 
 typedef enum {
   MODE_RGBA8888 = 0,
