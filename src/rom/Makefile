@@ -4,11 +4,11 @@ OUT = out
 SELFTESTOUT = selftest/out
 
 CC      = mrisc32-elf-gcc
-CCFLAGS = -c -Os -I . -I libc -ffreestanding -Wall -Wextra -Werror
-AS      = mrisc32-elf-as
-ASFLAGS = -I .
-LD      = mrisc32-elf-ld
-LDFLAGS = -L$(OUT) -L$(SELFTESTOUT) --script link.ld
+CCFLAGS = -c -Os -I . -Wall -Wextra -Werror
+AS      = mrisc32-elf-gcc
+ASFLAGS = -c -I .
+LD      = mrisc32-elf-gcc
+LDFLAGS = -L$(OUT) -L$(SELFTESTOUT) -T link.ld -mno-crt0
 AR      = mrisc32-elf-ar
 ARFLAGS = rcs
 OBJCOPY = mrisc32-elf-objcopy

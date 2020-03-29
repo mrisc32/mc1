@@ -20,7 +20,8 @@ SECTIONS
 
     .text :
     {
-        *(.entry*)  /* Force the entry point to the start of the ROM */
+        *(.text.entry)
+        *(.text.start)
         *(.text*)
     }
 
