@@ -58,8 +58,8 @@ typedef struct {
 // Configuration.
 //--------------------------------------------------------------------------------------------------
 
-#define WIDTH 320
-#define HEIGHT 180
+#define WIDTH  304
+#define HEIGHT 171
 
 #define EPSILON (1e-5f) // Very small value, used for coordinate-comparsions
 #define MAXT (1e5f)     // Maximum t-distance for an intersection-point
@@ -383,10 +383,17 @@ static void TraceLine(const VECTOR* LinP, const VECTOR* LinD, VECTOR* Color, int
   }
 }
 
-static void TraceScene(uint32_t* pixels) {
-  VECTOR PixColor, LinD, Scale;
+static void TraceScene(fb_t* fb, int frame_no) {
+  VECTOR PixColor, LinD, Scale, cam_pos;
   int sx, sy;
 
+  // Move the camera for each frame.
+  cam_pos.x = Camerapos.x + ((float)((frame_no % 64) - 32)) * 0.02f;
+  cam_pos.y = Camerapos.y;
+  cam_pos.z = Camerapos.z;
+
+  // Loop over all pixels of the framebuffer.
+  uint8_t* pixels = (uint8_t*)fb->pixels;
   Scale.y = 1.0f;
   for (sy = 0; sy < HEIGHT; sy++) {
     Scale.z = ((FLOAT)(HEIGHT / 2 - sy)) * (1.0f / (FLOAT)HEIGHT);
@@ -399,14 +406,25 @@ static void TraceScene(uint32_t* pixels) {
       LinD.z = Cameraright.z * Scale.x + Cameradir.z * Scale.y + Cameraup.z * Scale.z;
 
       // Get color for pixel
-      TraceLine(&Camerapos, &LinD, &PixColor, MAXREC);
+      TraceLine(&cam_pos, &LinD, &PixColor, MAXREC);
 
-      // Convert to ABGR32 and write the pixel to the framebuffer.
-      uint32_t pix = (uint32_t)(PixColor.x * 255.0f) |
-                     ((uint32_t)(PixColor.y * 255.0f) << 8) |
-                     ((uint32_t)(PixColor.z * 255.0f) << 16) |
-                     0xff000000u;
-      *pixels++ = pix;
+      if (fb->mode == MODE_RGBA8888) {
+        // Convert to ABGR32 and write the pixel to the framebuffer.
+        uint32_t pix = (uint32_t)(PixColor.x * 255.0f) |
+                       ((uint32_t)(PixColor.y * 255.0f) << 8) |
+                       ((uint32_t)(PixColor.z * 255.0f) << 16) |
+                       0xff000000u;
+        *((uint32_t*)pixels) = pix;
+        pixels += 4;
+      } else if (fb->mode == MODE_RGBA5551) {
+        // Convert to ABGR16 and write the pixel to the framebuffer.
+        uint16_t pix = (uint16_t)(PixColor.x * 31.0f) |
+                       ((uint16_t)(PixColor.y * 31.0f) << 5) |
+                       ((uint16_t)(PixColor.z * 31.0f) << 10) |
+                       0x8000u;
+        *((uint16_t*)pixels) = pix;
+        pixels += 2;
+      }
     }
   }
 }
@@ -421,6 +439,9 @@ static fb_t* s_fb;
 void raytrace_init(void) {
   if (s_fb == NULL) {
     s_fb = fb_create(WIDTH, HEIGHT, MODE_RGBA8888);
+    if (s_fb == NULL) {
+      s_fb = fb_create(WIDTH, HEIGHT, MODE_RGBA5551);
+    }
   }
 }
 
@@ -432,11 +453,10 @@ void raytrace_deinit(void) {
 }
 
 void raytrace(int frame_no) {
-  if (s_fb == NULL)
+  if (s_fb == NULL) {
     return;
-
-  (void)frame_no;
+  }
 
   fb_show(s_fb);
-  TraceScene((uint32_t*)s_fb->pixels);
+  TraceScene(s_fb, frame_no);
 }
