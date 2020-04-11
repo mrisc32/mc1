@@ -26,8 +26,13 @@ use work.vid_types.all;
 -- Video pixel read/output pipeline.
 --
 -- The pixel pipeline reads pixel data from memory, according to the video configuration (given by
--- the VCR:s). The source pixels are transformed into 32-bit RGBA color values based on the video
+-- the VCR:s). The source pixels are transformed into 32-bit ABGR32 color values based on the video
 -- mode, which may or may not involve color palette lookup.
+--
+-- The output color format is ABGR32 (little endian):
+--    3      2        1
+--    1      4        6        8        0
+--   |AAAAAAAA|BBBBBBBB|GGGGGGGG|RRRRRRRR|
 --
 -- The pipeline is as follows:
 --
@@ -167,17 +172,17 @@ architecture rtl of vid_pixel is
     return v_result;
   end;
 
-  function rgba16_to_rgba32(x: std_logic_vector) return std_logic_vector is
+  function abgr16_to_abgr32(x: std_logic_vector) return std_logic_vector is
     variable v_r : std_logic_vector(7 downto 0);
     variable v_g : std_logic_vector(7 downto 0);
     variable v_b : std_logic_vector(7 downto 0);
     variable v_a : std_logic_vector(7 downto 0);
   begin
-    v_r := x(15 downto 11) & x(15 downto 13);
-    v_g := x(10 downto 6) & x(10 downto 8);
-    v_b := x(5 downto 1) & x(5 downto 3);
-    v_a := (others => x(0));
-    return v_r & v_g & v_b & v_a;
+    v_a := (others => x(15));
+    v_b := x(14 downto 10) & x(14 downto 12);
+    v_g := x(9 downto 5) & x(9 downto 7);
+    v_r := x(4 downto 0) & x(4 downto 2);
+    return v_a & v_b & v_g & v_r;
   end;
 
   function shr_8bits(x: std_logic_vector; s: std_logic_vector) return std_logic_vector is
@@ -377,7 +382,7 @@ begin
   s_sh_shifted_rgba16 <= s_pf2_data(31 downto 16) when s_pf2_shift(4) = '1' else
                          s_pf2_data(15 downto 0);
   s_sh_next_data <= s_pf2_data when i_regs.CMODE(3 downto 0) = C_CMODE_RGBA32 else
-                    rgba16_to_rgba32(s_sh_shifted_rgba16);
+                    abgr16_to_abgr32(s_sh_shifted_rgba16);
 
   -- Is this a palette lookup or truecolor pixel?
   -- Note: We force palette mode in the inactive area.
