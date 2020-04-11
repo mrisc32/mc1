@@ -88,8 +88,8 @@ architecture rtl of toplevel is
   signal s_io_buttons : std_logic_vector(31 downto 0);
   signal s_io_regs_w : T_MMIO_REGS_WO;
 begin
-  -- We use KEY 0 as reset.
-  s_reset_n <= not KEY(0);
+  -- We use SW(9) as reset.
+  s_reset_n <= not SW(9);
 
   -- System reset signal: This is the reset signal from the board. The stabilizer guarantees that
   -- the reset signal will be held high for a certain period.
@@ -102,6 +102,9 @@ begin
       i_clk => MAX10_CLK1_50,
       o_rst => s_system_rst
     );
+
+  -- Show the state of s_system_rst on LEDR(9).
+  LEDR(9) <= s_system_rst;
 
   -- Generate the CPU clock signal.
   pll_cpu: entity work.pll
@@ -181,8 +184,8 @@ begin
     );
 
   -- I/O: Input.
-  s_io_switches(31 downto 10) <= (others => '0');
-  s_io_switches(9 downto 0) <= SW;
+  s_io_switches(31 downto 9) <= (others => '0');
+  s_io_switches(8 downto 0) <= SW(8 downto 0);
   s_io_buttons(31 downto 2) <= (others => '0');
   s_io_buttons(1 downto 0) <= KEY;
 
@@ -193,5 +196,5 @@ begin
   HEX3 <= not s_io_regs_w.SEGDISP3(6 downto 0);
   HEX4 <= not s_io_regs_w.SEGDISP4(6 downto 0);
   HEX5 <= not s_io_regs_w.SEGDISP5(6 downto 0);
-  LEDR <= s_io_regs_w.LEDS(9 downto 0);
+  LEDR(8 downto 0) <= s_io_regs_w.LEDS(8 downto 0);
 end rtl;
