@@ -7,8 +7,8 @@
 .include "mc1/memory.inc"
 .include "mc1/mmio.inc"
 
-WIDTH  = 640
-HEIGHT = 360
+WIDTH  = 416 ; 640
+HEIGHT = 234 ; 360
 
     .lcomm  s_fb, 4
 
@@ -201,6 +201,5 @@ center_im:
     .float  -0.279199711590
 
 coord_step:
-    .float  0.007
-
+    .float  0.011 ; 0.007
 
