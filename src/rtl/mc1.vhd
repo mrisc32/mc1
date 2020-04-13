@@ -25,6 +25,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 library mrisc32;
 use mrisc32.config.all;
+use mrisc32.debug.all;
 use work.mmio_types.all;
 use work.vid_types.all;
 
@@ -52,7 +53,10 @@ entity mc1 is
     -- I/O: Generic input and output registers.
     i_io_switches : in std_logic_vector(31 downto 0);
     i_io_buttons : in std_logic_vector(31 downto 0);
-    o_io_regs_w : out T_MMIO_REGS_WO
+    o_io_regs_w : out T_MMIO_REGS_WO;
+
+    -- Debug trace interface.
+    o_debug_trace : out T_DEBUG_TRACE
   );
 end mc1;
 
@@ -133,7 +137,10 @@ begin
       i_wb_dat => s_cpu_dat,
       i_wb_ack => s_cpu_ack,
       i_wb_stall => s_cpu_stall,
-      i_wb_err => s_cpu_err
+      i_wb_err => s_cpu_err,
+
+      -- Debug trace interface.
+      o_debug_trace => o_debug_trace
     );
 
   --------------------------------------------------------------------------------------------------

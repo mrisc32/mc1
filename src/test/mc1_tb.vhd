@@ -19,11 +19,17 @@
 
 library vunit_lib;
 context vunit_lib.vunit_context;
+
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+
 library std;
 use std.textio.all;
+
+library mrisc32;
+use mrisc32.debug.all;
+
 use work.vid_types.all;
 
 entity mc1_tb is
@@ -53,6 +59,9 @@ architecture tb of mc1_tb is
   signal s_b : std_logic_vector(3 downto 0);
   signal s_hsync : std_logic;
   signal s_vsync : std_logic;
+
+  -- Debug trace interface.
+  signal s_debug_trace : T_DEBUG_TRACE;
 begin
   -- Instantiate the MC1 machine.
   mc1_1: entity work.mc1
@@ -77,13 +86,17 @@ begin
 
       -- I/O interfaces.
       i_io_switches => 32x"2",
-      i_io_buttons => (others => '0')
+      i_io_buttons => (others => '0'),
+
+      -- Debug trace interface.
+      o_debug_trace => s_debug_trace
     );
 
   main : process
     -- File I/O.
     type T_CHAR_FILE is file of character;
     file f_char_file : T_CHAR_FILE;
+    file f_trace_file : T_CHAR_FILE;
 
     -- Helper function for writing one word to a binary file.
     procedure write_word(file f : T_CHAR_FILE; word : std_logic_vector(31 downto 0)) is
@@ -97,12 +110,45 @@ begin
       end loop;
     end procedure;
 
+    -- Helper function for writing a debug trace record to a binary file.
+    procedure write_trace(file f : T_CHAR_FILE; trace : T_DEBUG_TRACE) is
+      variable v_flags : std_logic_vector(31 downto 0);
+    begin
+      v_flags := (0 => trace.valid,
+                  1 => trace.src_a_valid,
+                  2 => trace.src_b_valid,
+                  3 => trace.src_c_valid,
+                  others => '0');
+      write_word(f, v_flags);
+      write_word(f, trace.pc);
+      if trace.src_a_valid then
+        write_word(f, trace.src_a);
+      else
+        write_word(f, (others => '0'));
+      end if;
+      if trace.src_b_valid then
+        write_word(f, trace.src_b);
+      else
+        write_word(f, (others => '0'));
+      end if;
+      if trace.src_c_valid then
+        write_word(f, trace.src_c);
+      else
+        write_word(f, (others => '0'));
+      end if;
+    end procedure;
+
     variable v_rgb_word : std_logic_vector(31 downto 0);
   begin
     test_runner_setup(runner, runner_cfg);
 
     -- Continue running even if we have failures (for easier debugging).
     set_stop_level(failure);
+
+    -- Open the debug trace file.
+    if C_DEBUG_ENABLE_TRACE then
+      file_open(f_trace_file, "vunit_out/mc1_tb_trace.bin", WRITE_MODE);
+    end if;
 
     -- Reset the MC1.
     s_rst <= '1';
@@ -135,6 +181,12 @@ begin
       -- Write the word to the output file.
       write_word(f_char_file, v_rgb_word);
 
+      -- Write a recrod to the debug trace file.
+      -- Note: We skip the first few cycles until we are properly reset.
+      if C_DEBUG_ENABLE_TRACE and i >= 5 then
+        write_trace(f_trace_file, s_debug_trace);
+      end if;
+
       -- Tick the clock.
       s_clk <= '1';
       wait for C_CLK_HALF_PERIOD;
@@ -142,6 +194,11 @@ begin
       wait for C_CLK_HALF_PERIOD;
     end loop;
     file_close(f_char_file);
+
+    -- Close the debug trace file.
+    if C_DEBUG_ENABLE_TRACE then
+      file_close(f_trace_file);
+    end if;
 
     test_runner_cleanup(runner);
   end process;
