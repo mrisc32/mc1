@@ -40,7 +40,7 @@ funky_init:
     stw     lr, sp, #0
 
     addpchi s1, #s_fb@pchi
-    ldw     s1, s1, #s_fb@pclo
+    ldw     s1, s1, #s_fb+4@pclo
     bnz     s1, funky_init_done
 
     ; s_fb = fb_create(WIDTH, HEIGHT, MODE_PAL8)
@@ -49,7 +49,7 @@ funky_init:
     ldi     s3, #MODE_PAL8
     call    fb_create@pc
     addpchi s2, #s_fb@pchi
-    stw     s1, s2, #s_fb@pclo
+    stw     s1, s2, #s_fb+4@pclo
 
     ; Set a palette.
     ; TODO(m): For now we just use the mandelbrot palette. In the future, use a more dynamic
@@ -76,13 +76,13 @@ funky_deinit:
 
     ; fb_destroy(s_fb)
     addpchi s1, #s_fb@pchi
-    ldw     s1, s1, #s_fb@pclo
+    ldw     s1, s1, #s_fb+4@pclo
     bz      s1, funky_deinit_done
     call    fb_destroy@pc
 
     ; s_fb = NULL
     addpchi s1, #s_fb@pchi
-    stw     z, s1, #s_fb@pclo
+    stw     z, s1, #s_fb+4@pclo
 
 funky_deinit_done:
     ldw     lr, sp, #0
@@ -109,12 +109,12 @@ funky:
 
     mov     s20, s1
     addpchi s1, #s_fb@pchi
-    ldw     s1, s1, #s_fb@pclo
+    ldw     s1, s1, #s_fb+4@pclo
     call    fb_show@pc
     mov     s1, s20
 
     addpchi s2, #s_fb@pchi
-    ldw     s2, s2, #s_fb@pclo
+    ldw     s2, s2, #s_fb+4@pclo
     bz      s2, funky_fail
     ldw     s6, s2, #FB_PIXELS      ; s6 = video frame buffer
 

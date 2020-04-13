@@ -25,7 +25,7 @@ mandelbrot_init:
     stw     lr, sp, #0
 
     addpchi s1, #s_fb@pchi
-    ldw     s1, s1, #s_fb@pclo
+    ldw     s1, s1, #s_fb+4@pclo
     bnz     s1, mandelbrot_init_done
 
     ; s_fb = fb_create(WIDTH, HEIGHT, MODE_PAL8)
@@ -34,7 +34,7 @@ mandelbrot_init:
     ldi     s3, #MODE_PAL8
     call    fb_create@pc
     addpchi s2, #s_fb@pchi
-    stw     s1, s2, #s_fb@pclo
+    stw     s1, s2, #s_fb+4@pclo
 
     ; set_mandelbrot_palette(s_fb)
     call    set_mandelbrot_palette@pc
@@ -58,13 +58,13 @@ mandelbrot_deinit:
 
     ; fb_destroy(s_fb)
     addpchi s1, #s_fb@pchi
-    ldw     s1, s1, #s_fb@pclo
+    ldw     s1, s1, #s_fb+4@pclo
     bz      s1, mandelbrot_deinit_done
     call    fb_destroy@pc
 
     ; s_fb = NULL
     addpchi s1, #s_fb@pchi
-    stw     z, s1, #s_fb@pclo
+    stw     z, s1, #s_fb+4@pclo
 
 mandelbrot_deinit_done:
     ldw     lr, sp, #0
@@ -92,12 +92,12 @@ mandelbrot:
 
     mov     s20, s1
     addpchi s1, #s_fb@pchi
-    ldw     s1, s1, #s_fb@pclo
+    ldw     s1, s1, #s_fb+4@pclo
     call    fb_show@pc
     mov     s1, s20
 
     addpchi s2, #s_fb@pchi
-    ldw     s2, s2, #s_fb@pclo
+    ldw     s2, s2, #s_fb+4@pclo
     bz      s2, mandelbrot_fail
     ldw     s14, s2, #FB_PIXELS     ; s14 = pixel_data
 
