@@ -110,8 +110,8 @@ begin
   pll_cpu: entity work.pll
     generic map
     (
-      -- CPU clock: 50 * (6/5) = 60 MHz
-      CLK_MUL => 6,
+      -- CPU clock: 50 * (7/5) = 70 MHz
+      CLK_MUL => 7,
       CLK_DIV => 5
     )
     port map
