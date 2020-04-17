@@ -38,7 +38,9 @@ Primitive I/O, such as reading buttons and switches and writing to leds and seve
 
 ## Operating system
 
-No operating system is planned at this point. Common system routines (such as memory allocation and I/O) are stored in the boot ROM, and will be exposed (e.g. via a jump table) to programs that are loaded from an SD card or similar.
+No operating system is planned at this point. There will be libraries of helper routined (e.g. for I/O and timing) that can be statically linked to MC1 binaries.
+
+Once file loading capabilities are implemented, the ROM code will be able to load a program binary into RAM, and all system control is transfered to the loaded program (so it's essentially a two-stage boot).
 
 ## Planned features
 
@@ -51,6 +53,6 @@ The following things are not yet implemented, but planned:
 * Audio:
   * Some sort of high quality audio DMA, integrated with the video logic (sharing the same RAM read port).
 * Memory:
-  * Support for off-chip RAM (e.g. DRAM or SRAM) - perhaps with an on-chip L2 cache.
+  * Support for off-chip RAM (e.g. DRAM or SRAM) - probably with an on-chip L2 cache.
 * I/O:
-  * A Micro SD interface may be added to read programs and data, and perhaps an interface for mouse/keyboard (e.g. PS/2).
+  * A Micro SD interface to read programs and data, and perhaps an interface for mouse/keyboard (e.g. PS/2).
