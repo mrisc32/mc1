@@ -4,7 +4,7 @@ OUT = out
 SELFTESTOUT = selftest/out
 
 CC      = mrisc32-elf-gcc
-CCFLAGS = -c -Os -I . -Wall -Wextra -Werror
+CCFLAGS = -c -O2 -I . -ffast-math -Wall -Wextra -Werror
 AS      = mrisc32-elf-gcc
 ASFLAGS = -c -I .
 LD      = mrisc32-elf-gcc
@@ -56,7 +56,7 @@ $(OUT)/mandelbrot.o: app1/mandelbrot.s
 	$(AS) $(ASFLAGS) -o $@ app1/mandelbrot.s
 
 $(OUT)/raytrace.o: app1/raytrace.c
-	$(CC) $(CCFLAGS) -o $@ app1/raytrace.c
+	$(CC) $(CCFLAGS) -o $@ $<
 
 
 $(OUT)/app2.o: app2/app2.c
@@ -74,7 +74,7 @@ $(OUT)/rom.raw: $(OUT)/rom.elf
 	$(OBJCOPY) -O binary $< $@
 
 $(OUT)/rom.elf: $(APPOBJS) $(OUT)/libmc1.a $(OUT)/libselftest.a link.ld
-	$(LD) $(LDFLAGS) -o $@ $(APPOBJS) -lmc1 -lselftest
+	$(LD) $(LDFLAGS) -o $@ $(APPOBJS) -lmc1 -lselftest -lm
 
 
 #-----------------------------------------------------------------------------

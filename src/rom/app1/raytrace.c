@@ -18,409 +18,296 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
-//--------------------------------------------------------------------------------------------------
-// Simple raytracer
-// Based on an old experiment called "distray", but simplified.
-//--------------------------------------------------------------------------------------------------
-
 #include <mc1/framebuffer.h>
 
-#include <stddef.h>
 #include <stdint.h>
+#include <string.h>
+#include <math.h>
+
+#define DEFAULT_WIDTH  304
+#define DEFAULT_HEIGHT 171
 
 
 //--------------------------------------------------------------------------------------------------
-// Types
+// Type punning functions. These are essentialy no-ops (zero cycles) on MRISC32.
 //--------------------------------------------------------------------------------------------------
 
-typedef float FLOAT;
-typedef unsigned char UBYTE;
+static int32_t bitcast_float_to_int(const float x) {
+  int32_t y;
+  memcpy(&y, &x, sizeof(y));
+  return y;
+}
+
+static float bitcast_int_to_float(const int32_t x) {
+  float y;
+  memcpy(&y, &x, sizeof(y));
+  return y;
+}
+
+
+//--------------------------------------------------------------------------------------------------
+// Fast approximate implementations of 1/sqrt(x) and sqrt(x).
+// See: https://en.wikipedia.org/wiki/Fast_inverse_square_root
+//--------------------------------------------------------------------------------------------------
+
+static float fast_rsqrt(const float x) {
+  float x2 = x * 0.5f;
+  int32_t i = bitcast_float_to_int(x);
+  i = 0x5f3759df - (i >> 1);
+  float y = bitcast_int_to_float(i);
+  y = y * (1.5f - (x2 * y * y));
+  //y = y * (1.5f - (x2 * y * y));
+	return y;
+}
+
+static float fast_sqrt(const float x) {
+  return x * fast_rsqrt(x);
+}
+
+
+//--------------------------------------------------------------------------------------------------
+// A simple vector library.
+//--------------------------------------------------------------------------------------------------
 
 typedef struct {
-  FLOAT x, y, z;
-} VECTOR;
+  float x;
+  float y;
+  float z;
+} vec3_t;
+
+static vec3_t vec3(const float x, const float y, const float z) {
+  vec3_t c;
+  c.x = x;
+  c.y = y;
+  c.z = z;
+  return c;
+}
+
+static vec3_t add(const vec3_t a, const vec3_t b) {
+  return vec3(a.x + b.x, a.y + b.y, a.z + b.z);
+}
+
+static vec3_t sub(const vec3_t a, const vec3_t b) {
+  return vec3(a.x - b.x, a.y - b.y, a.z - b.z);
+}
+
+static vec3_t scale(const vec3_t a, const float s) {
+  return vec3(a.x * s, a.y * s, a.z * s);
+}
+
+static float dot(const vec3_t a, const vec3_t b) {
+  return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+
+static vec3_t cross(const vec3_t a, const vec3_t b) {
+  return vec3(a.y * b.z - a.z * b.y,
+              a.z * b.x - a.x * b.z,
+              a.x * b.y - a.y * b.x);
+}
+
+static vec3_t normalize(const vec3_t a) {
+  return scale(a, fast_rsqrt(dot(a, a)));
+}
+
+
+//--------------------------------------------------------------------------------------------------
+// Scene definition.
+//--------------------------------------------------------------------------------------------------
 
 typedef struct {
-  VECTOR color;    // Object color (r,g,b)
-  FLOAT diffuse;   // Diffuse reflection (0-1)
-  FLOAT reflect;   // Relefction (0-1)
-  FLOAT roughness; // How rough the reflection is (0=very sharp)
-} TEXTURE;
+  vec3_t center;
+  float  r2;
+} sphere_t;
 
-typedef struct {
-  VECTOR pos; // Position (x,y,z)
-  FLOAT r;    // Radius (or size)
-  TEXTURE t;  // Texture
-} OBJ;
-
-
-//--------------------------------------------------------------------------------------------------
-// Configuration.
-//--------------------------------------------------------------------------------------------------
-
-#define WIDTH  304
-#define HEIGHT 171
-
-#define EPSILON (1e-5f) // Very small value, used for coordinate-comparsions
-#define MAXT (1e5f)     // Maximum t-distance for an intersection-point
-#define MAXREC 5        // Maximum amount of recursions (reflection etc.)
-#define DISTRIB 8       // Number of distributed rays per "virtual" ray
-
-
-//--------------------------------------------------------------------------------------------------
-// Scene specification.
-//--------------------------------------------------------------------------------------------------
-
-// Objects ( = spheres ). Only one sphere. Add more if you like :)
-static const OBJ objs[] = {
-    // Object 1
-    {{0.0f, 4.0f, 1.0f}, 1.0f, {{1.0f, 0.4f, 0.0f}, 0.4f, 0.8f, 0.02f}},
-    // Object 2
-    {{-1.0f, 3.0f, 0.4f}, 0.4f, {{0.5f, 0.3f, 1.0f}, 0.5f, 0.9f, 0.01f}},
-    // Object 3
-    {{-0.3f, 1.0f, 0.4f}, 0.4f, {{0.1f, 0.95f, 0.2f}, 0.6f, 0.8f, 0.01f}},
-    // Object 4
-    {{1.0f, 2.0f, 0.4f}, 0.4f, {{0.86f, 0.83f, 0.0f}, 0.7f, 0.6f, 0.01f}}};
-
-#define NUMOBJS (sizeof(objs) / sizeof(objs[0]))
-
-// Ground position (z-pos), and textures (tiled).
-static const FLOAT Groundpos = 0.0f;
-static const TEXTURE Groundtxt[2] = {
-    {{0.3f, 0.3f, 0.2f}, 0.8f, 0.1f, 0.02f},
-    {{0.4f, 0.4f, 0.3f}, 0.8f, 0.1f, 0.01f},
+#define NUM_SPHERES 4
+static const sphere_t s_spheres[NUM_SPHERES] = {
+  {{-1.5f, 0.0f, 1.0f}, 1.0f},
+  {{1.5f, 0.0f, 1.0f}, 1.0f},
+  {{0.0f, -1.5f, 0.5f}, 0.25f},
+  {{0.0f, 1.5f, 0.5f}, 0.25f}
 };
 
-// Only one light-source is supported (and it's white).
-static const VECTOR Lightpos = {-3.0f, 1.0f, 5.0f};
-
-// The camera position (x,y,z), and orientation.
-static const VECTOR Camerapos = {1.5f, -1.4f, 0.6f};
-static const VECTOR Cameraright = {3.0f, 1.0f, 0.0f};
-static const VECTOR Cameradir = {-1.0f, 3.0f, 0.0f};
-static const VECTOR Cameraup = {0.0f, 0.0f, 3.16228f*((FLOAT)HEIGHT/(FLOAT)WIDTH)};
-
-// Ambient lighting (0.0-1.0)
-static const FLOAT Ambient = 0.3f;
-
-// Skycolors (Skycolor[0] = horizon, Skycolor[1] = zenit ).
-static const VECTOR Skycolor[2] = {{0.3f, 0.6f, 1.0f}, {0.0f, 0.0f, 0.2f}};
+static const vec3_t s_colors[NUM_SPHERES] = {
+  {0.25f, 0.4f, 0.25f},
+  {0.4f, 0.4f, 0.25f},
+  {0.25f, 0.4f, 0.4f},
+  {0.25f, 0.25f, 0.4f}
+};
 
 
 //--------------------------------------------------------------------------------------------------
-// For now we implement our own std functions. These should be provided by newlib or similar at
-// some point.
+// Raytracing routines.
 //--------------------------------------------------------------------------------------------------
 
-static float fabsf(float x) {
-  return __builtin_fabsf(x);
+typedef struct {
+  vec3_t forward;
+  vec3_t right;
+  vec3_t up;
+} camera_t;
+
+typedef struct {
+  vec3_t origin;
+  vec3_t dir;
+} ray_t;
+
+static camera_t look_at(const vec3_t origin, const vec3_t target) {
+  camera_t cam;
+  cam.forward = normalize(sub(target, origin));
+  cam.right = normalize(cross(cam.forward, vec3(0.0f, 0.0f, 1.0f)));
+  cam.up = cross(cam.right, cam.forward);
+  return cam;
 }
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wstrict-aliasing"
-
-static unsigned float_to_uint(float x) {
-  return *(unsigned*)&x;
+static vec3_t reflect(const vec3_t v, const vec3_t n) {
+  return sub(v, scale(n, 2.0f * dot(v, n) / dot(n, n)));
 }
 
-static float uint_to_float(unsigned x) {
-  return *(float*)&x;
-}
+static float intersect_sphere(const ray_t ray, const sphere_t* sphere) {
+  // Translate the ray origin to compensate for the sphere origin.
+  const vec3_t origin = sub(ray.origin, sphere->center);
 
-#pragma GCC diagnostic pop
+  const float b = dot(ray.dir, origin);
+  const float c = dot(origin, origin) - sphere->r2;
+  const float discriminant = b * b - c;
 
-#if 0
-
-static float sqrtf(float x) {
-  // This is a classic Newton-Raphson implementation of the sqrt() function. It should complete in
-  // less than 100 clock cycles on an MRSIC32-A1.
-
-  if (x < 0.0f)
-    return uint_to_float(0x7fffffffu);  // NaN
-
-  // Initial guess is based on halving the exponent.
-  unsigned c = float_to_uint(x);
-  c = (((c & 0x7f800000u) - 0x3f800000u) / 2 + 0x3f800000u) & 0x7f800000u;
-  float y = uint_to_float(c);
-
-  // Do a few iterations to converge...
-  float b;
-  b = x / y; y = (y + b) * 0.5f;
-  b = x / y; y = (y + b) * 0.5f;
-  b = x / y; y = (y + b) * 0.5f;
-  b = x / y; y = (y + b) * 0.5f;
-
-  return y;
-}
-
-#else
-
-static float sqrtf_normalize(const float arg, int* exp)
-{
-  const uint32_t arg_bits = float_to_uint(arg);
-
-  // Find the exponent (power of 4, divided by 2).
-  const uint32_t old_exponent = (arg_bits >> 24) & 0x7fu;
-  *exp = ((int)old_exponent) - 63;
-
-  // Set the exponent to 0 or 1.
-  const uint32_t normalized_bits = (arg_bits & 0x80ffffffu) | 0x3f000000u;
-
-  return uint_to_float(normalized_bits);
-}
-
-static float sqrtf_add_exp(const float x, const int exp)
-{
-  const uint32_t normalized_bits = float_to_uint(x);
-  const uint32_t y_bits = (normalized_bits & 0x807fffffu) |
-                          ((normalized_bits + (uint32_t)(exp << 23)) & 0x7f800000u);
-  return uint_to_float(y_bits);
-}
-
-static float sqrtf(float x)
-{
-  // This implementation of sqrt is inspired by the Cephes Math Library Release 2.2.
-  // Original copyright 1984, 1987, 1988, 1992 by Stephen L. Moshier
-
-  // Separate significand and exponent.
-  int e;
-  x = sqrtf_normalize(x, &e);
-
-  // Evaluate one of three polynomials depending on which range the value is in.
-  float y;
-  if (x > 1.41421356237F)
-  {
-    // x is between sqrt(2) and 2.
-    x = x - 2.0F;
-    y = -9.8843065718E-4F;
-    y = (y * x) + 7.9479950957E-4F;
-    y = (y * x) - 3.5890535377E-3F;
-    y = (y * x) + 1.1028809744E-2F;
-    y = (y * x) - 4.4195203560E-2F;
-    y = (y * x) + 3.5355338194E-1F;
-    y = (y * x) + 1.41421356237F;
-  }
-  else if (x > 0.707106781187F)
-  {
-    // x is between sqrt(2)/2 and sqrt(2).
-    x = x - 1.0F;
-    y = 1.35199291026E-2F;
-    y = (y * x) - 2.26657767832E-2F;
-    y = (y * x) + 2.78720776889E-2F;
-    y = (y * x) - 3.89582788321E-2F;
-    y = (y * x) + 6.24811144548E-2F;
-    y = (y * x) - 1.25001503933E-1F;
-    y = y * (x * x) + (0.5F * x) + 1.0F;
-  }
-  else
-  {
-    // x is between 0.5 and sqrt(2)/2.
-    x = x - 0.5F;
-    y = -3.9495006054E-1F;
-    y = (y * x) + 5.1743034569E-1F;
-    y = (y * x) - 4.3214437330E-1F;
-    y = (y * x) + 3.5310730460E-1F;
-    y = (y * x) - 3.5354581892E-1F;
-    y = (y * x) + 7.0710676017E-1F;
-    y = (y * x) + 7.07106781187E-1F;
+  // No hit?
+  if (discriminant <= 0.0f) {
+    return -1e10f;
   }
 
-  // Re-apply the exponent.
-  y = sqrtf_add_exp(y, e);
-
-  return y;
+  // We're only interested in the hit closest to minus infinity.
+  return -b - fast_sqrt(discriminant);
 }
 
-#endif
+static float intersect_ground(const ray_t ray) {
+  if (ray.dir.z >= 0.0f) {
+    return -1e10f;
+  }
 
-
-//--------------------------------------------------------------------------------------------------
-// Helpers (geometrical etc).
-//--------------------------------------------------------------------------------------------------
-
-static void ReflectVector(VECTOR* v2, const VECTOR* v1, const VECTOR* n) {
-  FLOAT a, b;
-
-  b = n->x * n->x + n->y * n->y + n->z * n->z;    // b = |n|^2
-  a = v1->x * n->x + v1->y * n->y + v1->z * n->z; // a = v1 dot n
-  a = -2.0f * a / b;                              // a = -2*(v1 dot n)/|n|^2
-  v2->x = v1->x + a * n->x;                       // v2 = v1 + n*a
-  v2->y = v1->y + a * n->y;
-  v2->z = v1->z + a * n->z;
+  return -ray.origin.z / ray.dir.z;
 }
 
+static vec3_t trace_ray(const ray_t ray, int recursion_left) {
+  vec3_t col;
+  vec3_t pos;
+  vec3_t normal;
 
-//--------------------------------------------------------------------------------------------------
-// Object intersection calculation routines.
-//--------------------------------------------------------------------------------------------------
+  float t = -1.0f;
 
-static FLOAT IntersectObjs(const VECTOR* LinP,
-                           const VECTOR* LinD,
-                           VECTOR* Pnt,
-                           VECTOR* Norm,
-                           const TEXTURE** txt) {
-  unsigned objn;
-  int tilenum;
-  FLOAT t, ttmp, A, B, C;
-  VECTOR Pos;
-
-  t = -1.0f;
-
-  // Try intersection with ground plane first
-  if (fabsf(LinD->z) > EPSILON) {
-    ttmp = (Groundpos - LinP->z) / LinD->z;
-    if ((ttmp > EPSILON) && (ttmp < MAXT)) {
-      t = ttmp;
-      Pnt->x = LinP->x + LinD->x * t; // Calculate intersection point
-      Pnt->y = LinP->y + LinD->y * t;
-      Pnt->z = LinP->z + LinD->z * t;
-      Norm->x = 0.0f; // Surface normal (always up)
-      Norm->y = 0.0f;
-      Norm->z = 1.0f;
-      tilenum = (((int)(Pnt->x + 50000.0f)) + ((int)(Pnt->y + 50000.0f))) & 1;
-      *txt = &Groundtxt[tilenum];
+  // First, try all spheres.
+  int sphere_idx = -1;
+  for (int i = 0; i < NUM_SPHERES; ++i) {
+    const sphere_t* sphere = &s_spheres[i];
+    float t1 = intersect_sphere(ray, sphere);
+    if (t1 > 0.0f && (t1 < t || t < 0.0f)) {
+      sphere_idx = i;
+      t = t1;
     }
   }
 
-  // Get closest intersection (if any)
-  for (objn = 0; objn < NUMOBJS; objn++) {
-    Pos = objs[objn].pos;
-    Pos.x -= LinP->x; // Translate object into "line-space"
-    Pos.y -= LinP->y;
-    Pos.z -= LinP->z;
-    A = 1.0f / (LinD->x * LinD->x + LinD->y * LinD->y + LinD->z * LinD->z);
-    B = (Pos.x * LinD->x + Pos.y * LinD->y + Pos.z * LinD->z) * A;
-    C = (objs[objn].r * objs[objn].r - Pos.x * Pos.x - Pos.y * Pos.y - Pos.z * Pos.z) * A;
-    if ((A = C + B * B) > 0.0f) { // ...else no hit
-      A = sqrtf(A);
-      if ((ttmp = B - A) < EPSILON)
-        ttmp = B + A;
-      if ((EPSILON < ttmp) && ((ttmp < t) || (t < 0.0f))) {
-        t = ttmp;
-        Pnt->x = LinD->x * t; // Calculate intersection point
-        Pnt->y = LinD->y * t;
-        Pnt->z = LinD->z * t;
-        Norm->x = Pnt->x - Pos.x; // Calcualate surface normal
-        Norm->y = Pnt->y - Pos.y;
-        Norm->z = Pnt->z - Pos.z;
-        Pnt->x += LinP->x; // Translate object back to "true-space"
-        Pnt->y += LinP->y;
-        Pnt->z += LinP->z;
-        *txt = &objs[objn].t; // Get surface properties
+  // Second, try the ground.
+  float t_ground = intersect_ground(ray);
+  if (t_ground > 0.0f && (t_ground < t || t < 0.0f)) {
+    sphere_idx = -1;
+    t = t_ground;
+    pos = add(ray.origin, scale(ray.dir, t));
+    normal = vec3(0.0f, 0.0f, 1.0f);
+
+    // Modulate light with distance to the scene center, and with the distance to spheres (fake AO).
+    float light = 2.0f * fast_rsqrt(4.0f + pos.x * pos.x + pos.y * pos.y);
+    for (int i = 0; i < NUM_SPHERES; ++i) {
+      const vec3_t dv = sub(pos, s_spheres[i].center);
+      const float d2 = dot(dv, dv) - s_spheres[i].r2;
+      const float d = fast_sqrt(d2);
+      if (d < 1.0f) {
+        light *= d;
       }
+    }
+
+    // Calculate final color of the ground.
+    const int checker_idx = (((int)(pos.x + 131072.0f) ^ (int)(pos.y + 131072.0f)) >> 1) & 1;
+    const float checker_dcol = light * (0.6f + 0.4f * (float)checker_idx);
+    col = vec3(1.0f * checker_dcol, 0.2f * checker_dcol, 0.2f * checker_dcol);
+  }
+
+  // If we hit a sphere, but not the ground, calculate surface properties for the sphere.
+  if (sphere_idx >= 0) {
+    pos = add(ray.origin, scale(ray.dir, t));
+    normal = normalize(sub(pos, s_spheres[sphere_idx].center));
+
+    // Modulate the color based on the value of the normal z-axis (fake GI / AO).
+    const float light = 0.5f * (1.0f + normal.z);
+    col = scale(s_colors[sphere_idx], light);
+  }
+
+  if (t < 0.0f) {
+    // No hit! The ray is looking at the sky (and we know that ray.dir.z > 0).
+    const float fade = 0.4f * ray.dir.z;
+    col = vec3(0.4f - fade, 0.4f - fade, 1.0f - fade);
+  } else {
+    // Offset new ray origin from surface to avoid z-fighting.
+    pos = add(pos, scale(normal, 0.00012207031251f));
+
+    // Reflection.
+    if (recursion_left > 0) {
+      ray_t ray2;
+      ray2.origin = pos;
+      ray2.dir = reflect(ray.dir, normal);
+      const vec3_t col2 = trace_ray(ray2, recursion_left - 1);
+      col = add(col, scale(col2, 0.3f));
     }
   }
 
-  return (t);
+  return col;
 }
 
-
-//--------------------------------------------------------------------------------------------------
-// Line-tracer routine (works recursively).
-//--------------------------------------------------------------------------------------------------
-
-static void TraceLine(const VECTOR* LinP, const VECTOR* LinD, VECTOR* Color, int reccount) {
-  VECTOR Pnt, Norm, LDir, NewDir, TmpCol;
-  VECTOR TmpPnt, TmpNorm;
-  FLOAT t, A, cosfi;
-  const TEXTURE *txt, *tmptxt;
-  int shadowcount;
-
-  Color->x = Color->y = Color->z = 0.0f;
-
-  if (reccount > 0) {
-    // Try intersection with objects
-    t = IntersectObjs(LinP, LinD, &Pnt, &Norm, &txt);
-
-    // Get light-intensity in intersection-point (store in cosfi)
-    if (t > EPSILON) {
-      LDir.x = Lightpos.x - Pnt.x; // Get line to light from surface
-      LDir.y = Lightpos.y - Pnt.y;
-      LDir.z = Lightpos.z - Pnt.z;
-      cosfi = LDir.x * Norm.x + LDir.y * Norm.y + LDir.z * Norm.z;
-      if (cosfi > 0.0f) { // If angle between lightline and normal < PI/2
-        shadowcount = 0;
-        t = IntersectObjs(&Pnt, &LDir, &TmpPnt, &TmpNorm, &tmptxt);
-        if ((t < EPSILON) || (t > 1.0f))
-          shadowcount = DISTRIB;
-        if (shadowcount > 0) {
-          A = Norm.x * Norm.x + Norm.y * Norm.y + Norm.z * Norm.z;
-          A *= LDir.x * LDir.x + LDir.y * LDir.y + LDir.z * LDir.z;
-          cosfi = (cosfi / sqrtf(A)) * txt->diffuse * (FLOAT)shadowcount / (FLOAT)DISTRIB;
-        } else {
-          cosfi = 0.0f;
-        }
-      } else {
-        cosfi = 0.0f;
-      }
-      Color->x = txt->color.x * (Ambient + cosfi);
-      Color->y = txt->color.y * (Ambient + cosfi);
-      Color->z = txt->color.z * (Ambient + cosfi);
-      if (txt->reflect > EPSILON) {
-        ReflectVector(&NewDir, LinD, &Norm);
-        TmpCol.x = TmpCol.y = TmpCol.z = 0.0f;
-        TraceLine(&Pnt, &NewDir, &TmpCol, reccount - 1);
-        Color->x += TmpCol.x * txt->reflect;
-        Color->y += TmpCol.y * txt->reflect;
-        Color->z += TmpCol.z * txt->reflect;
-      }
-    } else {
-      // Get sky-color (interpolate between horizon and zenit)
-      A = sqrtf(LinD->x * LinD->x + LinD->y * LinD->y + LinD->z * LinD->z);
-      A = fabsf(LinD->z) / A;
-      Color->x = Skycolor[1].x * A + Skycolor[0].x * (1.0f - A);
-      Color->y = Skycolor[1].y * A + Skycolor[0].y * (1.0f - A);
-      Color->z = Skycolor[1].z * A + Skycolor[0].z * (1.0f - A);
-    }
-
-    // Make sure that the color does not exceed the maximum level
-    if (Color->x > 1.0f)
-      Color->x = 1.0f;
-    if (Color->y > 1.0f)
-      Color->y = 1.0f;
-    if (Color->z > 1.0f)
-      Color->z = 1.0f;
-  }
+static float clamp(const float x) {
+  // For color clamping: We clamp to the range [0.0, 1.0).
+  return x < 0.0f ? 0.0f : (x > 0.999999940395f ? 0.999999940395f : x);
 }
 
-static void TraceScene(fb_t* fb, int frame_no) {
-  VECTOR PixColor, LinD, Scale, cam_pos;
-  int sx, sy;
+static vec3_t clamp_color(const vec3_t col) {
+  return vec3(clamp(col.x), clamp(col.y), clamp(col.z));
+}
 
-  // Move the camera for each frame.
-  cam_pos.x = Camerapos.x + ((float)((frame_no % 64) - 32)) * 0.02f;
-  cam_pos.y = Camerapos.y;
-  cam_pos.z = Camerapos.z;
+static void render_image(fb_t* fb, float t) {
+  // Set up the camera.
+  vec3_t origin = vec3(4.0f * sinf(t), 4.0f * cosf(t), 1.0f + 0.5f * cosf(0.37f * t));
+  vec3_t target = vec3(0.0f, 0.0f, 0.5f);
+  camera_t cam = look_at(origin, target);
 
-  // Loop over all pixels of the framebuffer.
+  // Iterate over all the pixels.
   uint8_t* pixels = (uint8_t*)fb->pixels;
-  Scale.y = 1.0f;
-  for (sy = 0; sy < HEIGHT; sy++) {
-    Scale.z = ((FLOAT)(HEIGHT / 2 - sy)) * (1.0f / (FLOAT)HEIGHT);
-    for (sx = 0; sx < WIDTH; sx++) {
-      Scale.x = ((FLOAT)(sx - WIDTH / 2)) * (1.0f / (FLOAT)WIDTH);
+  const float pix_scale = 1.0f / (float)fb->width;
+  for (int sy = 0; sy < fb->height; ++sy) {
+    float dy = (float)(fb->height - 2 * sy) * pix_scale;
+    for (int sx = 0; sx < fb->width; ++sx) {
+      float dx = (float)(2 * sx - fb->width) * pix_scale;
 
-      // Calculate line-direction (from camera-center through a pixel)
-      LinD.x = Cameraright.x * Scale.x + Cameradir.x * Scale.y + Cameraup.x * Scale.z;
-      LinD.y = Cameraright.y * Scale.x + Cameradir.y * Scale.y + Cameraup.y * Scale.z;
-      LinD.z = Cameraright.z * Scale.x + Cameradir.z * Scale.y + Cameraup.z * Scale.z;
+      // Calculate the ray for this pixel.
+      ray_t ray;
+      ray.origin = origin;
+      ray.dir = cam.forward;
+      ray.dir = add(ray.dir, scale(cam.right, dx));
+      ray.dir = add(ray.dir, scale(cam.up, dy));
+      ray.dir = normalize(ray.dir);
 
-      // Get color for pixel
-      TraceLine(&cam_pos, &LinD, &PixColor, MAXREC);
+      // Trace!
+      vec3_t col = trace_ray(ray, 2);
+      col = clamp_color(col);
 
+      // Write the pixel to the framebuffer memory.
       if (fb->mode == MODE_RGBA8888) {
-        // Convert to ABGR32 and write the pixel to the framebuffer.
-        uint32_t pix = (uint32_t)(PixColor.x * 255.0f) |
-                       ((uint32_t)(PixColor.y * 255.0f) << 8) |
-                       ((uint32_t)(PixColor.z * 255.0f) << 16) |
+        uint32_t pix = (uint32_t)(col.x * 256.0f) |
+                       ((uint32_t)(col.y * 256.0f) << 8) |
+                       ((uint32_t)(col.z * 256.0f) << 16) |
                        0xff000000u;
         *((uint32_t*)pixels) = pix;
         pixels += 4;
       } else if (fb->mode == MODE_RGBA5551) {
-        // Convert to ABGR16 and write the pixel to the framebuffer.
-        uint16_t pix = (uint16_t)(PixColor.x * 31.0f) |
-                       ((uint16_t)(PixColor.y * 31.0f) << 5) |
-                       ((uint16_t)(PixColor.z * 31.0f) << 10) |
+        uint16_t pix = (uint16_t)(col.x * 32.0f) |
+                       ((uint16_t)(col.y * 32.0f) << 5) |
+                       ((uint16_t)(col.z * 32.0f) << 10) |
                        0x8000u;
         *((uint16_t*)pixels) = pix;
         pixels += 2;
@@ -431,16 +318,16 @@ static void TraceScene(fb_t* fb, int frame_no) {
 
 
 //--------------------------------------------------------------------------------------------------
-// Line-tracer routine (works recursively).
+// Public API.
 //--------------------------------------------------------------------------------------------------
 
 static fb_t* s_fb;
 
 void raytrace_init(void) {
   if (s_fb == NULL) {
-    s_fb = fb_create(WIDTH, HEIGHT, MODE_RGBA8888);
+    s_fb = fb_create(DEFAULT_WIDTH, DEFAULT_HEIGHT, MODE_RGBA8888);
     if (s_fb == NULL) {
-      s_fb = fb_create(WIDTH, HEIGHT, MODE_RGBA5551);
+      s_fb = fb_create(DEFAULT_WIDTH, DEFAULT_HEIGHT, MODE_RGBA5551);
     }
   }
 }
@@ -458,5 +345,8 @@ void raytrace(int frame_no) {
   }
 
   fb_show(s_fb);
-  TraceScene(s_fb, frame_no);
+
+  const float t = 0.1f * (float)frame_no;
+  render_image(s_fb, t);
 }
+

@@ -40,8 +40,6 @@ bss_cleared:
     ; ------------------------------------------------------------------------
 
     ; Initialize the stack: Place the stack at the top of VRAM.
-    ; TODO(m): Use memory allocation for this instead.
-    ; TODO(m): Set up the thread and frame pointers too.
     ldhi    s1, #MMIO_START
     ldw     s1, s1, #VRAMSIZE
     ldhi    sp, #VRAM_START
