@@ -50,7 +50,7 @@ architecture tb of mc1_tb is
   --  40.000 MHz -> 12.5 ns
   --  74.375 MHz -> 6.72268908 ns
   -- 148.500 MHz -> 3.36700337 ns
-  constant C_CLK_HALF_PERIOD : time := 6.72268908 ns;
+  constant C_CLK_HALF_PERIOD : time := 3.36700337 ns;
 
   signal s_rst : std_logic;
   signal s_clk : std_logic;
@@ -67,7 +67,7 @@ begin
   mc1_1: entity work.mc1
     generic map (
       COLOR_BITS => s_r'length,
-      LOG2_VRAM_SIZE => 16,          -- 4*2^16 = 256 KiB
+      LOG2_VRAM_SIZE => 15,          -- 4*2^15 = 128 KiB
       VIDEO_CONFIG => C_1920_1080
     )
     port map (
@@ -85,7 +85,7 @@ begin
       o_vga_vs => s_vsync,
 
       -- I/O interfaces.
-      i_io_switches => 32x"2",
+      i_io_switches => 32x"4",
       i_io_buttons => (others => '0'),
 
       -- Debug trace interface.
@@ -183,7 +183,7 @@ begin
 
       -- Write a recrod to the debug trace file.
       -- Note: We skip the first few cycles until we are properly reset.
-      if C_DEBUG_ENABLE_TRACE and i >= 5 then
+      if C_DEBUG_ENABLE_TRACE and i >= 4 then
         write_trace(f_trace_file, s_debug_trace);
       end if;
 
