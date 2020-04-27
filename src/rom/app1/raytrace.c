@@ -57,7 +57,7 @@ static float fast_rsqrt(const float x) {
   float y = bitcast_int_to_float(i);
   y = y * (1.5f - (x2 * y * y));
   //y = y * (1.5f - (x2 * y * y));
-	return y;
+  return y;
 }
 
 static float fast_sqrt(const float x) {

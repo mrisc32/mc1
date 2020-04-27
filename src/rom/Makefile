@@ -44,16 +44,16 @@ APP2OBJS = $(OUT)/app2.o
 APPOBJS = $(APP1OBJS)
 
 $(OUT)/app1.o: app1/app1.c
-	$(CC) $(CCFLAGS) -o $@ app1/app1.c
+	$(CC) $(CCFLAGS) -o $@ $<
 
 $(OUT)/palette_util.o: app1/palette_util.c
-	$(CC) $(CCFLAGS) -o $@ app1/palette_util.c
+	$(CC) $(CCFLAGS) -o $@ $<
 
 $(OUT)/funky.o: app1/funky.s
-	$(AS) $(ASFLAGS) -o $@ app1/funky.s
+	$(AS) $(ASFLAGS) -o $@ $<
 
-$(OUT)/mandelbrot.o: app1/mandelbrot.s
-	$(AS) $(ASFLAGS) -o $@ app1/mandelbrot.s
+$(OUT)/mandelbrot.o: app1/mandelbrot.c
+	$(CC) $(CCFLAGS) -o $@ $<
 
 $(OUT)/raytrace.o: app1/raytrace.c
 	$(CC) $(CCFLAGS) -o $@ $<
