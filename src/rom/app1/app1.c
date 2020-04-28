@@ -42,32 +42,35 @@ static void wait_vblank() {
 
 int main(void) {
   uint32_t switches_old = 0xffffffffu;
+  vcon_print("Use switches to select demo...\n");
 
   for (int frame_no = 0; ; ++frame_no) {
-    // Write the frame number to the segment displays.
-    sevseg_print_dec(frame_no);
-
     uint32_t switches = MMIO(SWITCHES);
     if (switches != switches_old) {
       mandelbrot_deinit();
       funky_deinit();
       raytrace_deinit();
       switches_old = switches;
+      frame_no = 0;
     }
+
+    // Write the frame number to the segment displays.
+    sevseg_print_dec(frame_no);
 
     // Select program with the board switches.
     if (switches == 1) {
       mandelbrot_init();
       mandelbrot(frame_no);
     } else if (switches == 2) {
+      raytrace_init();
+      raytrace(frame_no);
+    } else if (switches == 4) {
       funky_init();
       funky(frame_no);
       wait_vblank();
-    } else if (switches == 4) {
-      raytrace_init();
-      raytrace(frame_no);
     } else {
       vcon_show();
+      wait_vblank();
     }
   }
 

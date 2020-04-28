@@ -73,16 +73,15 @@ bss_cleared:
     ldi     s1, #boot_text_1@pc
     bl      vcon_print
 
+    ldi     s1, #rom_text_1@pc
+    ldi     s2, #ROM_START
+    ldi     s3, #__rom_size
+    bl      print_mem_info
+
     ldi     s1, #vram_text_1@pc
     ldi     s2, #VRAM_START
     ldi     s3, #MMIO_START
     ldw     s3, s3, #VRAMSIZE
-    bl      print_mem_info
-
-    ldi     s1, #xram_text_1@pc
-    ldi     s2, #XRAM_START
-    ldi     s3, #MMIO_START
-    ldw     s3, s3, #XRAMSIZE
     bl      print_mem_info
 
     ldi     s1, #bss_text_1@pc
@@ -99,6 +98,12 @@ bss_cleared:
     ldi     s3, #STACK_SIZE
     mov     s2, sp
     sub     s2, s2, s3
+    bl      print_mem_info
+
+    ldi     s1, #xram_text_1@pc
+    ldi     s2, #XRAM_START
+    ldi     s3, #MMIO_START
+    ldw     s3, s3, #XRAMSIZE
     bl      print_mem_info
 
 
@@ -300,16 +305,18 @@ arg0:
 boot_text_1:
     .asciz  "MC1 - The MRISC32 computer\n\n"
 
+rom_text_1:
+    .asciz  "ROM:     0x"
 vram_text_1:
-    .asciz  "VRAM:  0x"
-xram_text_1:
-    .asciz  "XRAM:  0x"
+    .asciz  "VRAM:    0x"
 bss_text_1:
-    .asciz  "BSS:   0x"
+    .asciz  "  BSS:   0x"
 vcon_text_1:
-    .asciz  "VCON:  0x"
+    .asciz  "  VCON:  0x"
 stack_text_1:
-    .asciz  "Stack: 0x"
+    .asciz  "  Stack: 0x"
+xram_text_1:
+    .asciz  "XRAM:    0x"
 mem_info_text_2:
     .asciz  ", "
 mem_info_text_3:

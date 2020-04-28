@@ -4,7 +4,7 @@ OUT = out
 SELFTESTOUT = selftest/out
 
 CC      = mrisc32-elf-gcc
-CCFLAGS = -c -O2 -I . -ffast-math -Wall -Wextra -Werror
+CCFLAGS = -c -Os -I . -ffast-math -Wall -Wextra -Werror
 AS      = mrisc32-elf-gcc
 ASFLAGS = -c -I .
 LD      = mrisc32-elf-gcc

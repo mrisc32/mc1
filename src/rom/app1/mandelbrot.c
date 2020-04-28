@@ -239,12 +239,20 @@ void mandelbrot(int frame_no) {
 
   float step = get_zoom(frame_no) * MAX_SIZE / (float)s_fb->width;
 
-  uint8_t* pixels = (uint8_t*)s_fb->pixels;
-  for (int y = 0; y < s_fb->height; ++y) {
-    const float im_c = CENTER.im + step * (float)(y - s_fb->height/2);
+  for (int k = 0; k < s_fb->height; ++k) {
+    // We start at the middle and alternatingly expand up and down.
+    int dy = (k + 1) >> 1;
+    if ((k & 1) == 1) {
+      dy = -dy;
+    }
+    const int y = s_fb->height / 2 + dy;
+    const float im_c = CENTER.im + step * (float)(y - s_fb->height / 2);
+
+    // Draw one row (left to right).
+    uint8_t* pixels = &((uint8_t*)s_fb->pixels)[y * s_fb->stride];
     uint8_t pix = 0;
     for (int x = 0; x < s_fb->width; ++x) {
-      const float re_c = CENTER.re + step * (float)(x - s_fb->width/2);
+      const float re_c = CENTER.re + step * (float)(x - s_fb->width / 2);
 
       // Run the Mandelbrot iterations for this C.
       const int n = iterate(re_c, im_c);

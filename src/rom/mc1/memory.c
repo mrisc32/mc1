@@ -29,11 +29,10 @@
 //--------------------------------------------------------------------------------------------------
 
 // Uncomment this to enable memory allocator debugging.
-// NOTE: Currently the logic does not work without this enabled (something is buggy).
-#define ENABLE_DEBUG
+// #define ENABLE_DEBUG
 
 #define MAX_NUM_POOLS 4         // Maximum number of supported memory pools.
-#define MIN_MAX_NUM_ALLOCS 128  // Minimum size of a memory pool.
+#define MIN_MAX_NUM_ALLOCS 16   // Minimum size of a memory pool.
 #define ALLOC_ALIGN 4           // Alignment in bytes (must be a power of two).
 
 // A single allocation block.
@@ -57,8 +56,8 @@ static mem_pool_t s_pools[MAX_NUM_POOLS];
 static int s_num_pools;
 
 static int calc_max_num_allocs(size_t size) {
-  // We aim at using about 3% of the memory pool for the allocation array.
-  int max_num_allocs = (int)(size / (32u * sizeof(alloc_block_t)));
+  // We aim at using less than 1% of the memory pool for the allocation array.
+  int max_num_allocs = (int)(size / (128u * sizeof(alloc_block_t)));
   max_num_allocs = max_num_allocs < MIN_MAX_NUM_ALLOCS ? MIN_MAX_NUM_ALLOCS : max_num_allocs;
 
   // If we can't fit a reasonable allocation array in the RAM, fail!
@@ -83,6 +82,7 @@ static int init_mem_pool(mem_pool_t* pool, void* start, size_t size, unsigned ty
   pool->size = size - blocks_array_size;
   pool->type = type;
 
+#ifdef ENABLE_DEBUG
   // Print memory pool information.
   vcon_print("Memory pool:\n  0x");
   vcon_print_hex(pool->start);
@@ -91,6 +91,7 @@ static int init_mem_pool(mem_pool_t* pool, void* start, size_t size, unsigned ty
   vcon_print(" bytes free\n  Type: ");
   vcon_print_hex(pool->type);
   vcon_print("\n");
+#endif // ENABLE_DEBUG
 
   return 1;
 }
