@@ -303,20 +303,20 @@ arg0:
     .asciz  "program"
 
 boot_text_1:
-    .asciz  "MC1 - The MRISC32 computer\n\n"
+    .asciz  "\n  **** MC1 - The MRISC32 computer ****\n\n"
 
 rom_text_1:
-    .asciz  "ROM:     0x"
+    .asciz  "ROM:    0x"
 vram_text_1:
-    .asciz  "VRAM:    0x"
+    .asciz  "VRAM:   0x"
 bss_text_1:
-    .asciz  "  BSS:   0x"
+    .asciz  " BSS:   0x"
 vcon_text_1:
-    .asciz  "  VCON:  0x"
+    .asciz  " VCON:  0x"
 stack_text_1:
-    .asciz  "  Stack: 0x"
+    .asciz  " Stack: 0x"
 xram_text_1:
-    .asciz  "XRAM:    0x"
+    .asciz  "XRAM:   0x"
 mem_info_text_2:
     .asciz  ", "
 mem_info_text_3:
