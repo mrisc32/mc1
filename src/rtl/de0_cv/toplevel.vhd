@@ -88,8 +88,25 @@ entity toplevel is
 end toplevel;
 
 architecture rtl of toplevel is
+  -- Clock configuration.
+  constant C_USE_GPIO_CLK : boolean := false;
+  constant C_SYSTEM_CLK_MHZ : string := "50 MHz";
+
+  -- 70 MHz seems to be a good safe bet, but going higher is certainly possible.
+  constant C_CPU_CLK_MHZ : string := "70 MHz";
+
+  -- Pixel frequencies for supported video modes:
+  --  1920x1080 @ 60 Hz: 148.500 MHz
+  --   1280x720 @ 60 Hz:  74.250 MHz
+  --    800x600 @ 60 Hz:  40.000 MHz
+  --    640x480 @ 60 Hz:  25.175 MHz
+  constant C_VGA_REF_CLK_MHZ : string := "24 MHz";  -- A good base frequency for video signals.
+  constant C_VGA_CLK_MHZ : string := "148.500 MHz";
+
+  signal s_system_clk : std_logic;
   signal s_system_rst : std_logic;
 
+  signal s_vga_ref_clk : std_logic;
   signal s_pll_cpu_locked : std_logic;
   signal s_pll_vga_locked : std_logic;
   signal s_global_async_rst : std_logic;
@@ -104,6 +121,14 @@ architecture rtl of toplevel is
   signal s_io_buttons : std_logic_vector(31 downto 0);
   signal s_io_regs_w : T_MMIO_REGS_WO;
 begin
+  -- Select the system clock.
+  CLOCK_GEN: if C_USE_GPIO_CLK generate
+    GPIO_0(0) <= 'Z';           -- Tri-state the output to use the pin as an input.
+    s_system_clk <= GPIO_0(0);  -- Use GPIO_0(0) as a clock input.
+  else generate
+    s_system_clk <= CLOCK_50;
+  end generate;
+
   -- System reset signal: This is the reset signal from the board. The stabilizer guarantees that
   -- the reset signal will be held high for a certain period.
   reset_stabilizer_1: entity work.reset_stabilizer
@@ -112,42 +137,39 @@ begin
     )
     port map (
       i_rst_n => RESET_N,
-      i_clk => CLOCK_50,
+      i_clk => s_system_clk,
       o_rst => s_system_rst
     );
 
   -- Generate the CPU clock signal.
-  -- 70 MHz seems to be a good safe bet, but going higher is certainly possible.
+  -- We also generate a reference clock to be used by the VGA PLL.
   pll_cpu: entity work.pll
     generic map (
-      REFERENCE_CLOCK_FREQUENCY => "50 MHz",
-      NUMBER_OF_CLOCKS => 1,
-      OUTPUT_CLOCK_FREQUENCY0 => "70.0 MHz"
+      REFERENCE_CLOCK_FREQUENCY => C_SYSTEM_CLK_MHZ,
+      NUMBER_OF_CLOCKS => 2,
+      OUTPUT_CLOCK_FREQUENCY0 => C_CPU_CLK_MHZ,
+      OUTPUT_CLOCK_FREQUENCY1 => C_VGA_REF_CLK_MHZ
     )
     port map
     (
       i_rst => s_system_rst,
-      i_refclk => CLOCK_50,
+      i_refclk => s_system_clk,
       o_clk0 => s_cpu_clk,
+      o_clk1 => s_vga_ref_clk,
       o_locked => s_pll_cpu_locked
     );
 
   -- Generate the VGA clock signal.
-  -- Pixel frequencies for supported video modes:
-  --  1920x1080 @ 60 Hz: 148.500 MHz (rounded to 148.4375 MHz, 59.97 FPS)
-  --   1280x720 @ 60 Hz:  74.250 MHz (rounded to 74.242424 MHz, 59.99 FPS)
-  --    800x600 @ 60 Hz:  40.000 MHz
-  --    640x480 @ 60 Hz:  25.175 MHz (rounded to 25.175644 MHz, 60.002 FPS)
   pll_vga: entity work.pll
     generic map (
-      REFERENCE_CLOCK_FREQUENCY => "50 MHz",
+      REFERENCE_CLOCK_FREQUENCY => C_VGA_REF_CLK_MHZ,
       NUMBER_OF_CLOCKS => 1,
-      OUTPUT_CLOCK_FREQUENCY0 => "148.4375 MHz"
+      OUTPUT_CLOCK_FREQUENCY0 => C_VGA_CLK_MHZ
     )
     port map
     (
       i_rst => s_system_rst,
-      i_refclk => CLOCK2_50,
+      i_refclk => s_vga_ref_clk,
       o_clk0 => s_vga_clk,
       o_locked => s_pll_vga_locked
     );
