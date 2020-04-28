@@ -29,38 +29,29 @@ clean:
 
 
 #-----------------------------------------------------------------------------
-# Applications
+# Demo application
 #-----------------------------------------------------------------------------
 
-APP1OBJS = $(OUT)/app1.o \
+DEMOOBJS = $(OUT)/demo.o \
            $(OUT)/palette_util.o \
            $(OUT)/funky.o \
            $(OUT)/mandelbrot.o \
            $(OUT)/raytrace.o
 
-APP2OBJS = $(OUT)/app2.o
-
-# Select which app to build into the ROM here:
-APPOBJS = $(APP1OBJS)
-
-$(OUT)/app1.o: app1/app1.c
+$(OUT)/demo.o: demo/demo.c
 	$(CC) $(CCFLAGS) -o $@ $<
 
-$(OUT)/palette_util.o: app1/palette_util.c
+$(OUT)/palette_util.o: demo/palette_util.c
 	$(CC) $(CCFLAGS) -o $@ $<
 
-$(OUT)/funky.o: app1/funky.s
+$(OUT)/funky.o: demo/funky.s
 	$(AS) $(ASFLAGS) -o $@ $<
 
-$(OUT)/mandelbrot.o: app1/mandelbrot.c
+$(OUT)/mandelbrot.o: demo/mandelbrot.c
 	$(CC) $(CCFLAGS) -o $@ $<
 
-$(OUT)/raytrace.o: app1/raytrace.c
+$(OUT)/raytrace.o: demo/raytrace.c
 	$(CC) $(CCFLAGS) -o $@ $<
-
-
-$(OUT)/app2.o: app2/app2.c
-	$(CC) $(CCFLAGS) -o $@ app2/app2.c
 
 
 #-----------------------------------------------------------------------------
@@ -73,8 +64,8 @@ $(OUT)/rom.vhd: $(OUT)/rom.raw rom.vhd.in
 $(OUT)/rom.raw: $(OUT)/rom.elf
 	$(OBJCOPY) -O binary $< $@
 
-$(OUT)/rom.elf: $(APPOBJS) $(OUT)/libmc1.a $(OUT)/libselftest.a link.ld
-	$(LD) $(LDFLAGS) -o $@ $(APPOBJS) -lmc1 -lselftest -lm
+$(OUT)/rom.elf: $(DEMOOBJS) $(OUT)/libmc1.a $(OUT)/libselftest.a link.ld
+	$(LD) $(LDFLAGS) -o $@ $(DEMOOBJS) -lmc1 -lselftest -lm
 
 
 #-----------------------------------------------------------------------------
