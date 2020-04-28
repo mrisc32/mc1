@@ -4,6 +4,9 @@ create_clock -period 20 [get_ports CLOCK2_50]
 create_clock -period 20 [get_ports CLOCK3_50]
 create_clock -period 20 [get_ports CLOCK4_50]
 
+# Constrain the GPIO-0 pin 1 as an input clock port with a 83.333 ns requirement (12 MHz).
+create_clock -period 83.333 [get_ports GPIO_0[0]]
+
 # DRAM clock.
 #create_clock -period "100 MHz" -name clk_dram [get_ports DRAM_CLK]
 
