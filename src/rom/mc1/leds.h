@@ -33,5 +33,9 @@ void sevseg_print_hex(unsigned number);
 /// @param number The number to print.
 void sevseg_print_dec(int number);
 
+/// @brief Print an ASCII string to the board segment displays.
+/// @param text The string to print.
+void sevseg_print(const char* text);
+
 #endif  // MC1_LEDS_H_
 

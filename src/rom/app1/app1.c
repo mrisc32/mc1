@@ -54,10 +54,8 @@ int main(void) {
       frame_no = 0;
     }
 
-    // Write the frame number to the segment displays.
-    sevseg_print_dec(frame_no);
-
     // Select program with the board switches.
+    int active_program = 1;
     if (switches == 1) {
       mandelbrot_init();
       mandelbrot(frame_no);
@@ -69,8 +67,17 @@ int main(void) {
       funky(frame_no);
       wait_vblank();
     } else {
+      active_program = 0;
       vcon_show();
       wait_vblank();
+    }
+
+    if (active_program) {
+      // Write the frame number to the segment displays.
+      sevseg_print_dec(frame_no);
+    } else {
+      // Print a friendly "HELLO".
+      sevseg_print("OLLEH");
     }
   }
 
