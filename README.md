@@ -34,7 +34,7 @@ For more details, see the [video logic documentation](docs/video_logic.md).
 
 ### I/O
 
-Primitive I/O, such as reading buttons and switches and writing to leds and seven-segment displays, is provided as memory mapped I/O (see [docs/mmio.md](MMIO)), directly accessible for the CPU.
+Primitive I/O, such as reading buttons and switches and writing to leds and seven-segment displays, is provided as memory mapped I/O (see [MMIO](docs/mmio.md)), directly accessible for the CPU.
 
 ## Operating system
 
