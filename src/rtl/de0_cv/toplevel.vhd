@@ -100,7 +100,7 @@ architecture rtl of toplevel is
   --   1280x720 @ 60 Hz:  74.250 MHz
   --    800x600 @ 60 Hz:  40.000 MHz
   --    640x480 @ 60 Hz:  25.175 MHz
-  constant C_VGA_REF_CLK_MHZ : string := "24 MHz";  -- A good base frequency for video signals.
+  constant C_VGA_REF_CLK_MHZ : string := "24 MHz";  -- A good reference frequency for video clocks.
   constant C_VGA_CLK_MHZ : string := "148.500 MHz";
 
   signal s_system_clk : std_logic;
@@ -123,9 +123,11 @@ architecture rtl of toplevel is
 begin
   -- Select the system clock.
   CLOCK_GEN: if C_USE_GPIO_CLK generate
-    GPIO_0(0) <= 'Z';           -- Tri-state the output to use the pin as an input.
-    s_system_clk <= GPIO_0(0);  -- Use GPIO_0(0) as a clock input.
+    -- Use GPIO_0(0) as a clock input.
+    s_system_clk <= GPIO_0(0);
+    GPIO_0(0) <= 'Z';  -- Tri-state the output to use the pin as an input.
   else generate
+    -- Use the on-board 50 MHz oscillator.
     s_system_clk <= CLOCK_50;
   end generate;
 
@@ -133,7 +135,7 @@ begin
   -- the reset signal will be held high for a certain period.
   reset_stabilizer_1: entity work.reset_stabilizer
     generic map (
-      STABLE_COUNT_BITS => 23  -- Hold reset high for 2^23 50 MHz cycles (168 ms).
+      STABLE_COUNT_BITS => 21  -- Hold reset high for 2^21 50 MHz cycles (42 ms).
     )
     port map (
       i_rst_n => RESET_N,
