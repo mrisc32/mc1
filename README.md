@@ -20,6 +20,8 @@ Connected to the CPU are on-chip ROM and RAM memories. The ROM holds the boot co
 
 The video logic produces 24-bit RGB output and horizontal and vertical sync signals in 1920x1080 (1080p), suitable for VGA, DVI and HDMI interfaces, for instance.
 
+![Screenshot](docs/screenshots/raytrace.jpg)
+
 One key feature of the video logic is that it has a programmable video control processor that runs in sync with the raster signals, making it possible to get the most out of limited memory resources while offloading the CPU for certain tasks.
 
 Examples of things that a video control program can accomplish are:
