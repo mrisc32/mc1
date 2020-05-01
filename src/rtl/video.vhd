@@ -233,7 +233,9 @@ begin
 
     dither1: entity work.dither
       generic map(
-        BITS => COLOR_BITS
+        BITS_R => COLOR_BITS,
+        BITS_G => COLOR_BITS,
+        BITS_B => COLOR_BITS
       )
       port map (
         i_rst => i_rst,
