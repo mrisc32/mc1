@@ -51,7 +51,8 @@ use ieee.numeric_std.all;
 entity vid_vcpp is
   generic(
     X_COORD_BITS : positive;
-    Y_COORD_BITS : positive
+    Y_COORD_BITS : positive;
+    VCP_START_ADDRESS : std_logic_vector(23 downto 0)
   );
   port(
     i_rst : in std_logic;
@@ -76,7 +77,6 @@ end vid_vcpp;
 architecture rtl of vid_vcpp is
   constant C_ADDR_BITS : positive := 24;
   subtype T_ADDR is std_logic_vector(C_ADDR_BITS-1 downto 0);
-  constant C_VCP_START_ADDRESS : T_ADDR := 24x"0";
 
   subtype T_INSTR is std_logic_vector(3 downto 0);
 
@@ -190,7 +190,7 @@ begin
                                             to_unsigned(1, C_ADDR_BITS));
 
   -- Select which address to read from.
-  s_pc_next_read_addr <= C_VCP_START_ADDRESS when i_restart_frame = '1' else
+  s_pc_next_read_addr <= VCP_START_ADDRESS when i_restart_frame = '1' else
                          s_id_jump_target when s_id_apply_jump_target = '1' else
                          s_pc_read_addr_plus_1;
 
@@ -200,7 +200,7 @@ begin
     if i_rst = '1' then
       -- TODO(m): We should really disable the pipeline altogether until we
       -- get the first i_restart_frame.
-      s_pc_read_addr <= C_VCP_START_ADDRESS;
+      s_pc_read_addr <= VCP_START_ADDRESS;
     elsif rising_edge(i_clk) then
       if s_stall_pc = '0' or s_cancel_pc_to_if2 = '1' then
         s_pc_read_addr <= s_pc_next_read_addr;

@@ -80,24 +80,14 @@ architecture rtl of video is
   signal s_vsync : std_logic;
   signal s_restart_frame : std_logic;
 
-  signal s_vcpp_mem_read_en : std_logic;
-  signal s_vcpp_mem_read_addr : std_logic_vector(23 downto 0);
-  signal s_next_vcpp_mem_ack : std_logic;
-  signal s_vcpp_mem_ack : std_logic;
-  signal s_vcpp_reg_write_enable : std_logic;
-  signal s_vcpp_pal_write_enable : std_logic;
-  signal s_vcpp_write_addr : std_logic_vector(7 downto 0);
-  signal s_vcpp_write_data : std_logic_vector(31 downto 0);
+  signal s_layer1_read_en : std_logic;
+  signal s_layer1_read_adr : std_logic_vector(23 downto 0);
+  signal s_next_layer1_read_ack : std_logic;
+  signal s_layer1_read_ack : std_logic;
+  signal s_layer1_rmode : std_logic_vector(23 downto 0);
+  signal s_layer1_color : std_logic_vector(31 downto 0);
 
-  signal s_regs : T_VID_REGS;
-
-  signal s_pix_mem_read_en : std_logic;
-  signal s_pix_mem_read_addr : std_logic_vector(23 downto 0);
-  signal s_next_pix_mem_ack : std_logic;
-  signal s_pix_mem_ack : std_logic;
-  signal s_pix_pal_addr : std_logic_vector(7 downto 0);
-  signal s_pix_pal_data : std_logic_vector(31 downto 0);
-  signal s_pix_color : std_logic_vector(31 downto 0);
+  signal s_color : std_logic_vector(31 downto 0);
 
   signal s_r8 : std_logic_vector(7 downto 0);
   signal s_g8 : std_logic_vector(7 downto 0);
@@ -124,96 +114,53 @@ begin
       o_restart_frame => s_restart_frame
     );
 
-  -- Instantiate the video control program processor.
-  vcpp_1: entity work.vid_vcpp
+  -- Instantiate video layer #0.
+  video_layer_0: entity work.video_layer
     generic map (
       X_COORD_BITS => s_raster_x'length,
-      Y_COORD_BITS => s_raster_y'length
+      Y_COORD_BITS => s_raster_y'length,
+      VCP_START_ADDRESS => 24x"0"
     )
-    port map(
+    port map (
       i_rst => i_rst,
       i_clk => i_clk,
       i_restart_frame => s_restart_frame,
       i_raster_x => s_raster_x,
       i_raster_y => s_raster_y,
-      o_mem_read_en => s_vcpp_mem_read_en,
-      o_mem_read_addr => s_vcpp_mem_read_addr,
-      i_mem_data => i_read_dat,
-      i_mem_ack => s_vcpp_mem_ack,
-      o_reg_write_enable => s_vcpp_reg_write_enable,
-      o_pal_write_enable => s_vcpp_pal_write_enable,
-      o_write_addr => s_vcpp_write_addr,
-      o_write_data => s_vcpp_write_data
+      o_read_en => s_layer1_read_en,
+      o_read_adr => s_layer1_read_adr,
+      i_read_ack => s_layer1_read_ack,
+      i_read_dat  => i_read_dat,
+      o_rmode => s_layer1_rmode,
+      o_color => s_layer1_color
     );
-
-  -- Instantiate the video control registers.
-  vcr_1: entity work.vid_regs
-    port map(
-      i_rst => i_rst,
-      i_clk => i_clk,
-      i_restart_frame => s_restart_frame,
-      i_write_enable => s_vcpp_reg_write_enable,
-      i_write_addr => s_vcpp_write_addr(2 downto 0),
-      i_write_data => s_vcpp_write_data(23 downto 0),
-      o_regs => s_regs
-    );
-
-  -- Instantiate the video palette.
-  palette_1: entity work.vid_palette
-    port map(
-      i_rst => i_rst,
-      i_clk => i_clk,
-      i_write_enable => s_vcpp_pal_write_enable,
-      i_write_addr => s_vcpp_write_addr,
-      i_write_data => s_vcpp_write_data,
-      i_read_addr => s_pix_pal_addr,
-      o_read_data => s_pix_pal_data
-    );
-
-  -- Instantiate the pixel pipeline.
-  pixel_pipe_1: entity work.vid_pixel
-    generic map (
-      X_COORD_BITS => s_raster_x'length,
-      Y_COORD_BITS => s_raster_y'length
-    )
-    port map(
-      i_rst => i_rst,
-      i_clk => i_clk,
-      i_raster_x => s_raster_x,
-      i_raster_y => s_raster_y,
-      o_mem_read_en => s_pix_mem_read_en,
-      o_mem_read_addr => s_pix_mem_read_addr,
-      i_mem_data => i_read_dat,
-      i_mem_ack => s_pix_mem_ack,
-      o_pal_addr => s_pix_pal_addr,
-      i_pal_data => s_pix_pal_data,
-      i_regs => s_regs,
-      o_color => s_pix_color
-    );
-
 
   --------------------------------------------------------------------------------------------------
   -- VRAM read logic - only one entity may access VRAM during each clock cycle.
   --------------------------------------------------------------------------------------------------
 
-  -- Select the active read unit - The pixel pipe has priority over the VCPP.
-  o_read_adr <= s_pix_mem_read_addr(ADR_BITS-1 downto 0) when s_pix_mem_read_en = '1' else
-                s_vcpp_mem_read_addr(ADR_BITS-1 downto 0) when s_vcpp_mem_read_en = '1' else
+  -- Select the active read unit - Layer 1 has priority over layer 2.
+  o_read_adr <= s_layer1_read_adr(ADR_BITS-1 downto 0) when s_layer1_read_en = '1' else
                 (others => '-');
-  s_next_pix_mem_ack <= s_pix_mem_read_en;
-  s_next_vcpp_mem_ack <= s_vcpp_mem_read_en and not s_pix_mem_read_en;
+  s_next_layer1_read_ack <= s_layer1_read_en;
 
   -- Respond with an ack to the relevant unit (one cycle after).
   process(i_clk, i_rst)
   begin
     if i_rst = '1' then
-      s_pix_mem_ack <= '0';
-      s_vcpp_mem_ack <= '0';
+      s_layer1_read_ack <= '0';
     elsif rising_edge(i_clk) then
-      s_pix_mem_ack <= s_next_pix_mem_ack;
-      s_vcpp_mem_ack <= s_next_vcpp_mem_ack;
+      s_layer1_read_ack <= s_next_layer1_read_ack;
     end if;
   end process;
+
+
+  --------------------------------------------------------------------------------------------------
+  -- Layer color blending logic.
+  --------------------------------------------------------------------------------------------------
+
+  -- TODO(m): Implement me!
+  s_color <= s_layer1_color;
 
 
   --------------------------------------------------------------------------------------------------
@@ -223,15 +170,15 @@ begin
   -- Extract the R, G and B channels from the pixel pipeline output.
   -- The internal color format is ABGR32 (little endian):
   --   |AAAAAAAA|BBBBBBBB|GGGGGGGG|RRRRRRRR|
-  s_r8 <= s_pix_color(7 downto 0);
-  s_g8 <= s_pix_color(15 downto 8);
-  s_b8 <= s_pix_color(23 downto 16);
+  s_r8 <= s_color(7 downto 0);
+  s_g8 <= s_color(15 downto 8);
+  s_b8 <= s_color(23 downto 16);
 
   -- Use dithering (or not) to generate the final RGB signals.
   DitherGen: if ENABLE_DITHERING generate
   begin
-    -- The dither method is controlled via the RMODE VCR.
-    s_dither_method <= s_regs.RMODE(1 downto 0);
+    -- The dither method is controlled via the layer 1 RMODE VCR.
+    s_dither_method <= s_layer1_rmode(1 downto 0);
 
     dither1: entity work.dither
       generic map(
