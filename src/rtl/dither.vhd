@@ -48,7 +48,9 @@ architecture rtl of dither is
   constant C_METHOD_NONE : std_logic_vector(1 downto 0) := "00";
   constant C_METHOD_WHITE : std_logic_vector(1 downto 0) := "01";
 
-  signal s_rnd : std_logic_vector(23 downto 0);
+  signal s_rnd_1 : std_logic_vector(7 downto 0);
+  signal s_rnd_2 : std_logic_vector(7 downto 0);
+  signal s_rnd_3 : std_logic_vector(7 downto 0);
   signal s_rnd_r : std_logic_vector(C_DITHER_BITS_R-1 downto 0);
   signal s_rnd_g : std_logic_vector(C_DITHER_BITS_G-1 downto 0);
   signal s_rnd_b : std_logic_vector(C_DITHER_BITS_B-1 downto 0);
@@ -91,18 +93,39 @@ begin
   -- Stage 1: Generate dithering noise.
   --------------------------------------------------------------------------------------------------
 
-  -- We use a single 32-bit PRNG to generate a 24-bit random number.
+  -- We use three PRNG:s to generate enough entropy for the dithering logic.
   prng1: entity work.prng
+    generic map (
+      START_VALUE => x"8654af40"
+    )
     port map (
       i_rst => i_rst,
       i_clk => i_clk,
-      o_rnd => s_rnd
+      o_rnd => s_rnd_1
+    );
+  prng2: entity work.prng
+    generic map (
+      START_VALUE => x"a654f813"
+    )
+    port map (
+      i_rst => i_rst,
+      i_clk => i_clk,
+      o_rnd => s_rnd_2
+    );
+  prng3: entity work.prng
+    generic map (
+      START_VALUE => x"54543844"
+    )
+    port map (
+      i_rst => i_rst,
+      i_clk => i_clk,
+      o_rnd => s_rnd_3
     );
 
   -- Extract different random numbers for R, G and B.
-  s_rnd_r <= s_rnd(23 downto (24 - C_DITHER_BITS_R));
-  s_rnd_g <= s_rnd(15 downto (16 - C_DITHER_BITS_G));
-  s_rnd_b <= s_rnd(7 downto (8 - C_DITHER_BITS_B));
+  s_rnd_r <= s_rnd_1(7 downto (8 - C_DITHER_BITS_R));
+  s_rnd_g <= s_rnd_2(7 downto (8 - C_DITHER_BITS_G));
+  s_rnd_b <= s_rnd_3(7 downto (8 - C_DITHER_BITS_B));
 
   -- Select dithering type.
   DitherMuxR: with i_method select

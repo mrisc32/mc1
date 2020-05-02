@@ -24,7 +24,9 @@ use work.vid_types.all;
 
 entity video is
   generic(
-    COLOR_BITS : positive;
+    COLOR_BITS_R : positive;
+    COLOR_BITS_G : positive;
+    COLOR_BITS_B : positive;
     ADR_BITS : positive;
     VIDEO_CONFIG : T_VIDEO_CONFIG
   );
@@ -35,9 +37,9 @@ entity video is
     o_read_adr : out std_logic_vector(ADR_BITS-1 downto 0);
     i_read_dat : in std_logic_vector(31 downto 0);
 
-    o_r : out std_logic_vector(COLOR_BITS-1 downto 0);
-    o_g : out std_logic_vector(COLOR_BITS-1 downto 0);
-    o_b : out std_logic_vector(COLOR_BITS-1 downto 0);
+    o_r : out std_logic_vector(COLOR_BITS_R-1 downto 0);
+    o_g : out std_logic_vector(COLOR_BITS_G-1 downto 0);
+    o_b : out std_logic_vector(COLOR_BITS_B-1 downto 0);
 
     o_hsync : out std_logic;
     o_vsync : out std_logic;
@@ -52,7 +54,7 @@ architecture rtl of video is
   -- Should we enable dithering or not?
   function ENABLE_DITHERING return boolean is
   begin
-    if (COLOR_BITS < 8) then
+    if (COLOR_BITS_R < 8) and (COLOR_BITS_G < 8) and (COLOR_BITS_B < 8) then
       return true;
     else
       return false;
@@ -233,9 +235,9 @@ begin
 
     dither1: entity work.dither
       generic map(
-        BITS_R => COLOR_BITS,
-        BITS_G => COLOR_BITS,
-        BITS_B => COLOR_BITS
+        BITS_R => COLOR_BITS_R,
+        BITS_G => COLOR_BITS_G,
+        BITS_B => COLOR_BITS_B
       )
       port map (
         i_rst => i_rst,
@@ -249,9 +251,10 @@ begin
         o_b => o_b
       );
   else generate
-    o_r <= s_r8;
-    o_g <= s_g8;
-    o_b <= s_b8;
+    -- TODO(m): Allow dithering of 1 or 2 components (should not be too common though).
+    o_r <= s_r8(7 downto (8-COLOR_BITS_R));
+    o_g <= s_g8(7 downto (8-COLOR_BITS_G));
+    o_b <= s_b8(7 downto (8-COLOR_BITS_B));
   end generate;
 
   -- Horizontal and vertical sync signal outputs.

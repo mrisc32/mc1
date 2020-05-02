@@ -66,7 +66,9 @@ begin
   -- Instantiate the MC1 machine.
   mc1_1: entity work.mc1
     generic map (
-      COLOR_BITS => s_r'length,
+      COLOR_BITS_R => s_r'length,
+      COLOR_BITS_G => s_g'length,
+      COLOR_BITS_B => s_b'length,
       LOG2_VRAM_SIZE => 15,          -- 4*2^15 = 128 KiB
       VIDEO_CONFIG => C_1920_1080
     )

@@ -32,7 +32,9 @@ use work.vid_types.all;
 entity mc1 is
   generic(
     -- Note: Be sure to pass in values that are suitable for your target platform.
-    COLOR_BITS : positive := 8;       -- Set this to < 8 to enable dithering.
+    COLOR_BITS_R : positive := 8;     -- Set this to < 8 to enable dithering.
+    COLOR_BITS_G : positive := 8;     -- Set this to < 8 to enable dithering.
+    COLOR_BITS_B : positive := 8;     -- Set this to < 8 to enable dithering.
     LOG2_VRAM_SIZE : positive := 12;  -- VRAM size (log2 of number of 32-bit words).
     VIDEO_CONFIG : T_VIDEO_CONFIG     -- Native video resolution.
   );
@@ -44,9 +46,9 @@ entity mc1 is
     -- VGA interface.
     i_vga_rst : in std_logic;
     i_vga_clk : in std_logic;
-    o_vga_r : out std_logic_vector(COLOR_BITS-1 downto 0);
-    o_vga_g : out std_logic_vector(COLOR_BITS-1 downto 0);
-    o_vga_b : out std_logic_vector(COLOR_BITS-1 downto 0);
+    o_vga_r : out std_logic_vector(COLOR_BITS_R-1 downto 0);
+    o_vga_g : out std_logic_vector(COLOR_BITS_G-1 downto 0);
+    o_vga_b : out std_logic_vector(COLOR_BITS_B-1 downto 0);
     o_vga_hs : out std_logic;
     o_vga_vs : out std_logic;
 
@@ -252,7 +254,6 @@ begin
       VRAM_SIZE => (2**LOG2_VRAM_SIZE)*4,
       XRAM_SIZE => 0,
       VID_FPS => 60*65536,      -- TODO(m): Implement me!
-      COLOR_BITS => COLOR_BITS,
       VIDEO_CONFIG => VIDEO_CONFIG
     )
     port map (
@@ -282,7 +283,9 @@ begin
   --------------------------------------------------------------------------------------------------
   video_1: entity work.video
     generic map (
-      COLOR_BITS => COLOR_BITS,
+      COLOR_BITS_R => COLOR_BITS_R,
+      COLOR_BITS_G => COLOR_BITS_G,
+      COLOR_BITS_B => COLOR_BITS_B,
       ADR_BITS => LOG2_VRAM_SIZE,
       VIDEO_CONFIG => VIDEO_CONFIG
     )

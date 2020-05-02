@@ -33,7 +33,6 @@ entity mmio is
     VRAM_SIZE : integer;
     XRAM_SIZE : integer;
     VID_FPS : positive;
-    COLOR_BITS : positive;
     VIDEO_CONFIG : T_VIDEO_CONFIG
   );
   port(

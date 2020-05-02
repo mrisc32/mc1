@@ -41,7 +41,7 @@ entity prng is
   port(
     i_rst : in std_logic;
     i_clk : in std_logic;
-    o_rnd : out std_logic_vector(23 downto 0)
+    o_rnd : out std_logic_vector(7 downto 0)
   );
 end prng;
 
@@ -64,32 +64,14 @@ begin
     end if;
   end process;
 
-  -- We shuffle the output bits.
-  o_rnd(0) <= s_state(1);
-  o_rnd(1) <= s_state(4);
-  o_rnd(2) <= s_state(7);
-  o_rnd(3) <= s_state(10);
-  o_rnd(4) <= s_state(13);
-  o_rnd(5) <= s_state(16);
-  o_rnd(6) <= s_state(19);
-  o_rnd(7) <= s_state(22);
-
-  o_rnd(8) <= s_state(23);
-  o_rnd(9) <= s_state(20);
-  o_rnd(10) <= s_state(17);
-  o_rnd(11) <= s_state(14);
-  o_rnd(12) <= s_state(11);
-  o_rnd(13) <= s_state(8);
-  o_rnd(14) <= s_state(5);
-  o_rnd(15) <= s_state(2);
-
-  o_rnd(16) <= s_state(12);
-  o_rnd(17) <= s_state(26);
-  o_rnd(18) <= s_state(6);
-  o_rnd(19) <= s_state(32);
-  o_rnd(20) <= s_state(3);
-  o_rnd(21) <= s_state(29);
-  o_rnd(22) <= s_state(24);
-  o_rnd(23) <= s_state(9);
+  -- Output 8 "kind'a independent" PRN bits.
+  o_rnd(0) <= s_state(32);
+  o_rnd(1) <= s_state(7) xor s_state(12);
+  o_rnd(2) <= s_state(27);
+  o_rnd(3) <= s_state(17) xor s_state(4);
+  o_rnd(4) <= s_state(11);
+  o_rnd(5) <= s_state(31) xor s_state(2);
+  o_rnd(6) <= s_state(23);
+  o_rnd(7) <= s_state(1) xor s_state(16);
 end rtl;
 
