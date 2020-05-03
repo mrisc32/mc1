@@ -65,12 +65,13 @@ architecture rtl of video is
   -- delays.
   function SYNC_DELAY return integer is
     constant C_PIXEL_DELAY : integer := 6;
+    constant C_BLEND_DELAY : integer := 3;
     constant C_DITHER_DELAY : integer := 2;
   begin
     if ENABLE_DITHERING then
-      return C_PIXEL_DELAY + C_DITHER_DELAY;
+      return C_PIXEL_DELAY + C_BLEND_DELAY + C_DITHER_DELAY;
     else
-      return C_PIXEL_DELAY;
+      return C_PIXEL_DELAY + C_BLEND_DELAY;
     end if;
   end function;
 
@@ -94,7 +95,8 @@ architecture rtl of video is
   signal s_layer2_rmode : std_logic_vector(23 downto 0);
   signal s_layer2_color : std_logic_vector(31 downto 0);
 
-  signal s_color : std_logic_vector(31 downto 0);
+  signal s_blend_method : std_logic_vector(3 downto 0);
+  signal s_final_color : std_logic_vector(31 downto 0);
 
   signal s_r8 : std_logic_vector(7 downto 0);
   signal s_g8 : std_logic_vector(7 downto 0);
@@ -191,9 +193,18 @@ begin
   -- Layer color blending logic.
   --------------------------------------------------------------------------------------------------
 
-  -- TODO(m): Implement proper alpha blending!
-  s_color <= s_layer2_color when s_layer2_color(31) = '1' else
-             s_layer1_color;
+  -- The blend method is controlled via the layer 2 RMODE VCR.
+  s_blend_method <= s_layer2_rmode(5 downto 2);
+
+  blend1: entity work.vid_blend
+    port map (
+      i_rst => i_rst,
+      i_clk => i_clk,
+      i_method => s_blend_method,
+      i_color_1 => s_layer1_color,
+      i_color_2 => s_layer2_color,
+      o_color => s_final_color
+    );
 
 
   --------------------------------------------------------------------------------------------------
@@ -203,9 +214,9 @@ begin
   -- Extract the R, G and B channels from the pixel pipeline output.
   -- The internal color format is ABGR32 (little endian):
   --   |AAAAAAAA|BBBBBBBB|GGGGGGGG|RRRRRRRR|
-  s_r8 <= s_color(7 downto 0);
-  s_g8 <= s_color(15 downto 8);
-  s_b8 <= s_color(23 downto 16);
+  s_r8 <= s_final_color(7 downto 0);
+  s_g8 <= s_final_color(15 downto 8);
+  s_b8 <= s_final_color(23 downto 16);
 
   -- Use dithering (or not) to generate the final RGB signals.
   DitherGen: if ENABLE_DITHERING generate
