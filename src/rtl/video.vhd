@@ -83,14 +83,12 @@ architecture rtl of video is
 
   signal s_layer1_read_en : std_logic;
   signal s_layer1_read_adr : std_logic_vector(23 downto 0);
-  signal s_next_layer1_read_ack : std_logic;
   signal s_layer1_read_ack : std_logic;
   signal s_layer1_rmode : std_logic_vector(23 downto 0);
   signal s_layer1_color : std_logic_vector(31 downto 0);
 
   signal s_layer2_read_en : std_logic;
   signal s_layer2_read_adr : std_logic_vector(23 downto 0);
-  signal s_next_layer2_read_ack : std_logic;
   signal s_layer2_read_ack : std_logic;
   signal s_layer2_rmode : std_logic_vector(23 downto 0);
   signal s_layer2_color : std_logic_vector(31 downto 0);
@@ -123,12 +121,13 @@ begin
       o_restart_frame => s_restart_frame
     );
 
-  -- Instantiate video layer #1.
+  -- Instantiate video layer #1 (bottom layer).
   video_layer_1: entity work.video_layer
     generic map (
       X_COORD_BITS => s_raster_x'length,
       Y_COORD_BITS => s_raster_y'length,
-      VCP_START_ADDRESS => 24x"000004"
+      VCP_START_ADDRESS => 24x"000004",
+      ENABLE_PIXEL_PREFETCH => true
     )
     port map (
       i_rst => i_rst,
@@ -144,12 +143,13 @@ begin
       o_color => s_layer1_color
     );
 
-  -- Instantiate video layer #2.
+  -- Instantiate video layer #2 (top layer).
   video_layer_2: entity work.video_layer
     generic map (
       X_COORD_BITS => s_raster_x'length,
       Y_COORD_BITS => s_raster_y'length,
-      VCP_START_ADDRESS => 24x"000008"
+      VCP_START_ADDRESS => 24x"000008",
+      ENABLE_PIXEL_PREFETCH => false
     )
     port map (
       i_rst => i_rst,
@@ -169,22 +169,19 @@ begin
   -- VRAM read logic - only one entity may access VRAM during each clock cycle.
   --------------------------------------------------------------------------------------------------
 
-  -- Select the active read unit - Layer 2 has priority over layer 1.
+  -- Select the read address (layer 2 has priority over layer 1).
   o_read_adr <= s_layer2_read_adr(ADR_BITS-1 downto 0) when s_layer2_read_en = '1' else
-                s_layer1_read_adr(ADR_BITS-1 downto 0) when s_layer1_read_en = '1' else
-                (others => '-');
-  s_next_layer2_read_ack <= s_layer2_read_en;
-  s_next_layer1_read_ack <= s_layer1_read_en and not s_layer2_read_en;
+                s_layer1_read_adr(ADR_BITS-1 downto 0);
 
-  -- Respond with an ack to the relevant unit (one cycle after).
+  -- Respond with an ack to the serviced layer (one cycle after the request).
   process(i_clk, i_rst)
   begin
     if i_rst = '1' then
       s_layer1_read_ack <= '0';
       s_layer2_read_ack <= '0';
     elsif rising_edge(i_clk) then
-      s_layer1_read_ack <= s_next_layer1_read_ack;
-      s_layer2_read_ack <= s_next_layer2_read_ack;
+      s_layer1_read_ack <= s_layer1_read_en and not s_layer2_read_en;
+      s_layer2_read_ack <= s_layer2_read_en;
     end if;
   end process;
 
