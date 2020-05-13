@@ -84,6 +84,7 @@ selftest:
 #-----------------------------------------------------------------------------
 
 MC1OBJS = $(OUT)/crt0.o \
+          $(OUT)/fast_math.o \
           $(OUT)/framebuffer.o \
           $(OUT)/leds.o \
           $(OUT)/mc1-font-8x8.o \
@@ -99,6 +100,9 @@ $(OUT)/libmc1.a: $(MC1OBJS)
 
 $(OUT)/crt0.o: mc1/crt0.s mc1/memory.inc mc1/mmio.inc
 	$(AS) $(ASFLAGS) -o $@ mc1/crt0.s
+
+$(OUT)/fast_math.o: mc1/fast_math.c mc1/fast_math.h
+	$(CC) $(CCFLAGS) -o $@ mc1/fast_math.c
 
 $(OUT)/framebuffer.o: mc1/framebuffer.c mc1/memory.h mc1/vcp.h
 	$(CC) $(CCFLAGS) -o $@ mc1/framebuffer.c

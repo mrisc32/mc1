@@ -18,51 +18,13 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
+#include <mc1/fast_math.h>
 #include <mc1/framebuffer.h>
 
 #include <stdint.h>
-#include <string.h>
-#include <math.h>
 
 #define DEFAULT_WIDTH  304
 #define DEFAULT_HEIGHT 171
-
-
-//--------------------------------------------------------------------------------------------------
-// Type punning functions. These are essentialy no-ops (zero cycles) on MRISC32.
-//--------------------------------------------------------------------------------------------------
-
-static int32_t bitcast_float_to_int(const float x) {
-  int32_t y;
-  memcpy(&y, &x, sizeof(y));
-  return y;
-}
-
-static float bitcast_int_to_float(const int32_t x) {
-  float y;
-  memcpy(&y, &x, sizeof(y));
-  return y;
-}
-
-
-//--------------------------------------------------------------------------------------------------
-// Fast approximate implementations of 1/sqrt(x) and sqrt(x).
-// See: https://en.wikipedia.org/wiki/Fast_inverse_square_root
-//--------------------------------------------------------------------------------------------------
-
-static float fast_rsqrt(const float x) {
-  float x2 = x * 0.5f;
-  int32_t i = bitcast_float_to_int(x);
-  i = 0x5f3759df - (i >> 1);
-  float y = bitcast_int_to_float(i);
-  y = y * (1.5f - (x2 * y * y));
-  //y = y * (1.5f - (x2 * y * y));
-  return y;
-}
-
-static float fast_sqrt(const float x) {
-  return x * fast_rsqrt(x);
-}
 
 
 //--------------------------------------------------------------------------------------------------
@@ -272,7 +234,7 @@ static vec3_t clamp_color(const vec3_t col) {
 
 static void render_image(fb_t* fb, float t) {
   // Set up the camera.
-  vec3_t origin = vec3(4.0f * sinf(t), 4.0f * cosf(t), 1.0f + 0.5f * cosf(0.37f * t));
+  vec3_t origin = vec3(4.0f * fast_sin(t), 4.0f * fast_cos(t), 1.0f + 0.5f * fast_cos(0.37f * t));
   vec3_t target = vec3(0.0f, 0.0f, 0.5f);
   camera_t cam = look_at(origin, target);
 
