@@ -1,5 +1,17 @@
 # Video logic
 
+## Layers
+
+There are two video layers. Each layer consists of:
+
+* A video control program processor.
+* A pixel pipeline.
+* A palette.
+* A video control register file.
+
+Video layer 1 is the bottom (background) layer, and video layer 2 is the top
+(foreground) layer.
+
 ## Video control program
 
 A video control program (VCP) is a sequence of video control commands. See
@@ -142,15 +154,54 @@ Each video control register (VCR) is 24 bits wide.
 | 2   | XINCR | X coordinate increment (signed fixed point, 8.16 bits)<br>Default: 0x004000 (0.25) |
 | 3   | HSTRT | Horizontal screen start position<br>Default: 0 |
 | 4   | HSTOP | Horizontal screen stop position<br>Default: 0 |
-| 5   | CMODE | Color mode:<br>0 = RGBA8888 (32 bpp)<br>1 = RGBA5551 (16 bpp)<br>2 = PAL8 (8 bpp, default)<br>3 = PAL4 (4 bpp)<br>4 = PAL2 (2 bpp)<br>5 = PAL1 (1 bpp) |
-| 6   | RMODE | Bits 0-1: Dither method:<br>0 = no dithering (default)<br>1 = white noise dithering |
+| 5   | CMODE | Color mode:<br>&nbsp;0 = RGBA8888 (32 bpp)<br>&nbsp;1 = RGBA5551 (16 bpp)<br>&nbsp;2 = PAL8 (8 bpp, default)<br>&nbsp;3 = PAL4 (4 bpp)<br>&nbsp;4 = PAL2 (2 bpp)<br>&nbsp;5 = PAL1 (1 bpp) |
+| 6   | RMODE | Bits 0-1: Dither method:<br>&nbsp;00 = no dithering (default)<br>&nbsp;01 = white noise dithering<br><br>Bits 2-5: Blend method (see below) |
 
 ## Pixel pipeline
 
 The pixel pipeline uses the configuration given by the video control registers to read data from VRAM and convert it to 24-bit RGB pixel values.
 
+## Blending
+
+The two layers are blended together using the blend mode given by bits 2-5 in the RMODE register of video layer 2.
+
+The final color, (R, G, B), is calculated as:
+
+* R = clamp(s<sub>1</sub>*R<sub>1</sub> + s<sub>2</sub>*R<sub>2</sub>)
+* G = clamp(s<sub>1</sub>*G<sub>1</sub> + s<sub>2</sub>*G<sub>2</sub>)
+* B = clamp(s<sub>1</sub>*B<sub>1</sub> + s<sub>2</sub>*B<sub>2</sub>)
+
+...where:
+
+* R<sub>k</sub> = Red color component from layer *k*
+* G<sub>k</sub> = Green color component from layer *k*
+* B<sub>k</sub> = Blue color component from layer *k*
+* A<sub>k</sub> = Alpha value (0.0 - 1.0) from layer *k*
+* s<sub>k</sub> = Scale factor for color components in layer *k*
+
+The sacle factors are given by the blend mode according to:
+
+| Blend mode | s<sub>1</sub> | s<sub>2</sub> |
+| --- | --- | --- |
+| 0000 (default) | 1 - A<sub>2</sub> | A<sub>2</sub> |
+| 0001 | *TBD* | *TBD* |
+| 0010 | *TBD* | *TBD* |
+| 0011 | *TBD* | *TBD* |
+| 0100 | *TBD* | *TBD* |
+| 0101 | *TBD* | *TBD* |
+| 0110 | *TBD* | *TBD* |
+| 0111 | *TBD* | *TBD* |
+| 1000 | *TBD* | *TBD* |
+| 1001 | *TBD* | *TBD* |
+| 1010 | *TBD* | *TBD* |
+| 1011 | *TBD* | *TBD* |
+| 1100 | *TBD* | *TBD* |
+| 1101 | *TBD* | *TBD* |
+| 1110 | *TBD* | *TBD* |
+| 1111 | *TBD* | *TBD* |
+
 ## Dithering
 
 As a final step the 24-bit RGB color is dithered to the resolution that is supported by the target hardware. For instance if the video output of a device is 12-bit VGA (4 bits per color component), the color will be dithered from 24 bits to 12 bits.
 
-The dithering method is selected via the `RMODE` register.
+The dithering method is selected with bits 0-1 in the RMODE register of video layer 1.

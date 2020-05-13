@@ -36,7 +36,7 @@ For more details, see the [video logic documentation](docs/video_logic.md).
 
 ### I/O
 
-Primitive I/O, such as reading buttons and switches and writing to leds and seven-segment displays, is provided as memory mapped I/O (see [MMIO](docs/mmio.md)), directly accessible for the CPU.
+Primitive I/O, such as reading buttons and switches and writing to leds and seven-segment displays, is provided as memory mapped I/O (see the [MC1 memory map](docs/memory_map.md)), directly accessible for the CPU.
 
 ## Operating system
 
@@ -50,8 +50,6 @@ The following things are not yet implemented, but planned:
 
 * CPU:
   * Interrupt signals from the video logic (e.g. VSYNC), once interrupt logic has been added to the MRISC32.
-* Video:
-  * Two image planes (the top layer is alpha-blended on top of the bottom layer).
 * Audio:
   * Some sort of high quality audio DMA, integrated with the video logic (sharing the same RAM read port).
 * Memory:
