@@ -9,7 +9,19 @@
     .set    MODE_HEIGHT, 360
 
     ; Set the program start address
-    .org    0x000000
+    .org    0x000004
+
+layer1_start:
+    jmp     main
+    nop
+    nop
+    nop
+
+layer2_start:
+    setpal  0, 1
+        .word    0x00000000
+    waity   32767
+    nop
 
 main:
     ; Display nothing

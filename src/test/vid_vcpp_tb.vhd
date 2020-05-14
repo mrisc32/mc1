@@ -45,7 +45,8 @@ begin
   vid_vcpp_0: entity work.vid_vcpp
     generic map(
       X_COORD_BITS => s_raster_x'length,
-      Y_COORD_BITS => s_raster_y'length
+      Y_COORD_BITS => s_raster_y'length,
+      VCP_START_ADDRESS => x"000000"
     )
     port map(
       i_rst => s_rst,
