@@ -235,7 +235,7 @@ void mandelbrot(int frame_no) {
     return;
   }
 
-  fb_show(s_fb);
+  fb_show(s_fb, LAYER_1);
 
   float step = get_zoom(frame_no) * MAX_SIZE / (float)s_fb->width;
 

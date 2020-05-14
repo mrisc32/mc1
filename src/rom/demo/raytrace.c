@@ -344,7 +344,7 @@ void raytrace(int frame_no) {
     return;
   }
 
-  fb_show(s_fb);
+  fb_show(s_fb, LAYER_1);
 
   const float t = 0.1f * (float)frame_no;
   render_image(s_fb, t);

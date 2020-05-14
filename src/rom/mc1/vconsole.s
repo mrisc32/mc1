@@ -15,7 +15,7 @@ VCON_HEIGHT = VCON_ROWS*8
 VCON_VCP_SIZE = (7 + VCON_HEIGHT*2) * 4
 VCON_FB_SIZE  = (VCON_WIDTH * VCON_HEIGHT) / 8
 
-VCON_COL0 = 0xff9b2c2e
+VCON_COL0 = 0x009b2c2e
 VCON_COL1 = 0xffeb6d70
 
 
@@ -131,6 +131,7 @@ vcon_init:
     bl      vcon_clear
 
     ; Activate the vconsole VCP.
+    ldi     s2, #1                      ; LAYER_1
     bl      vcon_show
 
     ldw     lr, sp, #0
@@ -139,7 +140,7 @@ vcon_init:
 
 
 ; ----------------------------------------------------------------------------
-; void vcon_show()
+; void vcon_show(layer_t layer)
 ; Activate the vcon VCP.
 ; ----------------------------------------------------------------------------
 
@@ -147,13 +148,25 @@ vcon_init:
     .p2align 2
 
 vcon_show:
-    ldhi    s1, #vcon_vcp_start@hi
-    ldw     s1, s1, #vcon_vcp_start@lo
-    ldi     s2, #VRAM_START
-    sub     s1, s1, s2
-    lsr     s1, s1, #2                ; s1 = (vcon_vcp_start - VRAM_START) / 4
-    stw     s1, s2, #0                ; JMP vcp_start
+    ; Valid layer (i.e. in the range [1, 2])?
+    add     s2, s1, #-1
+    sleu    s2, s2, #1
+    bns     s2, 1$
 
+    ; Get the VCP start address.
+    ldhi    s2, #vcon_vcp_start@hi
+    ldw     s2, s2, #vcon_vcp_start@lo
+    bz      s2, 1$
+
+    ; Convert the address to the VCP address space.
+    ldi     s3, #VRAM_START
+    sub     s2, s2, s3
+    lsr     s2, s2, #2          ; s2 = (vcon_vcp_start - VRAM_START) / 4
+
+    ; Emit a JMP instruction for the selected layer.
+    lsl     s1, s1, #4          ; Layer VCP start = VRAM_START + layer * 16
+    stw     s2, s3, s1
+1$:
     ret
 
 

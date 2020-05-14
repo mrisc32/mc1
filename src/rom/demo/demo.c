@@ -68,7 +68,7 @@ int main(void) {
       wait_vblank();
     } else {
       active_program = 0;
-      vcon_show();
+      vcon_show(LAYER_1);
       wait_vblank();
     }
 

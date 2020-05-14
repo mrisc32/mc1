@@ -21,12 +21,14 @@
 #ifndef MC1_VCONSOLE_H_
 #define MC1_VCONSOLE_H_
 
+#include <mc1/framebuffer.h>
+
 // These are meant to be called from the ROM boot routine.
 unsigned vcon_memory_requirement(void);
 void vcon_init(void* addr);
 
 // Public API.
-void vcon_show();
+void vcon_show(layer_t layer);
 void vcon_clear();
 void vcon_set_colors(unsigned col0, unsigned col1);
 void vcon_print(const char* text);

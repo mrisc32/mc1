@@ -110,6 +110,7 @@ funky:
     mov     s20, s1
     addpchi s1, #s_fb@pchi
     ldw     s1, s1, #s_fb+4@pclo
+    ldi     s2, #1
     call    fb_show@pc
     mov     s1, s20
 
