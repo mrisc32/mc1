@@ -87,6 +87,13 @@ architecture rtl of video is
   signal s_layer1_rmode : std_logic_vector(23 downto 0);
   signal s_layer1_color : std_logic_vector(31 downto 0);
 
+  signal s_layer2_read_en : std_logic;
+  signal s_layer2_read_adr : std_logic_vector(23 downto 0);
+  signal s_next_layer2_read_ack : std_logic;
+  signal s_layer2_read_ack : std_logic;
+  signal s_layer2_rmode : std_logic_vector(23 downto 0);
+  signal s_layer2_color : std_logic_vector(31 downto 0);
+
   signal s_color : std_logic_vector(31 downto 0);
 
   signal s_r8 : std_logic_vector(7 downto 0);
@@ -114,12 +121,12 @@ begin
       o_restart_frame => s_restart_frame
     );
 
-  -- Instantiate video layer #0.
-  video_layer_0: entity work.video_layer
+  -- Instantiate video layer #1.
+  video_layer_1: entity work.video_layer
     generic map (
       X_COORD_BITS => s_raster_x'length,
       Y_COORD_BITS => s_raster_y'length,
-      VCP_START_ADDRESS => 24x"0"
+      VCP_START_ADDRESS => 24x"000004"
     )
     port map (
       i_rst => i_rst,
@@ -135,22 +142,47 @@ begin
       o_color => s_layer1_color
     );
 
+  -- Instantiate video layer #2.
+  video_layer_2: entity work.video_layer
+    generic map (
+      X_COORD_BITS => s_raster_x'length,
+      Y_COORD_BITS => s_raster_y'length,
+      VCP_START_ADDRESS => 24x"000008"
+    )
+    port map (
+      i_rst => i_rst,
+      i_clk => i_clk,
+      i_restart_frame => s_restart_frame,
+      i_raster_x => s_raster_x,
+      i_raster_y => s_raster_y,
+      o_read_en => s_layer2_read_en,
+      o_read_adr => s_layer2_read_adr,
+      i_read_ack => s_layer2_read_ack,
+      i_read_dat  => i_read_dat,
+      o_rmode => s_layer2_rmode,
+      o_color => s_layer2_color
+    );
+
   --------------------------------------------------------------------------------------------------
   -- VRAM read logic - only one entity may access VRAM during each clock cycle.
   --------------------------------------------------------------------------------------------------
 
-  -- Select the active read unit - Layer 1 has priority over layer 2.
-  o_read_adr <= s_layer1_read_adr(ADR_BITS-1 downto 0) when s_layer1_read_en = '1' else
+  -- Select the active read unit - Layer 2 has priority over layer 1.
+  o_read_adr <= s_layer2_read_adr(ADR_BITS-1 downto 0) when s_layer2_read_en = '1' else
+                s_layer1_read_adr(ADR_BITS-1 downto 0) when s_layer1_read_en = '1' else
                 (others => '-');
-  s_next_layer1_read_ack <= s_layer1_read_en;
+  s_next_layer2_read_ack <= s_layer2_read_en;
+  s_next_layer1_read_ack <= s_layer1_read_en and not s_layer2_read_en;
 
   -- Respond with an ack to the relevant unit (one cycle after).
   process(i_clk, i_rst)
   begin
     if i_rst = '1' then
       s_layer1_read_ack <= '0';
+      s_layer2_read_ack <= '0';
     elsif rising_edge(i_clk) then
       s_layer1_read_ack <= s_next_layer1_read_ack;
+      s_layer2_read_ack <= s_next_layer2_read_ack;
     end if;
   end process;
 
@@ -159,8 +191,9 @@ begin
   -- Layer color blending logic.
   --------------------------------------------------------------------------------------------------
 
-  -- TODO(m): Implement me!
-  s_color <= s_layer1_color;
+  -- TODO(m): Implement proper alpha blending!
+  s_color <= s_layer2_color when s_layer2_color(31) = '1' else
+             s_layer1_color;
 
 
   --------------------------------------------------------------------------------------------------
