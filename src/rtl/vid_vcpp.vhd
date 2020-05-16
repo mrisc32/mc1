@@ -26,7 +26,7 @@ use ieee.numeric_std.all;
 --
 -- The VCPP is a high-performance program execution pipeline:
 --
---   PC -> IF1 -> IF2 -> ID/EX -> WR
+--   PC -> IF1 -> IF2 -> EX -> WR
 --
 -- PC:
 --   Calculate the next PC (instruction read address).
@@ -37,7 +37,7 @@ use ieee.numeric_std.all;
 -- IF2:
 --   Fetch the instruction word (may stall).
 --
--- ID/EX:
+-- EX:
 --   Decode instruction.
 --   Execute WAIT & JUMP instructions.
 --   Prepare SET operations.
@@ -79,84 +79,75 @@ architecture rtl of vid_vcpp is
   subtype T_ADDR is std_logic_vector(C_ADDR_BITS-1 downto 0);
 
   subtype T_INSTR is std_logic_vector(3 downto 0);
-
-  constant C_INSTR_JMP : T_INSTR    := 4x"0";
-  constant C_INSTR_JSR : T_INSTR    := 4x"1";
-  constant C_INSTR_RTS : T_INSTR    := 4x"2";
-  constant C_INSTR_NOP : T_INSTR    := 4x"3";
-  constant C_INSTR_WAITX : T_INSTR  := 4x"4";
-  constant C_INSTR_WAITY : T_INSTR  := 4x"5";
+  constant C_INSTR_JMP    : T_INSTR := 4x"0";
+  constant C_INSTR_JSR    : T_INSTR := 4x"1";
+  constant C_INSTR_RTS    : T_INSTR := 4x"2";
+  constant C_INSTR_NOP    : T_INSTR := 4x"3";
+  constant C_INSTR_WAITX  : T_INSTR := 4x"4";
+  constant C_INSTR_WAITY  : T_INSTR := 4x"5";
   constant C_INSTR_SETPAL : T_INSTR := 4x"6";
   constant C_INSTR_SETREG : T_INSTR := 4x"8";
 
-  signal s_cancel_pc_to_if2 : std_logic;
+  type T_DECODE_STATE is (
+    NEW_INSTR,
+    PALETTE,
+    WAITX,
+    WAITY
+  );
 
-  -- PC signals
+  -- Control logic.
+  signal s_cancel : std_logic;
+  signal s_retry_mem_request : std_logic;
+  signal s_retry_mem_adr : T_ADDR;
+
+  -- Signals relating to the PC stage.
   signal s_stall_pc : std_logic;
-  signal s_pc_next_read_addr : T_ADDR;
-  signal s_pc_read_addr : T_ADDR;
-  signal s_pc_read_addr_plus_1 : T_ADDR;
+  signal s_pc_read_adr : T_ADDR;
 
-  -- IF1 signals
-  signal s_stall_if1 : std_logic;
-  signal s_if1_next_expect_ack : std_logic;
-  signal s_if1_pc_plus_1 : T_ADDR;
-  signal s_if1_expect_ack : std_logic;
+  -- Signals relating to the IF1 stage.
+  signal s_mem_read_addr : T_ADDR;
+  signal s_mem_read_en : std_logic;
+  signal s_if1_read_adr : T_ADDR;
+  signal s_if1_read_en : std_logic;
 
-  -- IF2 signals
-  signal s_stall_if2 : std_logic;
-  signal s_if2_have_data : std_logic;
+  -- Signals relating to the IF2 stage.
+  signal s_if2_cached_data : std_logic_vector(31 downto 0);
+  signal s_if2_cached_data_ready : std_logic;
   signal s_if2_data : std_logic_vector(31 downto 0);
-  signal s_if2_have_cached_data : std_logic;
-  signal s_if2_latched_data : std_logic_vector(31 downto 0);
-  signal s_if2_have_latched_data : std_logic;
-  signal s_if2_is_valid_instr : std_logic;
+  signal s_if2_mem_data_ready : std_logic;
+  signal s_if2_data_ready : std_logic;
   signal s_if2_pc_plus_1 : T_ADDR;
 
-  -- ID/EX signals
-  signal s_id_instr : T_INSTR;
-  signal s_id_is_new_valid_instr : std_logic;
+  -- Stack signals.
+  signal s_return_addr_from_stack : T_ADDR;
 
-  signal s_id_is_jump_instr : std_logic;
-  signal s_id_do_stack_push : std_logic;
-  signal s_id_do_stack_pop : std_logic;
-  signal s_id_return_addr_from_stack : T_ADDR;
-  signal s_id_jump_target : T_ADDR;
-  signal s_id_apply_jump_target : std_logic;
+  -- Asynchronous EX stage signals.
+  signal s_instr : T_INSTR;
+  signal s_is_new_instr : std_logic;
+  signal s_is_jmp_instr : std_logic;
+  signal s_is_jsr_instr : std_logic;
+  signal s_is_rts_instr : std_logic;
+  signal s_is_waitx_instr : std_logic;
+  signal s_is_waity_instr : std_logic;
+  signal s_is_setpal_instr : std_logic;
+  signal s_is_setreg_instr : std_logic;
 
-  signal s_id_is_waitx_instr : std_logic;
-  signal s_id_is_waity_instr : std_logic;
-  signal s_id_prev_is_waitx_instr : std_logic;
-  signal s_id_prev_is_waity_instr : std_logic;
-  signal s_id_xpos_reached : std_logic;
-  signal s_id_ypos_reached : std_logic;
-  signal s_id_is_waiting : std_logic;
+  signal s_ex_is_waiting : std_logic;
+  signal s_ex_do_jump : std_logic;
+  signal s_ex_jump_target : T_ADDR;
+  signal s_ex_do_stack_push : std_logic;
+  signal s_ex_do_stack_pop : std_logic;
+  signal s_ex_stack_push_adr : T_ADDR;
 
-  signal s_id_is_setreg_instr : std_logic;
-  signal s_id_reg_addr : std_logic_vector(7 downto 0);
-  signal s_id_reg_data : std_logic_vector(31 downto 0);
-
-  signal s_id_is_setpal_instr : std_logic;
-  signal s_id_prev_is_setpal_instr : std_logic;
-  signal s_id_next_is_pal_data : std_logic;
-  signal s_id_is_pal_data : std_logic;
-  signal s_id_is_valid_pal_data : std_logic;
-  signal s_id_pal_entries_left : std_logic_vector(7 downto 0);
-  signal s_id_prev_pal_entries_left : std_logic_vector(7 downto 0);
-  signal s_id_prev_pal_entries_left_minus_1 : std_logic_vector(7 downto 0);
-  signal s_id_pal_addr : std_logic_vector(7 downto 0);
-  signal s_id_prev_pal_addr : std_logic_vector(7 downto 0);
-  signal s_id_prev_pal_addr_plus_1 : std_logic_vector(7 downto 0);
-  signal s_id_pal_data : std_logic_vector(31 downto 0);
-
-  signal s_id_next_reg_write_enable : std_logic;
-  signal s_id_reg_write_enable : std_logic;
-  signal s_id_next_pal_write_enable : std_logic;
-  signal s_id_pal_write_enable : std_logic;
-  signal s_id_next_write_addr : std_logic_vector(7 downto 0);
-  signal s_id_write_addr : std_logic_vector(7 downto 0);
-  signal s_id_next_write_data : std_logic_vector(31 downto 0);
-  signal s_id_write_data : std_logic_vector(31 downto 0);
+  -- Synchronous EX stage signals.
+  signal s_ex_expect_new_instr : std_logic;
+  signal s_ex_state : T_DECODE_STATE;
+  signal s_ex_instr_arg : std_logic_vector(15 downto 0);
+  signal s_ex_palette_cnt : unsigned(7 downto 0);
+  signal s_ex_reg_write_enable : std_logic;
+  signal s_ex_pal_write_enable : std_logic;
+  signal s_ex_write_addr : std_logic_vector(7 downto 0);
+  signal s_ex_write_data : std_logic_vector(31 downto 0);
 
   function xcoord_to_signed16(x: std_logic_vector) return std_logic_vector is
     variable v_result : std_logic_vector(15 downto 0);
@@ -175,35 +166,33 @@ architecture rtl of vid_vcpp is
   end;
 begin
   -----------------------------------------------------------------------------
-  -- Global pipeline control logic.
+  -- Control logic.
   -----------------------------------------------------------------------------
 
-  s_cancel_pc_to_if2 <= i_restart_frame or s_id_apply_jump_target;
+  -- Cancel IF1/IF2?
+  s_cancel <= i_restart_frame or s_ex_do_jump;
 
 
   -----------------------------------------------------------------------------
   -- PC
   -----------------------------------------------------------------------------
 
-  -- Increment the PC by one.
-  s_pc_read_addr_plus_1 <= std_logic_vector(unsigned(s_pc_read_addr) +
-                                            to_unsigned(1, C_ADDR_BITS));
+  s_stall_pc <= s_retry_mem_request or s_ex_is_waiting;
 
-  -- Select which address to read from.
-  s_pc_next_read_addr <= VCP_START_ADDRESS when i_restart_frame = '1' else
-                         s_id_jump_target when s_id_apply_jump_target = '1' else
-                         s_pc_read_addr_plus_1;
-
-  -- PC registers.
   process(i_clk, i_rst)
+    variable v_read_adr : std_logic_vector(C_ADDR_BITS-1 downto 0);
   begin
     if i_rst = '1' then
-      -- TODO(m): We should really disable the pipeline altogether until we
-      -- get the first i_restart_frame.
-      s_pc_read_addr <= VCP_START_ADDRESS;
+      s_pc_read_adr <= VCP_START_ADDRESS;
     elsif rising_edge(i_clk) then
-      if s_stall_pc = '0' or s_cancel_pc_to_if2 = '1' then
-        s_pc_read_addr <= s_pc_next_read_addr;
+      if i_restart_frame = '1' then
+        s_pc_read_adr <= VCP_START_ADDRESS;
+      elsif s_stall_pc = '0' then
+        if s_ex_do_jump = '1' then
+          s_pc_read_adr <= s_ex_jump_target;
+        else
+          s_pc_read_adr <= std_logic_vector(unsigned(s_pc_read_adr) + 1);
+        end if;
       end if;
     end if;
   end process;
@@ -213,208 +202,206 @@ begin
   -- IF1
   -----------------------------------------------------------------------------
 
-  -- Do we need to send a read request to the memory (i.e. are we requesting a
-  -- new word)?
-  s_if1_next_expect_ack <= '0' when (s_stall_if1 = '1' and s_if2_have_data = '1') or
-                                    s_cancel_pc_to_if2 = '1' else
-                           '1';
+  -- Define the memory read operation.
+  s_mem_read_addr <= s_retry_mem_adr when s_retry_mem_request = '1' else
+                     s_pc_read_adr;
+  s_mem_read_en <= (s_retry_mem_request or not s_ex_is_waiting) and not s_cancel;
 
-  -- Outputs to the memory interface.
-  o_mem_read_en <= s_if1_next_expect_ack;
-  o_mem_read_addr <= s_pc_read_addr;
+  o_mem_read_addr <= s_mem_read_addr;
+  o_mem_read_en <= s_mem_read_en;
 
-  -- PC registers.
   process(i_clk, i_rst)
   begin
     if i_rst = '1' then
-      s_if1_pc_plus_1 <= (others => '0');
-      s_if1_expect_ack <= '0';
+      s_if1_read_adr <= (others => '0');
+      s_if1_read_en <= '0';
     elsif rising_edge(i_clk) then
-      if s_stall_if1 = '0' then
-        s_if1_pc_plus_1 <= s_pc_read_addr_plus_1;
+      -- TODO(m): Figure this out!
+      if s_ex_is_waiting = '0' then
+        s_if1_read_adr <= s_mem_read_addr;
       end if;
-      s_if1_expect_ack <= s_if1_next_expect_ack;
+      s_if1_read_en <= s_mem_read_en;
     end if;
   end process;
-
-  -- Stall PC?
-  s_stall_pc <= s_stall_if1;
 
 
   -----------------------------------------------------------------------------
   -- IF2
-  -- TODO(m): Can we simplify this logic?
   -----------------------------------------------------------------------------
 
-  -- Do we have the data that we need?
-  s_if2_have_data <= '0' when s_cancel_pc_to_if2 = '1' else
-                     i_mem_ack when s_if1_expect_ack = '1' else
-                     s_if2_have_cached_data;
+  -- Are we missing a response from the memory system during this clock cycle?
+  s_retry_mem_request <= s_if1_read_en and
+                         (not i_mem_ack) and
+                         (not s_if2_cached_data_ready) and
+                         (not s_cancel);
+  s_retry_mem_adr <= s_if1_read_adr;
 
-  -- IF registers.
   process(i_clk, i_rst)
   begin
     if i_rst = '1' then
+      s_if2_cached_data <= (others => '0');
+      s_if2_cached_data_ready <= '0';
       s_if2_data <= (others => '0');
-      s_if2_have_cached_data <= '0';
-      s_if2_latched_data <= (others => '0');
-      s_if2_have_latched_data <= '0';
-      s_if2_is_valid_instr <= '0';
+      s_if2_mem_data_ready <= '0';
       s_if2_pc_plus_1 <= (others => '0');
     elsif rising_edge(i_clk) then
-      if s_cancel_pc_to_if2 = '1' then
-        s_if2_data <= (others => '0');
-        s_if2_have_cached_data <= '0';
-        s_if2_latched_data <= (others => '0');
-        s_if2_have_latched_data <= '0';
-        s_if2_is_valid_instr <= '0';
-        s_if2_pc_plus_1 <= (others => '0');
+      if s_cancel = '1' then
+        s_if2_cached_data_ready <= '0';
+        s_if2_mem_data_ready <= '0';
       else
-        if s_stall_if2 = '0' then
-          if s_if2_have_latched_data = '1' then
-            s_if2_data <= s_if2_latched_data;
-          elsif i_mem_ack = '1' then
-            s_if2_data <= i_mem_data;
-          end if;
-          s_if2_have_cached_data <= s_if2_have_data;
-          s_if2_pc_plus_1 <= s_if1_pc_plus_1;
+        -- Update the word-cache. This is used for caching read requests during
+        -- wait cycles.
+        if s_ex_is_waiting = '0' then
+          s_if2_cached_data_ready <= '0';
+        elsif s_if1_read_en = '1' and i_mem_ack = '1' then
+          s_if2_cached_data <= i_mem_data;
+          s_if2_cached_data_ready <= '1';
         end if;
 
-        -- During stalls we need to latch read data for later.
+        -- Propagate read results to the EX stage.
         if i_mem_ack = '1' then
-          s_if2_latched_data <= i_mem_data;
-        end if;
-        if s_stall_if2 = '0' then
-          s_if2_have_latched_data <= '0';
+          s_if2_data <= i_mem_data;
         else
-          if i_mem_ack = '1' then
-            s_if2_have_latched_data <= '1';
-          end if;
+          s_if2_data <= s_if2_cached_data;
         end if;
-
-        s_if2_is_valid_instr <= s_if2_have_data;
+        s_if2_mem_data_ready <= s_if1_read_en and i_mem_ack;
+        s_if2_pc_plus_1 <= std_logic_vector(unsigned(s_if1_read_adr) + 1);
       end if;
     end if;
   end process;
 
-  -- Stall IF1?
-  s_stall_if1 <= ((not s_if2_have_data) or s_stall_if2) and not s_cancel_pc_to_if2;
+  -- TODO(m): Prepare this signal synchronously instead of asynchronously.
+  s_if2_data_ready <= s_if2_mem_data_ready or s_if2_cached_data_ready;
 
 
   -----------------------------------------------------------------------------
-  -- ID/EX
-  -- TODO(m): If we need to run at higher clock frequencies, split this stage
-  -- into two pipeline stages.
+  -- EX
   -----------------------------------------------------------------------------
+
+  -- Extract instruction opcode.
+  s_instr <= s_if2_data(31 downto 28);
+  s_is_new_instr <= s_ex_expect_new_instr and s_if2_data_ready;
+
+  -- Should we jump?
+  s_is_jmp_instr <= s_is_new_instr when s_instr = C_INSTR_JMP else '0';
+  s_is_jsr_instr <= s_is_new_instr when s_instr = C_INSTR_JSR else '0';
+  s_is_rts_instr <= s_is_new_instr when s_instr = C_INSTR_RTS else '0';
+  s_ex_do_jump <= s_is_jmp_instr or s_is_jsr_instr or s_is_rts_instr;
+  s_ex_jump_target <= s_return_addr_from_stack when s_instr = C_INSTR_RTS else
+                      s_if2_data(23 downto 0);  -- C_INSTR_JMP | C_INSTR_JSR
+  s_ex_do_stack_push <= s_is_jsr_instr;
+  s_ex_do_stack_pop <= s_is_rts_instr;
+  s_ex_stack_push_adr <= s_if2_pc_plus_1;
+
+  -- Should we wait?
+  s_is_waitx_instr <= s_is_new_instr when s_instr = C_INSTR_WAITX else '0';
+  s_is_waity_instr <= s_is_new_instr when s_instr = C_INSTR_WAITY else '0';
+  s_ex_is_waiting <= '1' when s_is_waitx_instr = '1' or
+                              s_is_waity_instr = '1' or
+                              s_ex_state = WAITX or
+                              s_ex_state = WAITY
+                      else '0';
+
+  -- Should we set the palette?
+  s_is_setpal_instr <= s_is_new_instr when s_instr = C_INSTR_SETPAL else '0';
+
+  -- Should we set a VCR?
+  s_is_setreg_instr <= s_is_new_instr when s_instr = C_INSTR_SETREG else '0';
+
+  process(i_clk, i_rst)
+    variable v_next_state : T_DECODE_STATE;
+    variable v_pal_base_idx : unsigned(7 downto 0);
+    variable v_pal_write_enable : std_logic;
+    variable v_reg_write_enable : std_logic;
+    variable v_write_addr : std_logic_vector(7 downto 0);
+    variable v_write_data : std_logic_vector(31 downto 0);
+  begin
+    if i_rst = '1' then
+      s_ex_expect_new_instr <= '1';
+      s_ex_state <= NEW_INSTR;
+      s_ex_instr_arg <= (others => '0');
+      s_ex_palette_cnt <= (others => '0');
+      s_ex_reg_write_enable <= '0';
+      s_ex_pal_write_enable <= '0';
+      s_ex_write_addr <= (others => '0');
+      s_ex_write_data <= (others => '0');
+    elsif rising_edge(i_clk) then
+      v_next_state := s_ex_state;
+      v_pal_write_enable := '0';
+      v_reg_write_enable := '0';
+      v_write_addr := x"00";
+      v_write_data := x"00000000";
+
+      if i_restart_frame = '1' then
+        v_next_state := NEW_INSTR;
+      elsif s_is_waitx_instr = '1' then
+        -- New WAITX?
+        v_next_state := WAITX;
+        s_ex_instr_arg <= s_if2_data(15 downto 0);
+      elsif s_ex_state = WAITX then
+        -- Finished WAITX?
+        if xcoord_to_signed16(i_raster_x) = s_ex_instr_arg then
+          v_next_state := NEW_INSTR;
+        end if;
+      elsif s_is_waity_instr = '1' then
+        -- New WAITY?
+        v_next_state := WAITY;
+        s_ex_instr_arg <= s_if2_data(15 downto 0);
+      elsif s_ex_state = WAITY then
+        -- Finished WAITY?
+        if ycoord_to_signed16(i_raster_y) = s_ex_instr_arg then
+          v_next_state := NEW_INSTR;
+        end if;
+      elsif s_is_setpal_instr = '1' then
+        -- New SETPAL?
+        v_next_state := PALETTE;
+        s_ex_instr_arg <= s_if2_data(15 downto 0);
+        s_ex_palette_cnt <= x"00";
+      elsif s_ex_state = PALETTE then
+        if s_ex_palette_cnt = unsigned(s_ex_instr_arg(7 downto 0)) then
+          v_next_state := NEW_INSTR;
+        end if;
+        if s_if2_data_ready = '1' then
+          v_pal_write_enable := '1';
+          v_write_data := s_if2_data;
+          v_pal_base_idx := unsigned(s_ex_instr_arg(15 downto 8));
+          v_write_addr := std_logic_vector(v_pal_base_idx + s_ex_palette_cnt);
+          s_ex_palette_cnt <= s_ex_palette_cnt + 1;
+        end if;
+      elsif s_is_setreg_instr = '1' then
+        -- SETREG?
+        v_reg_write_enable := '1';
+        v_write_data := x"00" & s_if2_data(23 downto 0);
+        v_write_addr := "0000" & s_if2_data(27 downto 24);
+      end if;
+
+      -- This is an optimization for the asynchronous instruction decoding
+      -- logic: Only use a single bit to determine whether or not we're in
+      -- the NEW_INSTR state.
+      if v_next_state = NEW_INSTR then
+        s_ex_expect_new_instr <= '1';
+      else
+        s_ex_expect_new_instr <= '0';
+      end if;
+
+      s_ex_state <= v_next_state;
+      s_ex_reg_write_enable <= v_reg_write_enable;
+      s_ex_pal_write_enable <= v_pal_write_enable;
+      s_ex_write_addr <= v_write_addr;
+      s_ex_write_data <= v_write_data;
+    end if;
+  end process;
 
   -- Instantiate the VCPP call stack.
   stack: entity work.vid_vcpp_stack
     port map(
       i_rst => i_rst,
       i_clk => i_clk,
-      i_push => s_id_do_stack_push,
-      i_pop => s_id_do_stack_pop,
-      i_data => s_if2_pc_plus_1,
-      o_data => s_id_return_addr_from_stack
+      i_push => s_ex_do_stack_push,
+      i_pop => s_ex_do_stack_pop,
+      i_data => s_ex_stack_push_adr,
+      o_data => s_return_addr_from_stack
     );
-
-  -- Decode the instruction.
-  s_id_instr <= s_if2_data(31 downto 28);
-  s_id_is_new_valid_instr <= s_if2_is_valid_instr and not s_id_is_pal_data;
-
-  -- JUMP: Jump to or return from subroutine.
-  s_id_is_jump_instr <= '0' when i_restart_frame = '1' else
-                        s_id_is_new_valid_instr when s_id_instr = C_INSTR_JMP or
-                                                     s_id_instr = C_INSTR_JSR or
-                                                     s_id_instr = C_INSTR_RTS else
-                        '0';
-  s_id_do_stack_push <= s_id_is_jump_instr when s_id_instr = C_INSTR_JSR else '0';
-  s_id_do_stack_pop <= s_id_is_jump_instr when s_id_instr = C_INSTR_RTS else '0';
-
-  -- Determine the next jump target address, and whether or not to perform the jump.
-  s_id_jump_target <= s_id_return_addr_from_stack when s_id_do_stack_pop = '1' else s_if2_data(23 downto 0);
-  s_id_apply_jump_target <= s_id_is_jump_instr;
-
-  -- WAIT: Should we wait (stall)?
-  s_id_is_waitx_instr <= '0' when i_restart_frame = '1' else
-                         s_id_prev_is_waitx_instr when s_if2_is_valid_instr = '0' else
-                         s_id_is_new_valid_instr when s_id_instr = C_INSTR_WAITX else
-                         '0';
-  s_id_is_waity_instr <= '0' when i_restart_frame = '1' else
-                         s_id_prev_is_waity_instr when s_if2_is_valid_instr = '0' else
-                         s_id_is_new_valid_instr when s_id_instr = C_INSTR_WAITY else
-                         '0';
-  s_id_xpos_reached <= '1' when s_if2_data(15 downto 0) = xcoord_to_signed16(i_raster_x) else '0';
-  s_id_ypos_reached <= '1' when s_if2_data(15 downto 0) = ycoord_to_signed16(i_raster_y) else '0';
-  s_id_is_waiting <= (not s_id_xpos_reached) when s_id_is_waitx_instr = '1' else
-                     (not s_id_ypos_reached) when s_id_is_waity_instr = '1' else
-                     '0';
-
-  -- SETREG: Decode register write operations.
-  s_id_is_setreg_instr <= s_id_is_new_valid_instr when s_id_instr = C_INSTR_SETREG else '0';
-  s_id_reg_addr <= "0000" & s_if2_data(27 downto 24);
-  s_id_reg_data <= "00000000" & s_if2_data(23 downto 0);
-
-  -- SETPAL: Palette state machine.
-  s_id_is_setpal_instr <= s_id_is_new_valid_instr when s_id_instr = C_INSTR_SETPAL else '0';
-  s_id_next_is_pal_data <= '1' when s_id_is_setpal_instr = '1' else
-                           s_id_is_pal_data when s_id_prev_pal_entries_left /= 8x"0" or s_if2_is_valid_instr = '0' else
-                           '0';
-  s_id_is_valid_pal_data <= s_id_is_pal_data and s_if2_is_valid_instr;
-
-  s_id_prev_pal_entries_left_minus_1 <= std_logic_vector(unsigned(s_id_prev_pal_entries_left) - to_unsigned(1, 8));
-  s_id_pal_entries_left <= s_if2_data(7 downto 0) when s_id_is_setpal_instr = '1' else
-                           s_id_prev_pal_entries_left_minus_1 when s_id_is_valid_pal_data = '1' else
-                           s_id_prev_pal_entries_left;
-
-  s_id_prev_pal_addr_plus_1 <= std_logic_vector(unsigned(s_id_prev_pal_addr) + to_unsigned(1, 8));
-  s_id_pal_addr <= s_if2_data(15 downto 8) when s_id_is_setpal_instr = '1' else
-                   s_id_prev_pal_addr_plus_1 when s_id_is_valid_pal_data = '1' and s_id_prev_is_setpal_instr = '0' else
-                   s_id_prev_pal_addr;
-  s_id_pal_data <= s_if2_data;
-
-  -- Determine the register/palette write operation.
-  s_id_next_reg_write_enable <= s_id_is_setreg_instr;
-  s_id_next_pal_write_enable <= s_id_is_valid_pal_data;
-  s_id_next_write_addr <= s_id_reg_addr when s_id_is_setreg_instr = '1' else
-                          s_id_pal_addr;
-  s_id_next_write_data <= s_id_reg_data when s_id_is_setreg_instr = '1' else
-                          s_id_pal_data;
-
-  -- ID/EX registers.
-  process(i_clk, i_rst)
-  begin
-    if i_rst = '1' then
-      s_id_prev_is_waitx_instr <= '0';
-      s_id_prev_is_waity_instr <= '0';
-      s_id_prev_is_setpal_instr <= '0';
-      s_id_is_pal_data <= '0';
-      s_id_prev_pal_entries_left <= (others => '0');
-      s_id_prev_pal_addr <= (others => '0');
-      s_id_reg_write_enable <= '0';
-      s_id_pal_write_enable <= '0';
-      s_id_write_addr <= (others => '0');
-      s_id_write_data <= (others => '0');
-    elsif rising_edge(i_clk) then
-      s_id_prev_is_waitx_instr <= s_id_is_waitx_instr;
-      s_id_prev_is_waity_instr <= s_id_is_waity_instr;
-      if s_id_is_setpal_instr = '1' then
-        s_id_prev_is_setpal_instr <= '1';
-      elsif s_if2_is_valid_instr = '1' then
-        s_id_prev_is_setpal_instr <= '0';
-      end if;
-      s_id_is_pal_data <= s_id_next_is_pal_data;
-      s_id_prev_pal_entries_left <= s_id_pal_entries_left;
-      s_id_prev_pal_addr <= s_id_pal_addr;
-      s_id_reg_write_enable <= s_id_next_reg_write_enable;
-      s_id_pal_write_enable <= s_id_next_pal_write_enable;
-      s_id_write_addr <= s_id_next_write_addr;
-      s_id_write_data <= s_id_next_write_data;
-    end if;
-  end process;
-
-  -- Stall IF2?
-  s_stall_if2 <= s_id_is_waiting;
 
 
   -----------------------------------------------------------------------------
@@ -422,8 +409,8 @@ begin
   -----------------------------------------------------------------------------
 
   -- Outputs.
-  o_reg_write_enable <= s_id_reg_write_enable;
-  o_pal_write_enable <= s_id_pal_write_enable;
-  o_write_addr <= s_id_write_addr;
-  o_write_data <= s_id_write_data;
+  o_reg_write_enable <= s_ex_reg_write_enable;
+  o_pal_write_enable <= s_ex_pal_write_enable;
+  o_write_addr <= s_ex_write_addr;
+  o_write_data <= s_ex_write_data;
 end rtl;
