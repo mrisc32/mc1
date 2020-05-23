@@ -200,6 +200,7 @@ begin
       COLOR_BITS_G => VGA_G'length,
       COLOR_BITS_B => VGA_B'length,
       LOG2_VRAM_SIZE => 16,          -- 4*2^16 = 256 KiB
+      NUM_VIDEO_LAYERS => 2,
       VIDEO_CONFIG => C_1920_1080
     )
     port map (

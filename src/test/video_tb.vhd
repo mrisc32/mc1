@@ -69,6 +69,7 @@ begin
       COLOR_BITS_G => s_g'length,
       COLOR_BITS_B => s_b'length,
       ADR_BITS => s_read_adr'length,
+      NUM_LAYERS => 2,
       VIDEO_CONFIG => C_1920_1080
     )
     port map(

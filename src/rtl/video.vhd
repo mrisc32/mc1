@@ -28,6 +28,7 @@ entity video is
     COLOR_BITS_G : positive;
     COLOR_BITS_B : positive;
     ADR_BITS : positive;
+    NUM_LAYERS : positive;
     VIDEO_CONFIG : T_VIDEO_CONFIG
   );
   port(
@@ -143,27 +144,35 @@ begin
       o_color => s_layer1_color
     );
 
-  -- Instantiate video layer #2 (top layer).
-  video_layer_2: entity work.video_layer
-    generic map (
-      X_COORD_BITS => s_raster_x'length,
-      Y_COORD_BITS => s_raster_y'length,
-      VCP_START_ADDRESS => 24x"000008",
-      ENABLE_PIXEL_PREFETCH => false
-    )
-    port map (
-      i_rst => i_rst,
-      i_clk => i_clk,
-      i_restart_frame => s_restart_frame,
-      i_raster_x => s_raster_x,
-      i_raster_y => s_raster_y,
-      o_read_en => s_layer2_read_en,
-      o_read_adr => s_layer2_read_adr,
-      i_read_ack => s_layer2_read_ack,
-      i_read_dat  => i_read_dat,
-      o_rmode => s_layer2_rmode,
-      o_color => s_layer2_color
-    );
+  Layer2Gen: if NUM_LAYERS >= 2 generate
+  begin
+    -- Instantiate video layer #2 (top layer).
+    video_layer_2: entity work.video_layer
+      generic map (
+        X_COORD_BITS => s_raster_x'length,
+        Y_COORD_BITS => s_raster_y'length,
+        VCP_START_ADDRESS => 24x"000008",
+        ENABLE_PIXEL_PREFETCH => false
+      )
+      port map (
+        i_rst => i_rst,
+        i_clk => i_clk,
+        i_restart_frame => s_restart_frame,
+        i_raster_x => s_raster_x,
+        i_raster_y => s_raster_y,
+        o_read_en => s_layer2_read_en,
+        o_read_adr => s_layer2_read_adr,
+        i_read_ack => s_layer2_read_ack,
+        i_read_dat  => i_read_dat,
+        o_rmode => s_layer2_rmode,
+        o_color => s_layer2_color
+      );
+  else generate
+    s_layer2_read_en <= '0';
+    s_layer2_read_adr <= (others => '0');
+    s_layer2_rmode <= (others => '0');
+    s_layer2_color <= (others => '0');
+  end generate;
 
   --------------------------------------------------------------------------------------------------
   -- VRAM read logic - only one entity may access VRAM during each clock cycle.

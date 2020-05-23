@@ -123,6 +123,11 @@ begin
     );
 
   -- Generate the VGA clock signal.
+  -- Pixel frequencies for supported video modes:
+  --  1920x1080 @ 60 Hz: 148.500 MHz
+  --   1280x720 @ 60 Hz:  74.250 MHz
+  --    800x600 @ 60 Hz:  40.000 MHz
+  --    640x480 @ 60 Hz:  25.175 MHz
   pll_vga: entity work.pll
     generic map
     (
@@ -163,6 +168,7 @@ begin
       COLOR_BITS_G => VGA_G'length,
       COLOR_BITS_B => VGA_B'length,
       LOG2_VRAM_SIZE => 15,         -- 4*2^15 = 128 KiB
+      NUM_VIDEO_LAYERS => 2,
       VIDEO_CONFIG => C_1920_1080
     )
     port map (
