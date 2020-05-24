@@ -65,8 +65,11 @@ architecture tb of video_tb is
 begin
   video_0: entity work.video
     generic map(
-      COLOR_BITS => s_r'length,
+      COLOR_BITS_R => s_r'length,
+      COLOR_BITS_G => s_g'length,
+      COLOR_BITS_B => s_b'length,
       ADR_BITS => s_read_adr'length,
+      NUM_LAYERS => 2,
       VIDEO_CONFIG => C_1920_1080
     )
     port map(
@@ -156,7 +159,7 @@ begin
 
     -- Load data into VRAM.
     file_open(f_char_file, "vunit_out/video_tb_ram.bin");
-    v_mem_idx := 0;
+    v_mem_idx := 4;
     while not endfile(f_char_file) loop
       s_write_clk <= '1';
       wait for 1 ps;

@@ -18,49 +18,23 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
-#ifndef MC1_FRAMEBUFFER_H_
-#define MC1_FRAMEBUFFER_H_
-
 #include <mc1/vcp.h>
 
-#include <stddef.h>
-#include <stdint.h>
+void vcp_set_prg(const layer_t layer, const uint32_t* prg) {
+  if (layer < LAYER_1 || layer > LAYER_2) {
+    return;
+  }
 
-typedef enum {
-  MODE_RGBA8888 = 0,
-  MODE_RGBA5551 = 1,
-  MODE_PAL8 = 2,
-  MODE_PAL4 = 3,
-  MODE_PAL2 = 4,
-  MODE_PAL1 = 5
-} color_mode_t;
-
-typedef struct {
-  void* pixels;
-  uint32_t* vcp;
-  uint32_t* palette;
-  size_t stride;
-  int width;
-  int height;
-  color_mode_t mode;
-} fb_t;
-
-/// @brief Create a new framebuffer.
-/// @param width The width of the framebuffer.
-/// @param height The height of the framebuffer.
-/// @param mode The color mode (see @c color_mode_t).
-/// @returns a framebuffer object, or NULL if the framebuffer could not be
-/// created.
-fb_t* fb_create(int width, int height, color_mode_t mode);
-
-/// @brief Free a framebuffer and associated memory.
-/// @param fb The framebuffer object.
-void fb_destroy(fb_t* fb);
-
-/// @brief Show the framebuffer (i.e. make it current).
-/// @param fb The framebuffer object.
-/// @param layer The layer to use for the framebuffer (1 or 2).
-void fb_show(fb_t* fb, layer_t layer);
-
-#endif // MC1_FRAMEBUFFER_H_
+  uint32_t* base_vcp = (uint32_t*)(VRAM_START + 16 * layer);
+  if (prg != NULL) {
+    // Jump to the given VCP.
+    *base_vcp = vcp_emit_jmp(to_vcp_addr((uint32_t)prg));
+  } else {
+    // Create a "clean screen" VCP that sets the background color to fully transparent black and
+    // waits forever.
+    *base_vcp++ = vcp_emit_setpal(0, 1);
+    *base_vcp++ = 0x00000000u;
+    *base_vcp = vcp_emit_waity(32767);
+  }
+}
 

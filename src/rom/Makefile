@@ -84,6 +84,7 @@ selftest:
 #-----------------------------------------------------------------------------
 
 MC1OBJS = $(OUT)/crt0.o \
+          $(OUT)/fast_math.o \
           $(OUT)/framebuffer.o \
           $(OUT)/leds.o \
           $(OUT)/mc1-font-8x8.o \
@@ -91,7 +92,8 @@ MC1OBJS = $(OUT)/crt0.o \
           $(OUT)/mem_fill.o \
           $(OUT)/memory.o \
           $(OUT)/time.o \
-          $(OUT)/vconsole.o
+          $(OUT)/vconsole.o \
+          $(OUT)/vcp.o
 
 $(OUT)/libmc1.a: $(MC1OBJS)
 	$(AR) $(ARFLAGS) $@ $(MC1OBJS)
@@ -99,7 +101,10 @@ $(OUT)/libmc1.a: $(MC1OBJS)
 $(OUT)/crt0.o: mc1/crt0.s mc1/memory.inc mc1/mmio.inc
 	$(AS) $(ASFLAGS) -o $@ mc1/crt0.s
 
-$(OUT)/framebuffer.o: mc1/framebuffer.c mc1/memory.h
+$(OUT)/fast_math.o: mc1/fast_math.c mc1/fast_math.h
+	$(CC) $(CCFLAGS) -o $@ mc1/fast_math.c
+
+$(OUT)/framebuffer.o: mc1/framebuffer.c mc1/memory.h mc1/vcp.h
 	$(CC) $(CCFLAGS) -o $@ mc1/framebuffer.c
 
 $(OUT)/leds.o: mc1/leds.s mc1/mmio.inc
@@ -130,4 +135,7 @@ $(OUT)/time.o: mc1/time.s mc1/mmio.inc
 
 $(OUT)/vconsole.o: mc1/vconsole.s mc1/mmio.inc mc1/memory.inc
 	$(AS) $(ASFLAGS) -o $@ mc1/vconsole.s
+
+$(OUT)/vcp.o: mc1/vcp.c
+	$(CC) $(CCFLAGS) -o $@ mc1/vcp.c
 

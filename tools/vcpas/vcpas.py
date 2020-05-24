@@ -134,7 +134,7 @@ def translate_command(cmd, args):
     elif cmd == "waity":
         code = 0x50000000 | (args[0] & 0x0000ffff)
     elif cmd == "setpal":
-        code = 0x60000000 | ((args[0] & 255) << 8) | (args[1] & 255)
+        code = 0x60000000 | ((args[0] & 255) << 8) | ((args[1] - 1) & 255)
     elif cmd == "setreg":
         code = 0x80000000 | ((args[0] & 15) << 24) | (args[1] & 0x00ffffff)
     else:

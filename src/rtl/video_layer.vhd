@@ -26,7 +26,8 @@ entity video_layer is
   generic(
     X_COORD_BITS : positive;
     Y_COORD_BITS : positive;
-    VCP_START_ADDRESS : std_logic_vector(23 downto 0)
+    VCP_START_ADDRESS : std_logic_vector(23 downto 0);
+    ENABLE_PIXEL_PREFETCH : boolean
   );
   port(
     i_rst : in std_logic;
@@ -48,23 +49,28 @@ end video_layer;
 
 architecture rtl of video_layer is
   signal s_vcpp_mem_read_en : std_logic;
-  signal s_vcpp_mem_read_addr : std_logic_vector(23 downto 0);
-  signal s_next_vcpp_mem_expect_ack : std_logic;
+  signal s_vcpp_mem_read_adr : std_logic_vector(23 downto 0);
   signal s_vcpp_mem_expect_ack : std_logic;
   signal s_vcpp_mem_ack : std_logic;
   signal s_vcpp_reg_write_enable : std_logic;
   signal s_vcpp_pal_write_enable : std_logic;
-  signal s_vcpp_write_addr : std_logic_vector(7 downto 0);
+  signal s_vcpp_write_adr : std_logic_vector(7 downto 0);
   signal s_vcpp_write_data : std_logic_vector(31 downto 0);
 
   signal s_regs : T_VID_REGS;
 
   signal s_pix_mem_read_en : std_logic;
-  signal s_pix_mem_read_addr : std_logic_vector(23 downto 0);
-  signal s_next_pix_mem_expect_ack : std_logic;
-  signal s_pix_mem_expect_ack : std_logic;
+  signal s_pix_mem_read_adr : std_logic_vector(23 downto 0);
   signal s_pix_mem_ack : std_logic;
-  signal s_pix_pal_addr : std_logic_vector(7 downto 0);
+  signal s_pix_mem_dat : std_logic_vector(31 downto 0);
+
+  signal s_pix_cache_read_en : std_logic;
+  signal s_pix_cache_read_adr : std_logic_vector(23 downto 0);
+  signal s_pix_cache_ack : std_logic;
+  signal s_pix_cache_dat : std_logic_vector(31 downto 0);
+  signal s_pix_cache_expect_ack : std_logic;
+
+  signal s_pix_pal_adr : std_logic_vector(7 downto 0);
   signal s_pix_pal_data : std_logic_vector(31 downto 0);
 begin
   -- Instantiate the video control program processor.
@@ -81,12 +87,12 @@ begin
       i_raster_x => i_raster_x,
       i_raster_y => i_raster_y,
       o_mem_read_en => s_vcpp_mem_read_en,
-      o_mem_read_addr => s_vcpp_mem_read_addr,
+      o_mem_read_addr => s_vcpp_mem_read_adr,
       i_mem_data => i_read_dat,
       i_mem_ack => s_vcpp_mem_ack,
       o_reg_write_enable => s_vcpp_reg_write_enable,
       o_pal_write_enable => s_vcpp_pal_write_enable,
-      o_write_addr => s_vcpp_write_addr,
+      o_write_addr => s_vcpp_write_adr,
       o_write_data => s_vcpp_write_data
     );
 
@@ -97,7 +103,7 @@ begin
       i_clk => i_clk,
       i_restart_frame => i_restart_frame,
       i_write_enable => s_vcpp_reg_write_enable,
-      i_write_addr => s_vcpp_write_addr(2 downto 0),
+      i_write_addr => s_vcpp_write_adr(2 downto 0),
       i_write_data => s_vcpp_write_data(23 downto 0),
       o_regs => s_regs
     );
@@ -108,9 +114,9 @@ begin
       i_rst => i_rst,
       i_clk => i_clk,
       i_write_enable => s_vcpp_pal_write_enable,
-      i_write_addr => s_vcpp_write_addr,
+      i_write_addr => s_vcpp_write_adr,
       i_write_data => s_vcpp_write_data,
-      i_read_addr => s_pix_pal_addr,
+      i_read_addr => s_pix_pal_adr,
       o_read_data => s_pix_pal_data
     );
 
@@ -126,14 +132,39 @@ begin
       i_raster_x => i_raster_x,
       i_raster_y => i_raster_y,
       o_mem_read_en => s_pix_mem_read_en,
-      o_mem_read_addr => s_pix_mem_read_addr,
-      i_mem_data => i_read_dat,
+      o_mem_read_addr => s_pix_mem_read_adr,
+      i_mem_data => s_pix_mem_dat,
       i_mem_ack => s_pix_mem_ack,
-      o_pal_addr => s_pix_pal_addr,
+      o_pal_addr => s_pix_pal_adr,
       i_pal_data => s_pix_pal_data,
       i_regs => s_regs,
       o_color => o_color
     );
+
+  PREFETCH_GEN: if ENABLE_PIXEL_PREFETCH generate
+  begin
+    -- Instantiate the pixel prefetch cache.
+    vid_pix_prefetch_1: entity work.vid_pix_prefetch
+      port map(
+        i_rst => i_rst,
+        i_clk => i_clk,
+        i_read_en => s_pix_mem_read_en,
+        i_read_adr => s_pix_mem_read_adr,
+        o_read_ack => s_pix_mem_ack,
+        o_read_dat => s_pix_mem_dat,
+        o_read_en => s_pix_cache_read_en,
+        o_read_adr => s_pix_cache_read_adr,
+        i_read_ack => s_pix_cache_ack,
+        i_read_dat => i_read_dat
+      );
+  else generate
+    -- Bypass the pixel prefetch cache (uses less memory cycles). The top layer should not need a
+    -- prefetch cache, since it has the highest memory cacyle priority.
+    s_pix_cache_read_en <= s_pix_mem_read_en;
+    s_pix_cache_read_adr <= s_pix_mem_read_adr;
+    s_pix_mem_ack <= s_pix_cache_ack;
+    s_pix_mem_dat <= i_read_dat;
+  end generate;
 
   -- Output the render mode (used by the blending and dithering logic).
   o_rmode <= s_regs.RMODE;
@@ -143,26 +174,22 @@ begin
   -- VRAM read logic - only one entity may access VRAM during each clock cycle.
   --------------------------------------------------------------------------------------------------
 
-  o_read_en <= s_pix_mem_read_en or s_vcpp_mem_read_en;
-
   -- Select the active read unit - The pixel pipe has priority over the VCPP.
-  o_read_adr <= s_pix_mem_read_addr when s_pix_mem_read_en = '1' else
-                s_vcpp_mem_read_addr when s_vcpp_mem_read_en = '1' else
-                (others => '-');
-  s_next_pix_mem_expect_ack <= s_pix_mem_read_en;
-  s_next_vcpp_mem_expect_ack <= s_vcpp_mem_read_en and not s_pix_mem_read_en;
+  o_read_en <= s_pix_cache_read_en or s_vcpp_mem_read_en;
+  o_read_adr <= s_pix_cache_read_adr when s_pix_cache_read_en = '1' else
+                s_vcpp_mem_read_adr;
 
   -- Respond with an ack to the relevant unit (one cycle after).
   process(i_clk, i_rst)
   begin
     if i_rst = '1' then
-      s_pix_mem_expect_ack <= '0';
+      s_pix_cache_expect_ack <= '0';
       s_vcpp_mem_expect_ack <= '0';
     elsif rising_edge(i_clk) then
-      s_pix_mem_expect_ack <= s_next_pix_mem_expect_ack;
-      s_vcpp_mem_expect_ack <= s_next_vcpp_mem_expect_ack;
+      s_pix_cache_expect_ack <= s_pix_cache_read_en;
+      s_vcpp_mem_expect_ack <= s_vcpp_mem_read_en and not s_pix_cache_read_en;
     end if;
   end process;
-  s_pix_mem_ack <= s_pix_mem_expect_ack and i_read_ack;
-  s_vcpp_mem_ack <= s_vcpp_mem_expect_ack and i_read_ack;
+  s_pix_cache_ack <= i_read_ack and s_pix_cache_expect_ack;
+  s_vcpp_mem_ack <= i_read_ack and s_vcpp_mem_expect_ack;
 end rtl;

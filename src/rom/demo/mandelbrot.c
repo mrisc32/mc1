@@ -18,10 +18,10 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
+#include <mc1/fast_math.h>
 #include <mc1/framebuffer.h>
 
 #include <stdint.h>
-#include <string.h>
 
 
 //--------------------------------------------------------------------------------------------------
@@ -132,34 +132,6 @@ static float sqr(const float x) {
   return x * x;
 }
 
-static int32_t bitcast_float_to_int(const float x) {
-  int32_t y;
-  memcpy(&y, &x, sizeof(y));
-  return y;
-}
-
-static float bitcast_int_to_float(const int32_t x) {
-  float y;
-  memcpy(&y, &x, sizeof(y));
-  return y;
-}
-
-static float fast_pow2(float p) {
-  float clipp = (p < -126.0f) ? -126.0f : p;
-  return bitcast_int_to_float((int32_t)((1 << 23) * (clipp + 126.94269504f)));
-}
-
-static float fast_log2(float x) {
-  int32_t xi = bitcast_float_to_int(x);
-  float mx = bitcast_int_to_float((xi & 0x007FFFFF) | 0x3f000000);
-  float y = 1.1920928955078125e-7f * (float)xi;
-  return y - 124.22551499f - 1.498030302f * mx - 1.72587999f / (0.3520887068f + mx);
-}
-
-static float fast_pow(float x, float p) {
-  return fast_pow2(p * fast_log2(x));
-}
-
 
 //--------------------------------------------------------------------------------------------------
 // Mandelbrot implementation
@@ -235,7 +207,7 @@ void mandelbrot(int frame_no) {
     return;
   }
 
-  fb_show(s_fb);
+  fb_show(s_fb, LAYER_1);
 
   float step = get_zoom(frame_no) * MAX_SIZE / (float)s_fb->width;
 

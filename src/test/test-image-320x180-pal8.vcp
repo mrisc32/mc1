@@ -5,17 +5,27 @@
 
     .include "mc1-defines.vcp"
 
+    .set    MODE_WIDTH, 320
+    .set    MODE_HEIGHT, 180
+
     ; Set the program start address
-    .org    0x000000
+    .org    0x000004
+
+layer1_start:
+    jmp     main
+    nop
+    nop
+    nop
+
+layer2_start:
+    setpal  0, 1
+        .word    0x00000000
+    waity   32767
+    nop
 
 main:
-    ; Display nothing
-    setreg  HSTRT, 0
-    setreg  HSTOP, 0
-
     ; Set the video mode
-    setreg  XOFFS, 0x000000
-    setreg  XINCR, 0x004000   ; 320 pixels/row
+    setreg  XINCR, 0x010000 * MODE_WIDTH / NATIVE_WIDTH
     setreg  CMODE, CM_PAL8
     setreg  RMODE, RM_DITHER_WHITE
 
@@ -24,16 +34,17 @@ main:
 
     ; Activate video output starting at row 0.
     waity   0
-    setreg  HSTOP, 1280
+    setreg  HSTOP, NATIVE_WIDTH
 
     ; Generate video addresses for all rows.
     .set    row, 0
     .set    row_addr, image_data
-    .rept   180
+    .set    row_stride, MODE_WIDTH / 4
+    .rept   MODE_HEIGHT
         waity   row
         setreg  ADDR, row_addr
-        .set    row, row + 4
-        .set    row_addr, row_addr + 80   ; Row stride
+        .set    row, row + (NATIVE_HEIGHT / MODE_HEIGHT)
+        .set    row_addr, row_addr + row_stride
     .endr
 
     ; End of program
@@ -41,7 +52,7 @@ main:
 
 load_palette_a:
     ; Load a palette with 256 colors.
-    setpal  0, 255
+    setpal  0, 256
     .incbin "test-image-320x180-pal8.raw.pal"
     rts
 

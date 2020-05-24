@@ -28,6 +28,7 @@ entity video is
     COLOR_BITS_G : positive;
     COLOR_BITS_B : positive;
     ADR_BITS : positive;
+    NUM_LAYERS : positive;
     VIDEO_CONFIG : T_VIDEO_CONFIG
   );
   port(
@@ -65,12 +66,13 @@ architecture rtl of video is
   -- delays.
   function SYNC_DELAY return integer is
     constant C_PIXEL_DELAY : integer := 6;
+    constant C_BLEND_DELAY : integer := 3;
     constant C_DITHER_DELAY : integer := 2;
   begin
     if ENABLE_DITHERING then
-      return C_PIXEL_DELAY + C_DITHER_DELAY;
+      return C_PIXEL_DELAY + C_BLEND_DELAY + C_DITHER_DELAY;
     else
-      return C_PIXEL_DELAY;
+      return C_PIXEL_DELAY + C_BLEND_DELAY;
     end if;
   end function;
 
@@ -82,12 +84,18 @@ architecture rtl of video is
 
   signal s_layer1_read_en : std_logic;
   signal s_layer1_read_adr : std_logic_vector(23 downto 0);
-  signal s_next_layer1_read_ack : std_logic;
   signal s_layer1_read_ack : std_logic;
   signal s_layer1_rmode : std_logic_vector(23 downto 0);
   signal s_layer1_color : std_logic_vector(31 downto 0);
 
-  signal s_color : std_logic_vector(31 downto 0);
+  signal s_layer2_read_en : std_logic;
+  signal s_layer2_read_adr : std_logic_vector(23 downto 0);
+  signal s_layer2_read_ack : std_logic;
+  signal s_layer2_rmode : std_logic_vector(23 downto 0);
+  signal s_layer2_color : std_logic_vector(31 downto 0);
+
+  signal s_blend_method : std_logic_vector(3 downto 0);
+  signal s_final_color : std_logic_vector(31 downto 0);
 
   signal s_r8 : std_logic_vector(7 downto 0);
   signal s_g8 : std_logic_vector(7 downto 0);
@@ -114,12 +122,13 @@ begin
       o_restart_frame => s_restart_frame
     );
 
-  -- Instantiate video layer #0.
-  video_layer_0: entity work.video_layer
+  -- Instantiate video layer #1 (bottom layer).
+  video_layer_1: entity work.video_layer
     generic map (
       X_COORD_BITS => s_raster_x'length,
       Y_COORD_BITS => s_raster_y'length,
-      VCP_START_ADDRESS => 24x"0"
+      VCP_START_ADDRESS => 24x"000004",
+      ENABLE_PIXEL_PREFETCH => true
     )
     port map (
       i_rst => i_rst,
@@ -135,22 +144,53 @@ begin
       o_color => s_layer1_color
     );
 
+  Layer2Gen: if NUM_LAYERS >= 2 generate
+  begin
+    -- Instantiate video layer #2 (top layer).
+    video_layer_2: entity work.video_layer
+      generic map (
+        X_COORD_BITS => s_raster_x'length,
+        Y_COORD_BITS => s_raster_y'length,
+        VCP_START_ADDRESS => 24x"000008",
+        ENABLE_PIXEL_PREFETCH => false
+      )
+      port map (
+        i_rst => i_rst,
+        i_clk => i_clk,
+        i_restart_frame => s_restart_frame,
+        i_raster_x => s_raster_x,
+        i_raster_y => s_raster_y,
+        o_read_en => s_layer2_read_en,
+        o_read_adr => s_layer2_read_adr,
+        i_read_ack => s_layer2_read_ack,
+        i_read_dat  => i_read_dat,
+        o_rmode => s_layer2_rmode,
+        o_color => s_layer2_color
+      );
+  else generate
+    s_layer2_read_en <= '0';
+    s_layer2_read_adr <= (others => '0');
+    s_layer2_rmode <= (others => '0');
+    s_layer2_color <= (others => '0');
+  end generate;
+
   --------------------------------------------------------------------------------------------------
   -- VRAM read logic - only one entity may access VRAM during each clock cycle.
   --------------------------------------------------------------------------------------------------
 
-  -- Select the active read unit - Layer 1 has priority over layer 2.
-  o_read_adr <= s_layer1_read_adr(ADR_BITS-1 downto 0) when s_layer1_read_en = '1' else
-                (others => '-');
-  s_next_layer1_read_ack <= s_layer1_read_en;
+  -- Select the read address (layer 2 has priority over layer 1).
+  o_read_adr <= s_layer2_read_adr(ADR_BITS-1 downto 0) when s_layer2_read_en = '1' else
+                s_layer1_read_adr(ADR_BITS-1 downto 0);
 
-  -- Respond with an ack to the relevant unit (one cycle after).
+  -- Respond with an ack to the serviced layer (one cycle after the request).
   process(i_clk, i_rst)
   begin
     if i_rst = '1' then
       s_layer1_read_ack <= '0';
+      s_layer2_read_ack <= '0';
     elsif rising_edge(i_clk) then
-      s_layer1_read_ack <= s_next_layer1_read_ack;
+      s_layer1_read_ack <= s_layer1_read_en and not s_layer2_read_en;
+      s_layer2_read_ack <= s_layer2_read_en;
     end if;
   end process;
 
@@ -159,8 +199,18 @@ begin
   -- Layer color blending logic.
   --------------------------------------------------------------------------------------------------
 
-  -- TODO(m): Implement me!
-  s_color <= s_layer1_color;
+  -- The blend method is controlled via the layer 2 RMODE VCR.
+  s_blend_method <= s_layer2_rmode(5 downto 2);
+
+  blend1: entity work.vid_blend
+    port map (
+      i_rst => i_rst,
+      i_clk => i_clk,
+      i_method => s_blend_method,
+      i_color_1 => s_layer1_color,
+      i_color_2 => s_layer2_color,
+      o_color => s_final_color
+    );
 
 
   --------------------------------------------------------------------------------------------------
@@ -170,9 +220,9 @@ begin
   -- Extract the R, G and B channels from the pixel pipeline output.
   -- The internal color format is ABGR32 (little endian):
   --   |AAAAAAAA|BBBBBBBB|GGGGGGGG|RRRRRRRR|
-  s_r8 <= s_color(7 downto 0);
-  s_g8 <= s_color(15 downto 8);
-  s_b8 <= s_color(23 downto 16);
+  s_r8 <= s_final_color(7 downto 0);
+  s_g8 <= s_final_color(15 downto 8);
+  s_b8 <= s_final_color(23 downto 16);
 
   -- Use dithering (or not) to generate the final RGB signals.
   DitherGen: if ENABLE_DITHERING generate

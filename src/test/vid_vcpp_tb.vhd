@@ -45,7 +45,8 @@ begin
   vid_vcpp_0: entity work.vid_vcpp
     generic map(
       X_COORD_BITS => s_raster_x'length,
-      Y_COORD_BITS => s_raster_y'length
+      Y_COORD_BITS => s_raster_y'length,
+      VCP_START_ADDRESS => x"000000"
     )
     port map(
       i_rst => s_rst,
@@ -67,30 +68,30 @@ begin
     -- The VCPP program.
     type program_array is array (natural range <>) of std_logic_vector(31 downto 0);
     constant program : program_array := (
-        X"00000000",  -- NOP
+        X"30000000",  -- NOP
         X"80123456",  -- SETREG 0, 0x123456
         X"83f65432",  -- SETREG 3, 0xf65432
-        X"41000003",  -- WAITY 0x0003
+        X"50000003",  -- WAITY 3
         X"82999999",  -- SETREG 2, 0x999999
-        X"41000005",  -- WAITY 0x5
-        X"c0000902",  -- SETPAL 9, 2
+        X"50000005",  -- WAITY 5
+        X"60000902",  -- SETPAL 9, 3
         X"12345678",  --   PAL #9:  0x12345678
         X"aabbccdd",  --   PAL #10: 0xaabbccdd
         X"77665544",  --   PAL #11: 0x77665544
-        X"00000000",  -- NOP
-        X"c0000000",  -- SETPAL 0, 0
+        X"30000000",  -- NOP
+        X"60000000",  -- SETPAL 0, 1
         X"baadbeef",  --   PAL #0:  0xbaadbeef
-        X"00000000",  -- NOP
-        X"02000013",  -- JSR 0x00000013
-        X"8f444444",  -- SETREG 15, 0x444444  (addr: 0x000f)
-        X"02000015",  -- JSR 0x00000015
-        X"00000000",  -- NOP
-        X"00000000",  -- NOP
+        X"30000000",  -- NOP
+        X"10000013",  -- JSR 0x00000013
+        X"8f444444",  -- SETREG 15, 0x444444
+        X"10000015",  -- JSR 0x00000015
+        X"85654321",  -- SETREG 5, 0x654321
+        X"50007fff",  -- WAITY 32767 (end)
         X"81555555",  -- SETREG 1, 0x555555   (addr: 0x0013)
-        X"03000000",  -- RTS
-        X"00000000",  -- NOP
-        X"00000000",  -- NOP
-        X"00000000"   -- NOP
+        X"20000000",  -- RTS
+        X"60000400",  -- SETPAL 4, 1          (addr: 0x0015)
+        X"deadcafe",  --   PAL #4:  0xdeadcafe
+        X"20000000"   -- RTS
     );
 
     -- The patterns to apply.
@@ -111,63 +112,71 @@ begin
     end record;
     type pattern_array is array (natural range <>) of pattern_type;
     constant patterns : pattern_array := (
-        (
+        ( -- 2 ps
           '0', X"0", X"0", '0',
           '1', X"000000", '0', '0', X"00", X"00000000"
         ),
-        (
+        ( -- 3 ps
+          '1', X"0", X"0", '0',
+          '0', X"000000", '0', '0', X"00", X"00000000"
+        ),
+        ( -- 4 ps
           '0', X"0", X"0", '0',
           '1', X"000000", '0', '0', X"00", X"00000000"
         ),
-        (
+        ( -- 5 ps
+          '0', X"0", X"0", '0',
+          '1', X"000000", '0', '0', X"00", X"00000000"
+        ),
+        ( -- 6 ps
           '0', X"0", X"0", '1',
           '1', X"000001", '0', '0', X"00", X"00000000"
         ),
-        (
+        ( -- 7 ps
           '0', X"0", X"0", '1',
           '1', X"000002", '0', '0', X"00", X"00000000"
         ),
-        (
+        ( -- 8 ps
           '0', X"0", X"0", '1',
           '1', X"000003", '0', '0', X"00", X"00000000"
         ),
-        (
+        ( -- 9 ps
           '0', X"0", X"0", '1',
           '1', X"000004", '1', '0', X"00", X"00123456"
         ),
-        (
+        ( -- 10 ps
           '0', X"0", X"1", '1',
-          '0', X"000004", '1', '0', X"03", X"00f65432"
+          '1', X"000005", '1', '0', X"03", X"00f65432"
         ),
-        (
+        ( -- 11 ps
           '0', X"0", X"2", '0',
-          '0', X"000004", '0', '0', X"00", X"00000000"
+          '0', X"000006", '0', '0', X"00", X"00000000"
         ),
-        (
+        ( -- 12 ps
           '0', X"0", X"2", '0',
-          '0', X"000004", '0', '0', X"00", X"00000000"
+          '0', X"000006", '0', '0', X"00", X"00000000"
         ),
-        (
-          '0', X"0", X"2", '1',
-          '0', X"000004", '0', '0', X"00", X"00000000"
+        ( -- 13 ps
+          '0', X"0", X"2", '0',
+          '0', X"000006", '0', '0', X"00", X"00000000"
         ),
-        (
-          '0', X"0", X"3", '1',
-          '1', X"000005", '0', '0', X"00", X"00000000"
+        ( -- 14 ps
+          '0', X"0", X"3", '0',
+          '0', X"000006", '0', '0', X"00", X"00000000"
         ),
-        (
-          '0', X"0", X"3", '1',
+        ( -- 15 ps
+          '0', X"0", X"3", '0',
           '1', X"000006", '0', '0', X"00", X"00000000"
         ),
-        (
-          '0', X"0", X"4", '1',
-          '0', X"000006", '1', '0', X"02", X"00999999"
+        ( -- 16 ps
+          '0', X"0", X"4", '0',
+          '1', X"000006", '1', '0', X"02", X"00999999"
         ),
-        (
-          '0', X"0", X"5", '1',
+        ( -- 17 ps
+          '1', X"0", X"5", '0',
           '1', X"000007", '0', '0', X"00", X"00000000"
         ),
-        (
+        ( -- 18 ps
           '0', X"0", X"5", '1',
           '1', X"000008", '0', '0', X"00", X"00000000"
         ),
@@ -264,12 +273,12 @@ begin
     s_mem_data <= (others => '1');
     s_mem_ack <= '0';
 
-    wait for 0.5 us;
+    wait for 0.5 ps;
     s_clk <= '1';
-    wait for 0.5 us;
+    wait for 0.5 ps;
     s_rst <= '0';
     s_clk <= '0';
-    wait for 0.5 us;
+    wait for 0.5 ps;
     s_clk <= '1';
 
     -- Test all the patterns in the pattern array.
@@ -287,12 +296,12 @@ begin
                     X"ffffffff";
 
       -- Wait for the result to be produced.
-      wait for 0.5 us;
+      wait for 0.5 ps;
 
       --  Check the outputs.
       v_write_en := patterns(i).reg_write_enable or patterns(i).pal_write_enable;
       check(s_mem_read_en = patterns(i).mem_read_en, "mem_read_en is incorrect");
-      check(s_mem_read_addr = patterns(i).mem_read_addr, "mem_read_addr is incorrect");
+      check(patterns(i).mem_read_en = '0' or s_mem_read_addr = patterns(i).mem_read_addr, "mem_read_addr is incorrect");
       check(s_reg_write_enable = patterns(i).reg_write_enable, "reg_write_enable is incorrect");
       check(s_pal_write_enable = patterns(i).pal_write_enable, "pal_write_enable is incorrect");
       check(v_write_en = '0' or s_write_addr = patterns(i).write_addr, "write_addr is incorrect");
@@ -300,7 +309,7 @@ begin
 
       -- Tick the clock.
       s_clk <= '0';
-      wait for 0.5 us;
+      wait for 0.5 ps;
       s_clk <= '1';
     end loop;
 

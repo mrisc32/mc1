@@ -18,49 +18,24 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
-#ifndef MC1_FRAMEBUFFER_H_
-#define MC1_FRAMEBUFFER_H_
+#include <mc1/fast_math.h>
 
-#include <mc1/vcp.h>
+float fast_sin(float x) {
+  // 1) Reduce periods of sin(x) to the range -PI/2 to PI/2.
+  const int period = (int)(x * (1.0f / 3.141592654f) + 0.5f);
+  const int negate = period & 1;
+  x -= 3.141592654f * ((float)period - 0.5f);
 
-#include <stddef.h>
-#include <stdint.h>
+  // 2) Use a Tailor series approximation in the range -PI/2 to PI/2.
+  // See: https://en.wikipedia.org/wiki/Taylor_series#Approximation_error_and_convergence
+  // sin(x) ≃ x - x³/3! + x⁵/5! - x⁷/7!
+  // Note: 3! = 6, 5! = 120, 7! = 5040
+  const float x2 = x * x;
+  const float x3 = x2 * x;
+  const float x5 = x3 * x2;
+  const float x7 = x5 * x2;
+  float y = x - (1.0f/6.0f) * x3 + (1.0f/120.0f) * x5 - (1.0f/5040.0f) * x7;
 
-typedef enum {
-  MODE_RGBA8888 = 0,
-  MODE_RGBA5551 = 1,
-  MODE_PAL8 = 2,
-  MODE_PAL4 = 3,
-  MODE_PAL2 = 4,
-  MODE_PAL1 = 5
-} color_mode_t;
-
-typedef struct {
-  void* pixels;
-  uint32_t* vcp;
-  uint32_t* palette;
-  size_t stride;
-  int width;
-  int height;
-  color_mode_t mode;
-} fb_t;
-
-/// @brief Create a new framebuffer.
-/// @param width The width of the framebuffer.
-/// @param height The height of the framebuffer.
-/// @param mode The color mode (see @c color_mode_t).
-/// @returns a framebuffer object, or NULL if the framebuffer could not be
-/// created.
-fb_t* fb_create(int width, int height, color_mode_t mode);
-
-/// @brief Free a framebuffer and associated memory.
-/// @param fb The framebuffer object.
-void fb_destroy(fb_t* fb);
-
-/// @brief Show the framebuffer (i.e. make it current).
-/// @param fb The framebuffer object.
-/// @param layer The layer to use for the framebuffer (1 or 2).
-void fb_show(fb_t* fb, layer_t layer);
-
-#endif // MC1_FRAMEBUFFER_H_
+  return negate ? -y : y;
+}
 

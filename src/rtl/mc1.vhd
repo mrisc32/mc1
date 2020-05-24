@@ -36,6 +36,7 @@ entity mc1 is
     COLOR_BITS_G : positive := 8;     -- Set this to < 8 to enable dithering.
     COLOR_BITS_B : positive := 8;     -- Set this to < 8 to enable dithering.
     LOG2_VRAM_SIZE : positive := 12;  -- VRAM size (log2 of number of 32-bit words).
+    NUM_VIDEO_LAYERS : positive := 2; -- Number of video layers (1 or 2).
     VIDEO_CONFIG : T_VIDEO_CONFIG     -- Native video resolution.
   );
   port(
@@ -287,6 +288,7 @@ begin
       COLOR_BITS_G => COLOR_BITS_G,
       COLOR_BITS_B => COLOR_BITS_B,
       ADR_BITS => LOG2_VRAM_SIZE,
+      NUM_LAYERS => NUM_VIDEO_LAYERS,
       VIDEO_CONFIG => VIDEO_CONFIG
     )
     port map (
