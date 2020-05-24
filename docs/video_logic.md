@@ -26,6 +26,14 @@ exectue until the next vertical blanking interval.
 To mark the end of a program, issue a `WAIT` command that waits for a line
 that will never be displayed (e.g. `WAIT 32767`).
 
+## VCP execution and timing
+
+The video control program processor (VCPP) of the MC1 is a simple processor
+with five pipeline stages, running at pixel clock frequency (e.g. when the
+MC1 is configured for 1920x1080@60Hz native resolution, the pipeline can
+execute up to 148.5 Mop/s):
+
+![VCPP pipeline](vcpp-pipeline.png)
 
 ## Video control commands
 
