@@ -24,12 +24,7 @@ layer2_start:
     nop
 
 main:
-    ; Display nothing
-    setreg  HSTRT, 0
-    setreg  HSTOP, 0
-
     ; Set the video mode
-    setreg  XOFFS, 0x000000
     setreg  XINCR, 0x010000 * MODE_WIDTH / NATIVE_WIDTH
     setreg  CMODE, CM_PAL8
     setreg  RMODE, RM_DITHER_WHITE
@@ -57,7 +52,7 @@ main:
 
 load_palette_a:
     ; Load a palette with 256 colors.
-    setpal  0, 255
+    setpal  0, 256
     .incbin "test-image-640x360-pal8.raw.pal"
     rts
 

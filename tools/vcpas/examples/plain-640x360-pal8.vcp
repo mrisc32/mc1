@@ -68,7 +68,7 @@ main:
 
 load_palette_a:
     ; Load a palette with 256 colors.
-    setpal  0, 255
+    setpal  0, 256
     .word   0xff00ff00
     .lerp   0x01010101, 0xffffffff, 255
     rts

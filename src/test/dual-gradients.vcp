@@ -21,17 +21,13 @@ layer2_start:
     nop
 
 main:
-    ; Display nothing
-    setreg  HSTRT, 0
-    setreg  HSTOP, 0
-
     ; Set the video mode
     setreg  XOFFS, 0x000000
     setreg  CMODE, CM_PAL1
     setreg  RMODE, RM_DITHER_WHITE
     setreg  ADDR, image_data
 
-    setpal  1, 0
+    setpal  1, 1
         .word    0xffa0a080
 
     ; Activate video output starting at row 0.
@@ -49,10 +45,10 @@ main:
         waity   row
         setreg  XOFFS, xoff
         setreg  XINCR, xinc
-        setpal  0, 0
+        setpal  0, 1
             .word    color1
         waitx   col
-        setpal  0, 0
+        setpal  0, 1
             .word    color2
         .set    row, row + 1
         .set    col, col + 1
