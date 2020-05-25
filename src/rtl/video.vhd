@@ -45,8 +45,6 @@ entity video is
     o_hsync : out std_logic;
     o_vsync : out std_logic;
 
-    o_restart_frame : out std_logic;
-    o_raster_x : out std_logic_vector(15 downto 0);
     o_raster_y : out std_logic_vector(15 downto 0)
   );
 end video;
@@ -274,9 +272,6 @@ begin
   o_vsync <= s_vsync_delayed(SYNC_DELAY-1);
 
   -- Extra output signals used for MMIO registers.
-  o_restart_frame <= s_restart_frame;
-  o_raster_x(s_raster_x'left downto 0) <= s_raster_x;
-  o_raster_x(15 downto s_raster_x'length) <= (others => s_raster_x(s_raster_x'left));
   o_raster_y(s_raster_x'left downto 0) <= s_raster_y;
   o_raster_y(15 downto s_raster_y'length) <= (others => s_raster_y(s_raster_y'left));
 end rtl;

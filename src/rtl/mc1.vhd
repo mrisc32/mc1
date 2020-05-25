@@ -100,8 +100,6 @@ architecture rtl of mc1 is
   -- Video logic signals.
   signal s_video_adr : std_logic_vector(LOG2_VRAM_SIZE-1 downto 0);
   signal s_video_dat : std_logic_vector(31 downto 0);
-  signal s_restart_frame : std_logic;
-  signal s_raster_x : std_logic_vector(15 downto 0);
   signal s_raster_y : std_logic_vector(15 downto 0);
 
   -- Video logic signals in the CPU clock domain.
@@ -305,8 +303,6 @@ begin
       o_hsync => o_vga_hs,
       o_vsync => o_vga_vs,
 
-      o_restart_frame => s_restart_frame,
-      o_raster_x => s_raster_x,
       o_raster_y => s_raster_y
     );
 
