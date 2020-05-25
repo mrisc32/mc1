@@ -35,6 +35,9 @@ entity vid_pix_prefetch is
     -- Interface from the pixel pipeline.
     i_read_en : in std_logic;
     i_read_adr : in std_logic_vector(23 downto 0);
+    i_decremental_read : in std_logic;
+    i_row_start_imminent : in std_logic;
+    i_row_start_addr : in std_logic_vector(23 downto 0);
     o_read_ack : out std_logic;
     o_read_dat : out std_logic_vector(31 downto 0);
 
@@ -87,10 +90,15 @@ begin
       -- Start a new speculative read cycle?
       if i_read_en = '1' then
         -- Determine the next likey read address.
-        -- TODO(m): This should take into account:
-        --   1) The first address for a new row.
-        --   2) The direction (i.e. handle both increments and decrements).
-        s_prefetch_adr <= std_logic_vector(unsigned(i_read_adr) + 1);
+        if i_decremental_read = '1' then
+          s_prefetch_adr <= std_logic_vector(unsigned(i_read_adr) - 1);
+        else
+          s_prefetch_adr <= std_logic_vector(unsigned(i_read_adr) + 1);
+        end if;
+        v_speculate := '1';
+      elsif i_row_start_imminent = '1' then
+        -- Prefetch the first word of the row before the new row starts.
+        s_prefetch_adr <= i_row_start_addr;
         v_speculate := '1';
       end if;
 

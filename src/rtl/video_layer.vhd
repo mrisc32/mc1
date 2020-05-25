@@ -63,6 +63,9 @@ architecture rtl of video_layer is
   signal s_pix_mem_read_adr : std_logic_vector(23 downto 0);
   signal s_pix_mem_ack : std_logic;
   signal s_pix_mem_dat : std_logic_vector(31 downto 0);
+  signal s_pix_decremental_read : std_logic;
+  signal s_pix_row_start_imminent : std_logic;
+  signal s_pix_row_start_addr : std_logic_vector(23 downto 0);
 
   signal s_pix_cache_read_en : std_logic;
   signal s_pix_cache_read_adr : std_logic_vector(23 downto 0);
@@ -72,6 +75,35 @@ architecture rtl of video_layer is
 
   signal s_pix_pal_adr : std_logic_vector(7 downto 0);
   signal s_pix_pal_data : std_logic_vector(31 downto 0);
+
+  function is_row_start_imminent(raster_x : std_logic_vector) return std_logic is
+    constant C_IMMINENT_X_COORD : signed := to_signed(-16, X_COORD_BITS);
+  begin
+    if signed(raster_x) = C_IMMINENT_X_COORD then
+      return '1';
+    else
+      return '0';
+    end if;
+  end;
+
+  function calc_row_start_addr(addr : std_logic_vector;
+                               xoffs : std_logic_vector;
+                               cmode : std_logic_vector) return std_logic_vector is
+    variable v_base : signed(23 downto 0);
+    variable v_shift : integer;
+    variable v_offset : signed(7 downto 0);
+  begin
+    -- The base address is given by addr.
+    v_base := signed(addr);
+
+    -- Calculate the address offset, scaled according to the bits per pixel,
+    -- as given by cmode.
+    v_shift := to_integer(unsigned(cmode(2 downto 0)));
+    v_offset := shift_right(signed(xoffs(23 downto 16)), v_shift);
+
+    -- The real row start address is the base address + scaled offset.
+    return std_logic_vector(v_base + resize(v_offset, v_base'length));
+  end;
 begin
   -- Instantiate the video control program processor.
   vcpp_1: entity work.vid_vcpp
@@ -143,6 +175,11 @@ begin
 
   PREFETCH_GEN: if ENABLE_PIXEL_PREFETCH generate
   begin
+    -- Provide the prefetcher with pixel sampling information.
+    s_pix_decremental_read <= s_regs.XINCR(23);
+    s_pix_row_start_imminent <= is_row_start_imminent(i_raster_x);
+    s_pix_row_start_addr <= calc_row_start_addr(s_regs.ADDR, s_regs.XOFFS, s_regs.CMODE);
+
     -- Instantiate the pixel prefetch cache.
     vid_pix_prefetch_1: entity work.vid_pix_prefetch
       port map(
@@ -150,6 +187,9 @@ begin
         i_clk => i_clk,
         i_read_en => s_pix_mem_read_en,
         i_read_adr => s_pix_mem_read_adr,
+        i_decremental_read => s_pix_decremental_read,
+        i_row_start_imminent => s_pix_row_start_imminent,
+        i_row_start_addr => s_pix_row_start_addr,
         o_read_ack => s_pix_mem_ack,
         o_read_dat => s_pix_mem_dat,
         o_read_en => s_pix_cache_read_en,
