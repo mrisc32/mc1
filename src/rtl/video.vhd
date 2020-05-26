@@ -126,7 +126,7 @@ begin
       X_COORD_BITS => s_raster_x'length,
       Y_COORD_BITS => s_raster_y'length,
       VCP_START_ADDRESS => 24x"000004",
-      ENABLE_PIXEL_PREFETCH => true
+      ENABLE_PIXEL_PREFETCH => (NUM_LAYERS >= 2)
     )
     port map (
       i_rst => i_rst,

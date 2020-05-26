@@ -79,6 +79,7 @@ architecture rtl of video_layer is
   function is_row_start_imminent(raster_x : std_logic_vector) return std_logic is
     constant C_IMMINENT_X_COORD : signed := to_signed(-16, X_COORD_BITS);
   begin
+    -- TODO(m): Make the imminent x coord relative to HSTRT for more headroom.
     if signed(raster_x) = C_IMMINENT_X_COORD then
       return '1';
     else

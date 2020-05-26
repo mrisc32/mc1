@@ -109,6 +109,8 @@ architecture rtl of vid_pixel is
   signal s_xc_active : std_logic;
   signal s_xc_next_in_blanking_area : std_logic;
   signal s_xc_in_blanking_area : std_logic;
+  signal s_xc_next_is_hstrt : std_logic;
+  signal s_xc_is_hstrt : std_logic;
   signal s_xc_next_pos : std_logic_vector(C_FP_BITS-1 downto 0);
   signal s_xc_pos : std_logic_vector(C_FP_BITS-1 downto 0);
   signal s_xc_pos_plus_incr : std_logic_vector(C_FP_BITS-1 downto 0);
@@ -212,7 +214,8 @@ begin
   -- Increment the x coordinate.
   s_xc_pos_plus_incr <= std_logic_vector(unsigned(s_xc_pos) +
                                          unsigned(fp24_to_fp32(i_regs.XINCR)));
-  s_xc_next_pos <= fp24_to_fp32(i_regs.XOFFS) when s_xc_hpos = signed(i_regs.HSTRT) else
+  s_xc_next_is_hstrt <= '1' when s_xc_hpos = signed(i_regs.HSTRT) else '0';
+  s_xc_next_pos <= fp24_to_fp32(i_regs.XOFFS) when s_xc_next_is_hstrt = '1' else
                    s_xc_pos_plus_incr when s_xc_next_active = '1' else
                    s_xc_pos;
 
@@ -223,10 +226,12 @@ begin
       s_xc_pos <= (others => '0');
       s_xc_active <= '0';
       s_xc_in_blanking_area <= '1';
+      s_xc_is_hstrt <= '0';
     elsif rising_edge(i_clk) then
       s_xc_pos <= s_xc_next_pos;
       s_xc_active <= s_xc_next_active;
       s_xc_in_blanking_area <= s_xc_next_in_blanking_area;
+      s_xc_is_hstrt <= s_xc_next_is_hstrt;
     end if;
   end process;
 
@@ -266,11 +271,12 @@ begin
 
   -- Is this the same address as for the previous cycle?
   -- The largest possible address delta between two pixels is 256, so we only
-  -- need to compare the 9 least significant bits of the address.
+  -- need to compare the 9 least significant bits of the address (special case:
+  -- if we're on the HSTRT X coordinate, we force a new data read).
   -- Note: We assume that there are no wait-states from the memory, so we do
   -- not have to consider whether or not we got an ACK for the last request.
   s_pa_addr_is_new <= '1' when s_pa_addr(8 downto 0) /= s_pa_prev_addr(8 downto 0) else '0';
-  s_pa_next_mem_read_en <= s_xc_active and s_pa_addr_is_new;
+  s_pa_next_mem_read_en <= s_xc_active and (s_pa_addr_is_new or s_xc_is_hstrt);
 
   -- Determine the bit shift amount.
   s_pa_next_shift_32 <= "00000";
