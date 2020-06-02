@@ -36,7 +36,8 @@ DEMOOBJS = $(OUT)/demo.o \
            $(OUT)/palette_util.o \
            $(OUT)/funky.o \
            $(OUT)/mandelbrot.o \
-           $(OUT)/raytrace.o
+           $(OUT)/raytrace.o \
+           $(OUT)/retro.o
 
 $(OUT)/demo.o: demo/demo.c
 	$(CC) $(CCFLAGS) -o $@ $<
@@ -51,6 +52,9 @@ $(OUT)/mandelbrot.o: demo/mandelbrot.c
 	$(CC) $(CCFLAGS) -o $@ $<
 
 $(OUT)/raytrace.o: demo/raytrace.c
+	$(CC) $(CCFLAGS) -o $@ $<
+
+$(OUT)/retro.o: demo/retro.c
 	$(CC) $(CCFLAGS) -o $@ $<
 
 

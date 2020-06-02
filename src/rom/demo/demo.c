@@ -34,6 +34,10 @@ void raytrace_init(void);
 void raytrace_deinit(void);
 void raytrace(int frame_no);
 
+void retro_init(void);
+void retro_deinit(void);
+void retro(int frame_no);
+
 static void wait_vblank() {
   // Wait for the next vertical blanking interval. We busy lopp since we don't have interrupts yet.
   uint32_t vid_frame_no = MMIO(VIDFRAMENO);
@@ -50,6 +54,7 @@ int main(void) {
       mandelbrot_deinit();
       funky_deinit();
       raytrace_deinit();
+      retro_deinit();
       switches_old = switches;
       frame_no = 0;
     }
@@ -65,6 +70,10 @@ int main(void) {
     } else if (switches == 4) {
       funky_init();
       funky(frame_no);
+      wait_vblank();
+    } else if (switches == 8) {
+      retro_init();
+      retro(frame_no);
       wait_vblank();
     } else {
       active_program = 0;
