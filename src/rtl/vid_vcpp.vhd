@@ -358,10 +358,10 @@ begin
         s_ex_instr_arg <= s_if2_data(15 downto 0);
         s_ex_palette_cnt <= x"00";
       elsif s_ex_state = PALETTE then
-        if s_ex_palette_cnt = unsigned(s_ex_instr_arg(7 downto 0)) then
-          v_next_state := NEW_INSTR;
-        end if;
         if s_if2_data_ready = '1' then
+          if s_ex_palette_cnt = unsigned(s_ex_instr_arg(7 downto 0)) then
+            v_next_state := NEW_INSTR;
+          end if;
           v_pal_write_enable := '1';
           v_write_data := s_if2_data;
           v_pal_base_idx := unsigned(s_ex_instr_arg(15 downto 8));
