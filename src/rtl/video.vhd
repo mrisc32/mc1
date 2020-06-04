@@ -64,7 +64,7 @@ architecture rtl of video is
   -- delays.
   function SYNC_DELAY return integer is
     constant C_PIXEL_DELAY : integer := 6;
-    constant C_BLEND_DELAY : integer := 3;
+    constant C_BLEND_DELAY : integer := 5;
     constant C_DITHER_DELAY : integer := 2;
   begin
     if ENABLE_DITHERING then
