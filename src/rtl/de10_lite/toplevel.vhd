@@ -131,7 +131,7 @@ begin
   pll_vga: entity work.pll
     generic map
     (
-      -- CPU clock: 50 * (297/100) = 148.5 MHz
+      -- VGA clock: 50 * (297/100) = 148.5 MHz
       CLK_MUL => 297,
       CLK_DIV => 100
     )
