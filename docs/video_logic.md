@@ -211,7 +211,7 @@ The eight-bit blend mode of the RMODE register is composed of two four-bit scale
 Each selector is decoded as follows:
 
 | s<sub>k</sub> selector | s<sub>k</sub> |
-| --- | --- | --- |
+| --- | --- |
 | 0 | 1 |
 | 1 | -1 |
 | 2 | A<sub>1</sub> |
