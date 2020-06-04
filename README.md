@@ -2,6 +2,8 @@
 
 MC1 is a compact computer intended for FPGA:s, based on the [MRISC32-A1](https://github.com/mrisc32/mrisc32-a1) soft microprocessor.
 
+The architecture is portable and configurable to fit a wide range of FPGA devices and boards.
+
 ## Architecture
 
 ![MC1 diagram](docs/mc1-diagram.png)
@@ -52,7 +54,9 @@ The following things are not yet implemented, but planned:
   * Interrupt signals from the video logic (e.g. VSYNC), once interrupt logic has been added to the MRISC32.
 * Audio:
   * Some sort of high quality audio DMA, integrated with the video logic (sharing the same RAM read port).
+  * Possibly some sort of waveform synthesis for low RAM systems.
 * Memory:
   * Support for off-chip RAM (e.g. DRAM or SRAM) - probably with an on-chip L2 cache.
 * I/O:
-  * A Micro SD interface to read programs and data, and perhaps an interface for mouse/keyboard (e.g. PS/2).
+  * A Micro SD interface to read programs and data.
+  * An interface for mouse/keyboard (e.g. PS/2 or USB).

@@ -1,5 +1,13 @@
 # Video logic
 
+## Key features
+
+* Multiple pixel color modes: 1, 2, 4 and 8-bit palette modes and 16- and 32-bit full color modes.
+* Two video layers with programmabler blending (8-bit alpha channel).
+* Programmable raster-synchronized control processor.
+* Independly and freely configurable vertical and horizontal resolutions (from 1x1 to 1920x1080).
+* Hardware dithering for systems with less than 24 bpp output signals.
+
 ## Layers
 
 There are two video layers. Each layer consists of:
