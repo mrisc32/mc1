@@ -92,7 +92,7 @@ architecture rtl of video is
   signal s_layer2_rmode : std_logic_vector(23 downto 0);
   signal s_layer2_color : std_logic_vector(31 downto 0);
 
-  signal s_blend_method : std_logic_vector(3 downto 0);
+  signal s_blend_method : std_logic_vector(7 downto 0);
   signal s_final_color : std_logic_vector(31 downto 0);
 
   signal s_r8 : std_logic_vector(7 downto 0);
@@ -198,7 +198,7 @@ begin
   --------------------------------------------------------------------------------------------------
 
   -- The blend method is controlled via the layer 2 RMODE VCR.
-  s_blend_method <= s_layer2_rmode(5 downto 2);
+  s_blend_method <= s_layer2_rmode(7 downto 0);
 
   blend1: entity work.vid_blend
     port map (
@@ -226,7 +226,7 @@ begin
   DitherGen: if ENABLE_DITHERING generate
   begin
     -- The dither method is controlled via the layer 1 RMODE VCR.
-    s_dither_method <= s_layer1_rmode(1 downto 0);
+    s_dither_method <= s_layer1_rmode(9 downto 8);
 
     dither1: entity work.dither
       generic map(

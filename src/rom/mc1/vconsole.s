@@ -12,7 +12,7 @@ VCON_ROWS = 22
 VCON_WIDTH  = VCON_COLS*8
 VCON_HEIGHT = VCON_ROWS*8
 
-VCON_VCP_SIZE = (7 + VCON_HEIGHT*2) * 4
+VCON_VCP_SIZE = (8 + VCON_HEIGHT*2) * 4
 VCON_FB_SIZE  = (VCON_WIDTH * VCON_HEIGHT) / 8
 
 VCON_COL0 = 0x009b2c2e
@@ -82,25 +82,26 @@ vcon_init:
     or      s7, s7, s3
     stw     s7, s1, #4                  ; SETREG  HSTOP, native width
 
-    ldi     s7, #0x85000000
-    or      s7, s7, #5
+    ldi     s7, #0x85000005
     stw     s7, s1, #8                  ; SETREG  CMODE, 5
 
-    ldi     s7, #0x60000000
-    or      s7, s7, #1
-    stw     s7, s1, #12                 ; SETPAL  0, 1
+    ldi     s7, #0x86000000
+    stw     s7, s1, #12                 ; SETREG  RMODE, 0  (no dithering)
+
+    ldi     s7, #0x60000001
+    stw     s7, s1, #16                 ; SETPAL  0, 2
 
     ldi     s7, #VCON_COL0
-    stw     s7, s1, #16                 ; COLOR 0
+    stw     s7, s1, #20                 ; COLOR 0
 
     ldi     s7, #VCON_COL1
-    stw     s7, s1, #20                 ; COLOR 1
+    stw     s7, s1, #24                 ; COLOR 1
 
-    add     s7, s1, #16
+    add     s7, s1, #20
     ldhi    s8, #vcon_pal_start@hi
     stw     s7, s8, #vcon_pal_start@lo  ; Store the palette address
 
-    add     s1, s1, #24
+    add     s1, s1, #28
 
     ; Generate the VCP: Per row memory pointers.
     ldi     s7, #0x80000000

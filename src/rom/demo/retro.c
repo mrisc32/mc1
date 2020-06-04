@@ -106,7 +106,7 @@ void retro_init(void) {
 
     // Prologue.
     // Set the dither mode.
-    *vcp++ = vcp_emit_setreg(VCR_RMODE, 1);
+    *vcp++ = vcp_emit_setreg(VCR_RMODE, 0x135);
 
     // Per-line commands.
     for (int y = 0; y < s_retro.height; ++y) {
@@ -125,7 +125,7 @@ void retro_init(void) {
 
     // Prologue.
     // Set the blend mode.
-    *vcp++ = vcp_emit_setreg(VCR_RMODE, 0);
+    *vcp++ = vcp_emit_setreg(VCR_RMODE, 0x135);
 
     // Per-line commands.
     for (int y = 0; y < s_retro.height; ++y) {

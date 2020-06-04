@@ -26,7 +26,7 @@ entity vid_blend is
   port(
     i_rst : in std_logic;
     i_clk : in std_logic;
-    i_method : in std_logic_vector(3 downto 0);
+    i_method : in std_logic_vector(7 downto 0);
     i_color_1 : in std_logic_vector(31 downto 0);
     i_color_2 : in std_logic_vector(31 downto 0);
     o_color : out std_logic_vector(31 downto 0)
@@ -55,9 +55,25 @@ begin
   --------------------------------------------------------------------------------------------------
 
   process(i_clk, i_rst)
-    variable v_alpha_raw : unsigned(8 downto 0);
-    variable v_alpha : unsigned(8 downto 0);
-    variable v_alpha_compl : unsigned(8 downto 0);
+    subtype T_BLEND_SEL is unsigned(2 downto 0);
+    constant C_BLEND_ONE              : T_BLEND_SEL := "000";
+    constant C_BLEND_MINUS_ONE        : T_BLEND_SEL := "001";
+    constant C_BLEND_ALPHA1           : T_BLEND_SEL := "010";
+    constant C_BLEND_ALPHA2           : T_BLEND_SEL := "011";
+    constant C_BLEND_ONE_MINUS_ALPHA1 : T_BLEND_SEL := "100";
+    constant C_BLEND_ONE_MINUS_ALPHA2 : T_BLEND_SEL := "101";
+
+    variable v_alpha1_raw : unsigned(8 downto 0);
+    variable v_alpha2_raw : unsigned(8 downto 0);
+    variable v_alpha1 : unsigned(8 downto 0);
+    variable v_alpha2 : unsigned(8 downto 0);
+    variable v_alpha1_compl : unsigned(8 downto 0);
+    variable v_alpha2_compl : unsigned(8 downto 0);
+
+    variable v_sel1 : T_BLEND_SEL;
+    variable v_sel2 : T_BLEND_SEL;
+    variable v_blend1 : unsigned(8 downto 0);
+    variable v_blend2 : unsigned(8 downto 0);
   begin
     if i_rst = '1' then
       s_b1_blend_1 <= (others => '0');
@@ -69,21 +85,56 @@ begin
       s_b1_g_2 <= (others => '0');
       s_b1_b_2 <= (others => '0');
     elsif rising_edge(i_clk) then
-      -- Select the alpha channel from color 1 or 2.
-      if i_method(3) = '0' then
-        v_alpha_raw := unsigned('0' & i_color_2(31 downto 24));
-      else
-        v_alpha_raw := unsigned('0' & i_color_1(31 downto 24));
-      end if;
+      -- Extract the raw alpha channel from color 1 & color 2.
+      v_alpha1_raw := unsigned('0' & i_color_1(31 downto 24));
+      v_alpha2_raw := unsigned('0' & i_color_2(31 downto 24));
 
       -- Convert the alpha to the range [1, 256], and its complement in the range [1, 256].
-      v_alpha := v_alpha_raw + 1;
-      v_alpha_compl := 256 - v_alpha_raw;
+      v_alpha1 := v_alpha1_raw + 1;
+      v_alpha1_compl := 256 - v_alpha1_raw;
+      v_alpha2 := v_alpha2_raw + 1;
+      v_alpha2_compl := 256 - v_alpha2_raw;
 
-      -- Select the blend factor for each color.
-      -- TODO(m): Support more blend methods (according to RMODE).
-      s_b1_blend_1 <= v_alpha_compl;
-      s_b1_blend_2 <= v_alpha;
+      -- Select the blend factor for color 1.
+      v_sel1 := unsigned(i_method(2 downto 0));
+      case v_sel1 is
+        when C_BLEND_ONE =>
+          v_blend1 := 9x"100";
+        when C_BLEND_MINUS_ONE =>
+          v_blend1 := 9x"100";  -- TODO(m): Add support for negative scale factors!
+        when C_BLEND_ALPHA1 =>
+          v_blend1 := v_alpha1;
+        when C_BLEND_ALPHA2 =>
+          v_blend1 := v_alpha2;
+        when C_BLEND_ONE_MINUS_ALPHA1 =>
+          v_blend1 := v_alpha1_compl;
+        when C_BLEND_ONE_MINUS_ALPHA2 =>
+          v_blend1 := v_alpha2_compl;
+        when others =>
+          v_blend1 := 9x"100";
+      end case;
+
+      -- Select the blend factor for color 2.
+      v_sel2 := unsigned(i_method(6 downto 4));
+      case v_sel2 is
+        when C_BLEND_ONE =>
+          v_blend2 := 9x"100";
+        when C_BLEND_MINUS_ONE =>
+          v_blend2 := 9x"100";  -- TODO(m): Add support for negative scale factors!
+        when C_BLEND_ALPHA1 =>
+          v_blend2 := v_alpha1;
+        when C_BLEND_ALPHA2 =>
+          v_blend2 := v_alpha2;
+        when C_BLEND_ONE_MINUS_ALPHA1 =>
+          v_blend2 := v_alpha1_compl;
+        when C_BLEND_ONE_MINUS_ALPHA2 =>
+          v_blend2 := v_alpha2_compl;
+        when others =>
+          v_blend2 := 9x"100";
+      end case;
+
+      s_b1_blend_1 <= v_blend1;
+      s_b1_blend_2 <= v_blend2;
 
       -- Extract the color components.
       s_b1_r_1 <= unsigned(i_color_1(7 downto 0));

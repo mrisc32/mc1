@@ -46,7 +46,7 @@ architecture rtl of vid_regs is
   constant C_DEFAULT_HSTRT : std_logic_vector(23 downto 0) := x"000000";
   constant C_DEFAULT_HSTOP : std_logic_vector(23 downto 0) := x"000000";
   constant C_DEFAULT_CMODE : std_logic_vector(23 downto 0) := x"000002";
-  constant C_DEFAULT_RMODE : std_logic_vector(23 downto 0) := x"000000";
+  constant C_DEFAULT_RMODE : std_logic_vector(23 downto 0) := x"000135";
 
   signal s_regs : T_VID_REGS;
   signal s_next_regs : T_VID_REGS;

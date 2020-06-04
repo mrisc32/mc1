@@ -73,7 +73,7 @@ static size_t calc_pixels_size(int width, int height, color_mode_t mode) {
 }
 
 static size_t calc_vcp_size(int height, color_mode_t mode) {
-  size_t prologue_words = 3;
+  size_t prologue_words = 2;
 
   size_t palette_words = palette_entries(mode);
   if (palette_words > 0u)
@@ -127,7 +127,6 @@ fb_t* fb_create(int width, int height, color_mode_t mode) {
   // VCP prologue.
   *vcp++ = vcp_emit_setreg(VCR_XINCR, (0x010000 * width) / native_width);
   *vcp++ = vcp_emit_setreg(VCR_CMODE, mode);
-  *vcp++ = vcp_emit_setreg(VCR_RMODE, 1);
 
   // Palette.
   size_t pal_N = palette_entries(mode);
