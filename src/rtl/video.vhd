@@ -66,12 +66,16 @@ architecture rtl of video is
     constant C_PIXEL_DELAY : integer := 6;
     constant C_BLEND_DELAY : integer := 5;
     constant C_DITHER_DELAY : integer := 2;
+    variable v_delay : integer;
   begin
-    if ENABLE_DITHERING then
-      return C_PIXEL_DELAY + C_BLEND_DELAY + C_DITHER_DELAY;
-    else
-      return C_PIXEL_DELAY + C_BLEND_DELAY;
+    v_delay := C_PIXEL_DELAY;
+    if NUM_LAYERS >= 2 then
+      v_delay := v_delay + C_BLEND_DELAY;
     end if;
+    if ENABLE_DITHERING then
+      v_delay := v_delay + C_DITHER_DELAY;
+    end if;
+    return v_delay;
   end function;
 
   signal s_raster_x : std_logic_vector(11 downto 0);
@@ -92,7 +96,6 @@ architecture rtl of video is
   signal s_layer2_rmode : std_logic_vector(23 downto 0);
   signal s_layer2_color : std_logic_vector(31 downto 0);
 
-  signal s_blend_method : std_logic_vector(7 downto 0);
   signal s_final_color : std_logic_vector(31 downto 0);
 
   signal s_r8 : std_logic_vector(7 downto 0);
@@ -165,12 +168,23 @@ begin
         o_rmode => s_layer2_rmode,
         o_color => s_layer2_color
       );
+
+    -- Instantiate the layer blending logic.
+    blend1: entity work.vid_blend
+      port map (
+        i_rst => i_rst,
+        i_clk => i_clk,
+        i_method => s_layer2_rmode(7 downto 0),
+        i_color_1 => s_layer1_color,
+        i_color_2 => s_layer2_color,
+        o_color => s_final_color
+      );
   else generate
     s_layer2_read_en <= '0';
     s_layer2_read_adr <= (others => '0');
-    s_layer2_rmode <= (others => '0');
-    s_layer2_color <= (others => '0');
+    s_final_color <= s_layer1_color;
   end generate;
+
 
   --------------------------------------------------------------------------------------------------
   -- VRAM read logic - only one entity may access VRAM during each clock cycle.
@@ -191,24 +205,6 @@ begin
       s_layer2_read_ack <= s_layer2_read_en;
     end if;
   end process;
-
-
-  --------------------------------------------------------------------------------------------------
-  -- Layer color blending logic.
-  --------------------------------------------------------------------------------------------------
-
-  -- The blend method is controlled via the layer 2 RMODE VCR.
-  s_blend_method <= s_layer2_rmode(7 downto 0);
-
-  blend1: entity work.vid_blend
-    port map (
-      i_rst => i_rst,
-      i_clk => i_clk,
-      i_method => s_blend_method,
-      i_color_1 => s_layer1_color,
-      i_color_2 => s_layer2_color,
-      o_color => s_final_color
-    );
 
 
   --------------------------------------------------------------------------------------------------
