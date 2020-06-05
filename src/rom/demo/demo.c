@@ -26,10 +26,6 @@ void mandelbrot_init(void);
 void mandelbrot_deinit(void);
 void mandelbrot(int frame_no);
 
-void funky_init(void);
-void funky_deinit(void);
-void funky(int frame_no);
-
 void raytrace_init(void);
 void raytrace_deinit(void);
 void raytrace(int frame_no);
@@ -52,7 +48,6 @@ int main(void) {
     uint32_t switches = MMIO(SWITCHES);
     if (switches != switches_old) {
       mandelbrot_deinit();
-      funky_deinit();
       raytrace_deinit();
       retro_deinit();
       switches_old = switches;
@@ -68,10 +63,6 @@ int main(void) {
       raytrace_init();
       raytrace(frame_no);
     } else if (switches == 4) {
-      funky_init();
-      funky(frame_no);
-      wait_vblank();
-    } else if (switches == 8) {
       retro_init();
       retro(frame_no);
       wait_vblank();

@@ -33,20 +33,12 @@ clean:
 #-----------------------------------------------------------------------------
 
 DEMOOBJS = $(OUT)/demo.o \
-           $(OUT)/palette_util.o \
-           $(OUT)/funky.o \
            $(OUT)/mandelbrot.o \
            $(OUT)/raytrace.o \
            $(OUT)/retro.o
 
 $(OUT)/demo.o: demo/demo.c
 	$(CC) $(CCFLAGS) -o $@ $<
-
-$(OUT)/palette_util.o: demo/palette_util.c
-	$(CC) $(CCFLAGS) -o $@ $<
-
-$(OUT)/funky.o: demo/funky.s
-	$(AS) $(ASFLAGS) -o $@ $<
 
 $(OUT)/mandelbrot.o: demo/mandelbrot.c
 	$(CC) $(CCFLAGS) -o $@ $<
