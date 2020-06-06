@@ -26,15 +26,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-typedef enum {
-  MODE_RGBA8888 = 0,
-  MODE_RGBA5551 = 1,
-  MODE_PAL8 = 2,
-  MODE_PAL4 = 3,
-  MODE_PAL2 = 4,
-  MODE_PAL1 = 5
-} color_mode_t;
-
 typedef struct {
   void* pixels;
   uint32_t* vcp;
@@ -42,16 +33,16 @@ typedef struct {
   size_t stride;
   int width;
   int height;
-  color_mode_t mode;
+  int mode;
 } fb_t;
 
 /// @brief Create a new framebuffer.
 /// @param width The width of the framebuffer.
 /// @param height The height of the framebuffer.
-/// @param mode The color mode (see @c color_mode_t).
+/// @param mode The color mode.
 /// @returns a framebuffer object, or NULL if the framebuffer could not be
 /// created.
-fb_t* fb_create(int width, int height, color_mode_t mode);
+fb_t* fb_create(int width, int height, int mode);
 
 /// @brief Free a framebuffer and associated memory.
 /// @param fb The framebuffer object.

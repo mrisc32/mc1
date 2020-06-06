@@ -40,6 +40,14 @@ typedef enum {
 #define VCR_CMODE 5
 #define VCR_RMODE 6
 
+// Color modes.
+#define CMODE_RGBA8888 0
+#define CMODE_RGBA5551 1
+#define CMODE_PAL8     2
+#define CMODE_PAL4     3
+#define CMODE_PAL2     4
+#define CMODE_PAL1     5
+
 /// @brief Emit a JMP instruction.
 /// @param addr The address to jump to (in VCP address space).
 /// @returns the instruction word.

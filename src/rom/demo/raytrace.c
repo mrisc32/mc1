@@ -259,14 +259,14 @@ static void render_image(fb_t* fb, float t) {
       col = clamp_color(col);
 
       // Write the pixel to the framebuffer memory.
-      if (fb->mode == MODE_RGBA8888) {
+      if (fb->mode == CMODE_RGBA8888) {
         uint32_t pix = (uint32_t)(col.x * 256.0f) |
                        ((uint32_t)(col.y * 256.0f) << 8) |
                        ((uint32_t)(col.z * 256.0f) << 16) |
                        0xff000000u;
         *((uint32_t*)pixels) = pix;
         pixels += 4;
-      } else if (fb->mode == MODE_RGBA5551) {
+      } else if (fb->mode == CMODE_RGBA5551) {
         uint16_t pix = (uint16_t)(col.x * 32.0f) |
                        ((uint16_t)(col.y * 32.0f) << 5) |
                        ((uint16_t)(col.z * 32.0f) << 10) |
@@ -287,9 +287,9 @@ static fb_t* s_fb;
 
 void raytrace_init(void) {
   if (s_fb == NULL) {
-    s_fb = fb_create(DEFAULT_WIDTH, DEFAULT_HEIGHT, MODE_RGBA8888);
+    s_fb = fb_create(DEFAULT_WIDTH, DEFAULT_HEIGHT, CMODE_RGBA8888);
     if (s_fb == NULL) {
-      s_fb = fb_create(DEFAULT_WIDTH, DEFAULT_HEIGHT, MODE_RGBA5551);
+      s_fb = fb_create(DEFAULT_WIDTH, DEFAULT_HEIGHT, CMODE_RGBA5551);
     }
   }
 }

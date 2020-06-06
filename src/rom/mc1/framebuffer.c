@@ -29,50 +29,50 @@
 // Private.
 //--------------------------------------------------------------------------------------------------
 
-static size_t bits_per_pixel(color_mode_t mode) {
+static size_t bits_per_pixel(int mode) {
   switch (mode) {
-    case MODE_RGBA8888:
+    case CMODE_RGBA8888:
       return 32;
-    case MODE_RGBA5551:
+    case CMODE_RGBA5551:
       return 16;
-    case MODE_PAL8:
+    case CMODE_PAL8:
       return 8;
-    case MODE_PAL4:
+    case CMODE_PAL4:
       return 4;
-    case MODE_PAL2:
+    case CMODE_PAL2:
       return 2;
-    case MODE_PAL1:
+    case CMODE_PAL1:
       return 1;
     default:
       return 0;
   }
 }
 
-static size_t palette_entries(color_mode_t mode) {
+static size_t palette_entries(int mode) {
   switch (mode) {
-    case MODE_PAL8:
+    case CMODE_PAL8:
       return 256;
-    case MODE_PAL4:
+    case CMODE_PAL4:
       return 16;
-    case MODE_PAL2:
+    case CMODE_PAL2:
       return 4;
-    case MODE_PAL1:
+    case CMODE_PAL1:
       return 2;
     default:
       return 0;
   }
 }
 
-static size_t calc_stride(int width, color_mode_t mode) {
+static size_t calc_stride(int width, int mode) {
   // We round up to the nearest word size.
   return 4u * ((bits_per_pixel(mode) * (size_t)width + 31u) / 32u);
 }
 
-static size_t calc_pixels_size(int width, int height, color_mode_t mode) {
+static size_t calc_pixels_size(int width, int height, int mode) {
   return calc_stride(width, mode) * (size_t)height;
 }
 
-static size_t calc_vcp_size(int height, color_mode_t mode) {
+static size_t calc_vcp_size(int height, int mode) {
   size_t prologue_words = 2;
 
   size_t palette_words = palette_entries(mode);
@@ -91,7 +91,7 @@ static size_t calc_vcp_size(int height, color_mode_t mode) {
 // Public.
 //--------------------------------------------------------------------------------------------------
 
-fb_t* fb_create(int width, int height, color_mode_t mode) {
+fb_t* fb_create(int width, int height, int mode) {
   // Sanity check input parameters.
   size_t bpp = bits_per_pixel(mode);
   if (width < 1 || height < 1 || bpp < 1) {

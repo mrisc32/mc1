@@ -31,21 +31,21 @@
 typedef struct {
   int width;
   int height;
-  color_mode_t mode;
+  int mode;
 } vmode_t;
 
 // Different video modes to try (we try lower and lower until the framebuffer fits in memory).
 static const vmode_t VMODES[] = {
-  {1024, 576, MODE_PAL8},
-  {1024, 576, MODE_PAL4},
-  {640, 360, MODE_PAL8},
-  {900, 506, MODE_PAL4},
-  {624, 351, MODE_PAL4},
-  {400, 225, MODE_PAL8},
-  {400, 225, MODE_PAL4},
-  {400, 225, MODE_PAL2},
-  {400, 225, MODE_PAL1},
-  {200, 112, MODE_PAL1}
+  {1024, 576, CMODE_PAL8},
+  {1024, 576, CMODE_PAL4},
+  {640, 360, CMODE_PAL8},
+  {900, 506, CMODE_PAL4},
+  {624, 351, CMODE_PAL4},
+  {400, 225, CMODE_PAL8},
+  {400, 225, CMODE_PAL4},
+  {400, 225, CMODE_PAL2},
+  {400, 225, CMODE_PAL1},
+  {200, 112, CMODE_PAL1}
 };
 #define NUM_VMODES (int)(sizeof(VMODES) / sizeof(VMODES[0]))
 
@@ -94,19 +94,19 @@ static void set_palette(fb_t* fb) {
   int N;
   int increment;
   switch (fb->mode) {
-    case MODE_PAL8:
+    case CMODE_PAL8:
       N = 256;
       increment = 1;
       break;
-    case MODE_PAL4:
+    case CMODE_PAL4:
       N = 16;
       increment = 9;
       break;
-    case MODE_PAL2:
+    case CMODE_PAL2:
       N = 4;
       increment = 63;
       break;
-    case MODE_PAL1:
+    case CMODE_PAL1:
     default:
       N = 2;
       increment = 1;
@@ -230,10 +230,10 @@ void mandelbrot(int frame_no) {
       const int n = iterate(re_c, im_c);
 
       // Convert the iteration count to a color.
-      if (s_fb->mode == MODE_PAL8) {
+      if (s_fb->mode == CMODE_PAL8) {
         *pixels = (uint8_t)n;
         ++pixels;
-      } else if (s_fb->mode == MODE_PAL4) {
+      } else if (s_fb->mode == CMODE_PAL4) {
         const int n2 = n ? ((n % 15) + 1) : 0;
         pix = pix | ((uint8_t)n2) << ((x & 1) * 4);
         if ((x & 1) == 1) {
@@ -241,7 +241,7 @@ void mandelbrot(int frame_no) {
           ++pixels;
           pix = 0;
         }
-      } else if (s_fb->mode == MODE_PAL2) {
+      } else if (s_fb->mode == CMODE_PAL2) {
         const int n2 = n ? ((n % 3) + 1) : 0;
         pix = pix | ((uint8_t)n2) << ((x & 3) * 2);
         if ((x & 3) == 3) {
@@ -249,7 +249,7 @@ void mandelbrot(int frame_no) {
           ++pixels;
           pix = 0;
         }
-      } else if (s_fb->mode == MODE_PAL1) {
+      } else if (s_fb->mode == CMODE_PAL1) {
         pix = pix | ((uint8_t)n & 1) << (x & 7);
         if ((x & 7) == 7) {
           *pixels = pix;
