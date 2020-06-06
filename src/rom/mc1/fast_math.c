@@ -22,9 +22,19 @@
 
 float fast_sin(float x) {
   // 1) Reduce periods of sin(x) to the range -PI/2 to PI/2.
-  const int period = (int)(x * (1.0f / 3.141592654f) + 0.5f);
+  //
+  //       x  -5.0   -4.0   -3.0   -2.0   -1.0    0.0    1.0    2.0    3.0    4.0    5.0
+  //  period  -2     -1     -1     -1      0      0      0      1      1      1      2
+  //      x'   1.28  -0.86   0.14   1.14  -1.00   0.00   1.00  -1.14  -0.14   0.86  -1.28
+  //
+  // Note: The offset 1024 is there to push most negative x:es into the positive range when doing
+  // the float-to-int conversion, so that rounding is correct. 1024 is selected because the
+  // floating-point constant 1024.5 fits in a single MRISC32 ldhi instruction, and because the
+  // floating-point addition will not throw away more precision than we get with the Tailor series
+  // approximation.
+  const int period = ((int)(x * (1.0f / 3.141592654f) + 1024.5f)) - 1024;
   const int negate = period & 1;
-  x -= 3.141592654f * ((float)period - 0.5f);
+  x -= 3.141592654f * (float)period;
 
   // 2) Use a Tailor series approximation in the range -PI/2 to PI/2.
   // See: https://en.wikipedia.org/wiki/Taylor_series#Approximation_error_and_convergence
