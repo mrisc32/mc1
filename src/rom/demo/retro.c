@@ -76,10 +76,10 @@ static void render_layer2(const int frame_no) {
   // Clear the raster colors.
   {
     // TODO(m): Use a vector loop instead.
-    uint32_t* vcp = s_retro.vcp3 + 3;
+    uint32_t* color_ptr = s_retro.vcp3 + 3;
     for (int y = 0; y < s_retro.height; ++y) {
-      *vcp = 0u;
-      vcp += 3;
+      *color_ptr = 0u;
+      color_ptr += 3;
     }
   }
 
@@ -90,13 +90,13 @@ static void render_layer2(const int frame_no) {
     const uint32_t bar_color_2 = 0xffff43ffu;
 
     for (int k = 0; k < NUM_BARS; ++k) {
-      if (((frame_no + 4 * k) & 0xff) > 60) {
-        continue;
-      }
-
       // Calculate the bar position.
       int pos = sin16((frame_no + 4 * k) * (SINE_LUT_ENTIRES / 256));
       pos = (s_retro.height >> 1) + (((s_retro.height * 3) * pos) >> 18);
+
+      // Calculate the bar alpha.
+      int alpha = (sin16((frame_no >> 1) + 2 * k) >> 7) + 100;
+      alpha = (alpha < 0 ? 0 : (alpha > 255 ? 255 : alpha));
 
       // Calculate the bar color.
       const uint32_t w1 = k * (255 / (NUM_BARS - 1));
@@ -107,7 +107,7 @@ static void render_layer2(const int frame_no) {
       // Draw the bar.
       for (int i = -32; i <= 32; ++i) {
         const int y = pos + i;
-        const uint32_t intensity = (255u * (uint32_t)(32 - iabs(i))) >> 5;
+        const uint32_t intensity = ((uint32_t)(alpha * (32 - iabs(i)))) >> 5;
         const uint32_t color = _mr32_mulhiu_b(bar_color, _mr32_shuf(intensity, 0));
         uint32_t* color_ptr = s_retro.vcp3 + 3 + 3 * y;
         *color_ptr = _mr32_maxu_b(color, *color_ptr);
@@ -134,15 +134,15 @@ void retro_init(void) {
   // Get the native video resolution.
   s_retro.width = (int)MMIO(VIDWIDTH);
   s_retro.height = (int)MMIO(VIDHEIGHT);
-  s_retro.sky_height = s_retro.height / 2;
+  s_retro.sky_height = (s_retro.height * 5) >> 3;
 
   // VCP 1 (top of layer 1).
   const int32_t vcp1_height = s_retro.sky_height;
   const size_t vcp1_size = sizeof(uint32_t) * (1 + vcp1_height * 3);
 
   // VCP 2 (bottom of layer 1).
-  const int32_t vcp2_height = s_retro.height - vcp1_height;
-  const size_t vcp2_size = sizeof(uint32_t) * (vcp2_height * 3 + 1);
+  const int32_t vcp2_height = s_retro.height - s_retro.sky_height;
+  const size_t vcp2_size = sizeof(uint32_t) * (4 + vcp2_height * 6 + 1);
 
   // VCP 3 (layer 2).
   const size_t vcp3_size = sizeof(uint32_t) * (1 + s_retro.height * 3 + 1);
@@ -184,12 +184,22 @@ void retro_init(void) {
       ++vcp;  // Palette color 0
     }
 
+    // Checkerboard prologue.
+    *vcp++ = vcp_emit_waity(y);
+    *vcp++ = vcp_emit_setreg(VCR_ADDR, to_vcp_addr((uint32_t)s_retro.pixels1));
+    *vcp++ = vcp_emit_setreg(VCR_HSTOP, s_retro.width);
+    *vcp++ = vcp_emit_setreg(VCR_CMODE, CMODE_PAL1);
+
     // The checker board.
-    for (; y < s_retro.height; ++y) {
-      *vcp++ = vcp_emit_waity(y);
-      // TODO(m): Here should be bitmap pointers etc.
-      *vcp++ = vcp_emit_setpal(0, 1);
-      *vcp++ = 0x01010101 * (y >> 3);  // Palette color 0
+    {
+      for (; y < s_retro.height; ++y) {
+        *vcp++ = vcp_emit_waity(y);
+        *vcp++ = vcp_emit_setreg(VCR_XOFFS, y * 0x000010);
+        *vcp++ = vcp_emit_setreg(VCR_XINCR, 0x000400);
+        *vcp++ = vcp_emit_setpal(0, 2);
+        *vcp++ = 0x00400000u;                                    // Palette color 0
+        *vcp++ = 0x00010101u * ((y - s_retro.sky_height) >> 3);  // Palette color 1
+      }
     }
 
     // Epilogue.
