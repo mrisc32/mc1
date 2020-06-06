@@ -25,6 +25,12 @@
 
 #include <stdint.h>
 
+// Packed data types.
+typedef uint32_t int8x4_t;
+typedef uint32_t int16x2_t;
+typedef uint32_t uint8x4_t;
+typedef uint32_t uint16x2_t;
+
 // TODO(m): This should be defined by the compiler. Right now we have to assume that all MRISC32
 // CPU:s support saturating/halving operations.
 #define __MRISC32_SATURATING_OPS__ 1
@@ -37,10 +43,10 @@ static inline uint32_t _mr32_shuf(uint32_t a, uint32_t b) { uint32_t r; asm ("sh
 static inline uint32_t _mr32_clz(uint32_t a) { uint32_t r; asm ("clz %0, %1" : "=r"(r) : "r"(a)); return r; }
 static inline uint32_t _mr32_rev(uint32_t a) { uint32_t r; asm ("rev %0, %1" : "=r"(r) : "r"(a)); return r; }
 #ifdef __MRISC32_PACKED_OPS__
-static inline uint32_t _mr32_clz_b(uint32_t a) { uint32_t r; asm ("clz.b %0, %1" : "=r"(r) : "r"(a)); return r; }
-static inline uint32_t _mr32_clz_h(uint32_t a) { uint32_t r; asm ("clz.h %0, %1" : "=r"(r) : "r"(a)); return r; }
-static inline uint32_t _mr32_rev_b(uint32_t a) { uint32_t r; asm ("rev.b %0, %1" : "=r"(r) : "r"(a)); return r; }
-static inline uint32_t _mr32_rev_h(uint32_t a) { uint32_t r; asm ("rev.h %0, %1" : "=r"(r) : "r"(a)); return r; }
+static inline uint32_t _mr32_clz_b(uint8x4_t a) { uint8x4_t r; asm ("clz.b %0, %1" : "=r"(r) : "r"(a)); return r; }
+static inline uint32_t _mr32_clz_h(uint16x2_t a) { uint16x2_t r; asm ("clz.h %0, %1" : "=r"(r) : "r"(a)); return r; }
+static inline uint32_t _mr32_rev_b(uint8x4_t a) { uint8x4_t r; asm ("rev.b %0, %1" : "=r"(r) : "r"(a)); return r; }
+static inline uint32_t _mr32_rev_h(uint16x2_t a) { uint16x2_t r; asm ("rev.h %0, %1" : "=r"(r) : "r"(a)); return r; }
 #endif  // __MRISC32_PACKED_OPS__
 
 static inline int32_t _mr32_min(int32_t a, int32_t b) { int32_t r; asm ("min %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
@@ -48,38 +54,38 @@ static inline uint32_t _mr32_minu(uint32_t a, uint32_t b) { uint32_t r; asm ("mi
 static inline int32_t _mr32_max(int32_t a, int32_t b) { int32_t r; asm ("max %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
 static inline uint32_t _mr32_maxu(uint32_t a, uint32_t b) { uint32_t r; asm ("maxu %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
 #ifdef __MRISC32_PACKED_OPS__
-static inline uint32_t _mr32_min_b(uint32_t a, uint32_t b) { uint32_t r; asm ("min.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
-static inline uint32_t _mr32_min_h(uint32_t a, uint32_t b) { uint32_t r; asm ("min.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
-static inline uint32_t _mr32_minu_b(uint32_t a, uint32_t b) { uint32_t r; asm ("minu.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
-static inline uint32_t _mr32_minu_h(uint32_t a, uint32_t b) { uint32_t r; asm ("minu.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
-static inline uint32_t _mr32_max_b(uint32_t a, uint32_t b) { uint32_t r; asm ("max.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
-static inline uint32_t _mr32_max_h(uint32_t a, uint32_t b) { uint32_t r; asm ("max.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
-static inline uint32_t _mr32_maxu_b(uint32_t a, uint32_t b) { uint32_t r; asm ("maxu.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
-static inline uint32_t _mr32_maxu_h(uint32_t a, uint32_t b) { uint32_t r; asm ("maxu.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_min_b(int8x4_t a, int8x4_t b) { int8x4_t r; asm ("min.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_min_h(int16x2_t a, int16x2_t b) { int16x2_t r; asm ("min.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_minu_b(uint8x4_t a, uint8x4_t b) { uint8x4_t r; asm ("minu.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_minu_h(uint16x2_t a, uint16x2_t b) { uint16x2_t r; asm ("minu.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_max_b(int8x4_t a, int8x4_t b) { int8x4_t r; asm ("max.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_max_h(int16x2_t a, int16x2_t b) { int16x2_t r; asm ("max.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_maxu_b(uint8x4_t a, uint8x4_t b) { uint8x4_t r; asm ("maxu.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_maxu_h(uint16x2_t a, uint16x2_t b) { uint16x2_t r; asm ("maxu.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
 #endif  // __MRISC32_PACKED_OPS__
 
 static inline int32_t _mr32_mulq(int32_t a, int32_t b) { int32_t r; asm ("mulq %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
 #ifdef __MRISC32_PACKED_OPS__
-static inline uint32_t _mr32_mulq_b(uint32_t a, uint32_t b) { uint32_t r; asm ("mulq.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
-static inline uint32_t _mr32_mulq_h(uint32_t a, uint32_t b) { uint32_t r; asm ("mulq.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
-static inline uint32_t _mr32_mul_b(uint32_t a, uint32_t b) { uint32_t r; asm ("mul.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
-static inline uint32_t _mr32_mul_h(uint32_t a, uint32_t b) { uint32_t r; asm ("mul.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
-static inline uint32_t _mr32_mulhi_b(uint32_t a, uint32_t b) { uint32_t r; asm ("mulhi.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
-static inline uint32_t _mr32_mulhi_h(uint32_t a, uint32_t b) { uint32_t r; asm ("mulhi.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
-static inline uint32_t _mr32_mulhiu_b(uint32_t a, uint32_t b) { uint32_t r; asm ("mulhiu.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
-static inline uint32_t _mr32_mulhiu_h(uint32_t a, uint32_t b) { uint32_t r; asm ("mulhiu.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_mulq_b(int8x4_t a, int8x4_t b) { int8x4_t r; asm ("mulq.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_mulq_h(int16x2_t a, int16x2_t b) { int16x2_t r; asm ("mulq.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_mul_b(int8x4_t a, int8x4_t b) { int8x4_t r; asm ("mul.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_mul_h(int16x2_t a, int16x2_t b) { int16x2_t r; asm ("mul.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_mulhi_b(int8x4_t a, int8x4_t b) { int8x4_t r; asm ("mulhi.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_mulhi_h(int16x2_t a, int16x2_t b) { int16x2_t r; asm ("mulhi.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_mulhiu_b(uint8x4_t a, uint8x4_t b) { uint8x4_t r; asm ("mulhiu.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_mulhiu_h(uint16x2_t a, uint16x2_t b) { uint16x2_t r; asm ("mulhiu.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
 #endif  // __MRISC32_PACKED_OPS__
 
 #ifdef __MRISC32_DIV__
 #ifdef __MRISC32_PACKED_OPS__
-static inline uint32_t _mr32_div_b(uint32_t a, uint32_t b) { uint32_t r; asm ("div.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
-static inline uint32_t _mr32_div_h(uint32_t a, uint32_t b) { uint32_t r; asm ("div.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
-static inline uint32_t _mr32_divu_b(uint32_t a, uint32_t b) { uint32_t r; asm ("divu.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
-static inline uint32_t _mr32_divu_h(uint32_t a, uint32_t b) { uint32_t r; asm ("divu.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
-static inline uint32_t _mr32_rem_b(uint32_t a, uint32_t b) { uint32_t r; asm ("rem.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
-static inline uint32_t _mr32_rem_h(uint32_t a, uint32_t b) { uint32_t r; asm ("rem.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
-static inline uint32_t _mr32_remu_b(uint32_t a, uint32_t b) { uint32_t r; asm ("remu.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
-static inline uint32_t _mr32_remu_h(uint32_t a, uint32_t b) { uint32_t r; asm ("remu.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_div_b(int8x4_t a, int8x4_t b) { int8x4_t r; asm ("div.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_div_h(int16x2_t a, int16x2_t b) { int16x2_t r; asm ("div.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_divu_b(uint8x4_t a, uint8x4_t b) { uint8x4_t r; asm ("divu.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_divu_h(uint16x2_t a, uint16x2_t b) { uint16x2_t r; asm ("divu.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_rem_b(int8x4_t a, int8x4_t b) { int8x4_t r; asm ("rem.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_rem_h(int16x2_t a, int16x2_t b) { int16x2_t r; asm ("rem.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_remu_b(uint8x4_t a, uint8x4_t b) { uint8x4_t r; asm ("remu.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_remu_h(uint16x2_t a, uint16x2_t b) { uint16x2_t r; asm ("remu.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
 #endif  // __MRISC32_PACKED_OPS__
 #endif  // __MRISC32_DIV__
 
@@ -93,22 +99,22 @@ static inline uint32_t _mr32_subsu(uint32_t a, uint32_t b) { uint32_t r; asm ("s
 static inline int32_t _mr32_subh(int32_t a, int32_t b) { int32_t r; asm ("subh %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
 static inline uint32_t _mr32_subhu(uint32_t a, uint32_t b) { uint32_t r; asm ("subhu %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
 #ifdef __MRISC32_PACKED_OPS__
-static inline uint32_t _mr32_adds_b(uint32_t a, uint32_t b) { uint32_t r; asm ("adds.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
-static inline uint32_t _mr32_adds_h(uint32_t a, uint32_t b) { uint32_t r; asm ("adds.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
-static inline uint32_t _mr32_addsu_b(uint32_t a, uint32_t b) { uint32_t r; asm ("addsu.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
-static inline uint32_t _mr32_addsu_h(uint32_t a, uint32_t b) { uint32_t r; asm ("addsu.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
-static inline uint32_t _mr32_addh_b(uint32_t a, uint32_t b) { uint32_t r; asm ("addh.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
-static inline uint32_t _mr32_addh_h(uint32_t a, uint32_t b) { uint32_t r; asm ("addh.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
-static inline uint32_t _mr32_addhu_b(uint32_t a, uint32_t b) { uint32_t r; asm ("addhu.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
-static inline uint32_t _mr32_addhu_h(uint32_t a, uint32_t b) { uint32_t r; asm ("addhu.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
-static inline uint32_t _mr32_subs_b(uint32_t a, uint32_t b) { uint32_t r; asm ("subs.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
-static inline uint32_t _mr32_subs_h(uint32_t a, uint32_t b) { uint32_t r; asm ("subs.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
-static inline uint32_t _mr32_subsu_b(uint32_t a, uint32_t b) { uint32_t r; asm ("subsu.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
-static inline uint32_t _mr32_subsu_h(uint32_t a, uint32_t b) { uint32_t r; asm ("subsu.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
-static inline uint32_t _mr32_subh_b(uint32_t a, uint32_t b) { uint32_t r; asm ("subh.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
-static inline uint32_t _mr32_subh_h(uint32_t a, uint32_t b) { uint32_t r; asm ("subh.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
-static inline uint32_t _mr32_subhu_b(uint32_t a, uint32_t b) { uint32_t r; asm ("subhu.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
-static inline uint32_t _mr32_subhu_h(uint32_t a, uint32_t b) { uint32_t r; asm ("subhu.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_adds_b(int8x4_t a, int8x4_t b) { int8x4_t r; asm ("adds.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_adds_h(int16x2_t a, int16x2_t b) { int16x2_t r; asm ("adds.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_addsu_b(uint8x4_t a, uint8x4_t b) { uint8x4_t r; asm ("addsu.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_addsu_h(uint16x2_t a, uint16x2_t b) { uint16x2_t r; asm ("addsu.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_addh_b(int8x4_t a, int8x4_t b) { int8x4_t r; asm ("addh.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_addh_h(int16x2_t a, int16x2_t b) { int16x2_t r; asm ("addh.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_addhu_b(uint8x4_t a, uint8x4_t b) { uint8x4_t r; asm ("addhu.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_addhu_h(uint16x2_t a, uint16x2_t b) { uint16x2_t r; asm ("addhu.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_subs_b(int8x4_t a, int8x4_t b) { int8x4_t r; asm ("subs.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_subs_h(int16x2_t a, int16x2_t b) { int16x2_t r; asm ("subs.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_subsu_b(uint8x4_t a, uint8x4_t b) { uint8x4_t r; asm ("subsu.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_subsu_h(uint16x2_t a, uint16x2_t b) { uint16x2_t r; asm ("subsu.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_subh_b(int8x4_t a, int8x4_t b) { int8x4_t r; asm ("subh.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_subh_h(int16x2_t a, int16x2_t b) { int16x2_t r; asm ("subh.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_subhu_b(uint8x4_t a, uint8x4_t b) { uint8x4_t r; asm ("subhu.b %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
+static inline uint32_t _mr32_subhu_h(uint16x2_t a, uint16x2_t b) { uint16x2_t r; asm ("subhu.h %0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
 #endif  // __MRISC32_PACKED_OPS__
 #endif  // __MRISC32_SATURATING_OPS__
 
