@@ -55,29 +55,23 @@ int main(void) {
     }
 
     // Select program with the board switches.
-    int active_program = 1;
     if (switches == 1) {
       mandelbrot_init();
+      sevseg_print_dec(frame_no);
       mandelbrot(frame_no);
     } else if (switches == 2) {
       raytrace_init();
+      sevseg_print_dec(frame_no);
       raytrace(frame_no);
     } else if (switches == 4) {
       retro_init();
       retro(frame_no);
+      sevseg_print_dec(MMIO(VIDY));  // For profiling: Show current raster Y position.
       wait_vblank();
     } else {
-      active_program = 0;
+      sevseg_print("OLLEH");  // Print a friendly "HELLO".
       vcon_show(LAYER_1);
       wait_vblank();
-    }
-
-    if (active_program) {
-      // Write the frame number to the segment displays.
-      sevseg_print_dec(frame_no);
-    } else {
-      // Print a friendly "HELLO".
-      sevseg_print("OLLEH");
     }
   }
 

@@ -27,7 +27,7 @@
 #include <stdint.h>
 
 #define SINE_LUT_ENTIRES 1024
-#define PIXEL_WORDS      4
+#define PIXEL_WORDS      16
 
 typedef struct {
   void* base_ptr;
@@ -56,20 +56,61 @@ static int iabs(int x) {
   return x < 0 ? -x : x;
 }
 
+static uint8x4_t lerp8(uint8x4_t a, uint8x4_t b, int w) {
+  uint8x4_t w1 = _mr32_shuf(255 - w, _MR32_SHUFCTL(0, 0, 0, 0, 0));
+  uint8x4_t w2 = _mr32_shuf(w, _MR32_SHUFCTL(0, 0, 0, 0, 0));
+  return _mr32_addsu_b(_mr32_mulhiu_b(a, w1), _mr32_mulhiu_b(b, w2));
+}
+
 static void render_layer1(const int frame_no) {
   // Create a gradient on the top of the screen ("sky").
-  uint32_t* vcp = s_retro.vcp1 + 3;
-  for (int y = 0; y < s_retro.sky_height; ++y) {
-    const int s = sin16(frame_no * 2 + y * 3);
-    const uint32_t r = (uint32_t)(32 + ((32 * s) >> 15)) + (y >> 3);
-    const uint32_t g = (uint32_t)(20 + ((16 * s) >> 15)) + (y >> 4);
-    const uint32_t b = (uint32_t)(150 + ((64 * s) >> 15));
-    *vcp = (b << 16) | (g << 8) | r;
-    vcp += 3;
-  }
+  {
+    uint32_t* vcp = s_retro.vcp1 + 3;
+    for (int y = 0; y < s_retro.sky_height; ++y) {
+      const int s = sin16(frame_no * 2 + y * 3);
+      const uint32_t r = (uint32_t)(32 + ((32 * s) >> 15)) + (y >> 3);
+      const uint32_t g = (uint32_t)(20 + ((16 * s) >> 15)) + (y >> 4);
+      const uint32_t b = (uint32_t)(150 + ((64 * s) >> 15));
+      *vcp = (b << 16) | (g << 8) | r;
+      vcp += 3;
+    }
+   }
 
   // Create the checker board at the bottom of the screen.
-  // TODO(m): Implement me!
+  {
+    const int checker_height = s_retro.height - s_retro.sky_height;
+    const float width_div2 = _mr32_itof(s_retro.width, 1);
+    const float scale_step = 10.0f / (float)checker_height;
+    float scale_div = 1.0f;
+    const int offs_base = 0x10000000 + (sin16(frame_no) * 64);
+    uint32_t* vcp = s_retro.vcp2 + 5;
+    for (int y = 0; y < checker_height; ++y) {
+      // Calculate and set the XOFFS and XINCR registers.
+      const float scale = (1.0f / 8.0f) / scale_div;
+      scale_div += scale_step;
+      const float offs = scale * width_div2;
+      const int32_t xoffs = offs_base - _mr32_ftoir(offs, 16);
+      const int32_t xincr = _mr32_ftoir(scale, 16);
+      vcp[0] = vcp_emit_setreg(VCR_XOFFS, xoffs & 0x000fffffu);
+      vcp[1] = vcp_emit_setreg(VCR_XINCR, xincr & 0x00ffffffu);
+
+      // Calculate and set the palette colors.
+      // 1) Use alternating colors to achieve the checker effect.
+      uint32_t color0 = 0x00ffd0c0u;
+      uint32_t color1 = 0x00102030u;
+      if (((_mr32_ftoi(scale, 13) + frame_no) & 32) != 0) {
+        uint32_t tmp = color1;
+        color1 = color0;
+        color0 = tmp;
+      }
+      // 2) Fade towards a common color at the horizon.
+      const int w = (255 * y) / checker_height;
+      vcp[3] = lerp8(0x00403020u, color0, w);
+      vcp[4] = lerp8(0x00403020u, color1, w);
+
+      vcp += 6;
+    }
+  }
 }
 
 static void render_layer2(const int frame_no) {
@@ -86,8 +127,8 @@ static void render_layer2(const int frame_no) {
   // Draw a few raster bars.
   {
     const int NUM_BARS = 16;
-    const uint32_t bar_color_1 = 0xff44ffc7u;
-    const uint32_t bar_color_2 = 0xffff43ffu;
+    const uint8x4_t bar_color_1 = 0xff44ffc7u;
+    const uint8x4_t bar_color_2 = 0xffff43ffu;
 
     for (int k = 0; k < NUM_BARS; ++k) {
       // Calculate the bar position.
@@ -101,15 +142,16 @@ static void render_layer2(const int frame_no) {
       // Calculate the bar color.
       const uint32_t w1 = k * (255 / (NUM_BARS - 1));
       const uint32_t w2 = 255 - w1;
-      const uint32_t bar_color = _mr32_addsu_b(_mr32_mulhiu_b(bar_color_1, _mr32_shuf(w1, 0)),
-                                               _mr32_mulhiu_b(bar_color_2, _mr32_shuf(w2, 0)));
+      const uint8x4_t bar_color = _mr32_addsu_b(
+          _mr32_mulhiu_b(bar_color_1, _mr32_shuf(w1, _MR32_SHUFCTL(0, 0, 0, 0, 0))),
+          _mr32_mulhiu_b(bar_color_2, _mr32_shuf(w2, _MR32_SHUFCTL(0, 0, 0, 0, 0))));
 
       // Draw the bar.
       for (int i = -32; i <= 32; ++i) {
         const int y = pos + i;
         const uint32_t intensity = ((uint32_t)(alpha * (32 - iabs(i)))) >> 5;
-        const uint32_t color = _mr32_mulhiu_b(bar_color, _mr32_shuf(intensity, 0));
-        uint32_t* color_ptr = s_retro.vcp3 + 3 + 3 * y;
+        const uint8x4_t color = _mr32_mulhiu_b(bar_color, _mr32_shuf(intensity, 0));
+        uint8x4_t* color_ptr = s_retro.vcp3 + 3 + 3 * y;
         *color_ptr = _mr32_maxu_b(color, *color_ptr);
       }
     }
@@ -194,11 +236,10 @@ void retro_init(void) {
     {
       for (; y < s_retro.height; ++y) {
         *vcp++ = vcp_emit_waity(y);
-        *vcp++ = vcp_emit_setreg(VCR_XOFFS, y * 0x000010);
+        *vcp++ = vcp_emit_setreg(VCR_XOFFS, 0);
         *vcp++ = vcp_emit_setreg(VCR_XINCR, 0x000400);
         *vcp++ = vcp_emit_setpal(0, 2);
-        *vcp++ = 0x00400000u;                                    // Palette color 0
-        *vcp++ = 0x00010101u * ((y - s_retro.sky_height) >> 3);  // Palette color 1
+        vcp += 2;  // Palette colors 0 & 1
       }
     }
 
@@ -227,7 +268,7 @@ void retro_init(void) {
 
   // Create the pixels for the checker board.
   for (int k = 0; k < PIXEL_WORDS; ++k) {
-    s_retro.pixels1[k] = 0x55555555u;
+    s_retro.pixels1[k] = 0x0f0f0f0fu;
   }
 
   // Create the sine LUT.
