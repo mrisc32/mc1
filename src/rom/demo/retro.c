@@ -63,15 +63,23 @@ static uint8x4_t lerp8(uint8x4_t a, uint8x4_t b, int w) {
 }
 
 static void render_layer1(const int frame_no) {
-  // Create a gradient on the top of the screen ("sky").
+  // Create a gradient at the top of the screen ("sky").
   {
+    const float w_scale = 255.0f / (float)s_retro.sky_height;
     uint32_t* vcp = s_retro.vcp1 + 3;
     for (int y = 0; y < s_retro.sky_height; ++y) {
-      const int s = sin16(frame_no * 2 + y * 3);
-      const uint32_t r = (uint32_t)(32 + ((32 * s) >> 15)) + (y >> 3);
-      const uint32_t g = (uint32_t)(20 + ((16 * s) >> 15)) + (y >> 4);
-      const uint32_t b = (uint32_t)(150 + ((64 * s) >> 15));
-      *vcp = (b << 16) | (g << 8) | r;
+      // Modulate the sky with a slow blue sine.
+      const int s = 128 + (sin16(frame_no * 2 + y * 3) >> 8);
+      const uint8x4_t sin_mod =
+          _mr32_mulhiu_b(0x00301008u, _mr32_shuf(s, _MR32_SHUFCTL(0, 0, 0, 0, 0)));
+
+      // Generate a sweet sky gradient.
+      // TODO(m): Make it so!
+      const int w = (int)(((float)y) * w_scale);
+      const uint8x4_t sky_col =
+          _mr32_mulhiu_b(0x00105080u, _mr32_shuf(w, _MR32_SHUFCTL(0, 0, 0, 0, 0)));
+      *vcp = _mr32_addsu_b(sky_col, sin_mod);
+
       vcp += 3;
     }
    }
@@ -83,6 +91,7 @@ static void render_layer1(const int frame_no) {
     const float scale_step = 10.0f / (float)checker_height;
     float scale_div = 1.0f;
     const int offs_base = 0x10000000 + (sin16(frame_no) * 64);
+    const float check_fade_scale = 255.0f / (float)checker_height;
     uint32_t* vcp = s_retro.vcp2 + 5;
     for (int y = 0; y < checker_height; ++y) {
       // Calculate and set the XOFFS and XINCR registers.
@@ -104,7 +113,7 @@ static void render_layer1(const int frame_no) {
         color0 = tmp;
       }
       // 2) Fade towards a common color at the horizon.
-      const int w = (255 * y) / checker_height;
+      const int w = (int)(check_fade_scale * (float)y);
       vcp[3] = lerp8(0x00403020u, color0, w);
       vcp[4] = lerp8(0x00403020u, color1, w);
 
