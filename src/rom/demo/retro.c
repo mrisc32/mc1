@@ -36,9 +36,12 @@ typedef struct {
   uint32_t* vcp3;
   uint32_t* pixels1;
   int16_t* sine_lut;
+  uint16_t* sun_lut;
   int32_t width;
   int32_t height;
   int32_t sky_height;
+  int32_t sun_radius;
+  int32_t sun_max_height;
 } retro_t;
 
 static retro_t s_retro;
@@ -52,6 +55,13 @@ static int sin16(int x) {
   return (int)s_retro.sine_lut[((unsigned)x) & (SINE_LUT_ENTIRES - 1u)];
 }
 
+static int sun_width(int y) {
+  if (y >= s_retro.sun_radius) {
+    y = 2 * s_retro.sun_radius - 1 - y;
+  }
+  return y >= 0 ? (int)s_retro.sun_lut[y] : 0;
+}
+
 static int iabs(int x) {
   return x < 0 ? -x : x;
 }
@@ -62,73 +72,91 @@ static uint8x4_t lerp8(uint8x4_t a, uint8x4_t b, int w) {
   return _mr32_addsu_b(_mr32_mulhiu_b(a, w1), _mr32_mulhiu_b(b, w2));
 }
 
-static void render_layer1(const int frame_no) {
-  // Create a gradient at the top of the screen ("sky").
-  {
-    const float w_scale = 255.0f / (float)s_retro.sky_height;
-    uint32_t* vcp = s_retro.vcp1 + 3;
-    for (int y = 0; y < s_retro.sky_height; ++y) {
-      // Modulate the sky with a slow blue sine.
-      const int s = 128 + (sin16(frame_no * 2 + y * 3) >> 8);
-      const uint8x4_t sin_mod =
-          _mr32_mulhiu_b(0x00301008u, _mr32_shuf(s, _MR32_SHUFCTL(0, 0, 0, 0, 0)));
+static void draw_sky(const int frame_no) {
+  static const uint8x4_t SKY_COLS[] = {
+    0x00000000u, 0x00080002u, 0x00200010u, 0x00601020u, 0x00802060u, 0x00802880u, 0x00c030f0u
+  };
 
-      // Generate a sweet sky gradient.
-      // TODO(m): Make it so!
-      const int w = (int)(((float)y) * w_scale);
-      const uint8x4_t sky_col =
-          _mr32_mulhiu_b(0x00105080u, _mr32_shuf(w, _MR32_SHUFCTL(0, 0, 0, 0, 0)));
-      *vcp = _mr32_addsu_b(sky_col, sin_mod);
+  // TODO(m): Make the sun stop smoothly.
+  const float w_scale = ((float)(sizeof(SKY_COLS)/sizeof(SKY_COLS[0]) - 1)) /
+                        (float)s_retro.sky_height;
+  const int sun_rise = _mr32_min(frame_no, s_retro.sun_max_height);
+  const uint32_t horiz_mid = (uint32_t)(s_retro.width >> 1);
+  uint32_t* vcp = s_retro.vcp1 + 4;
+  for (int y = 0; y < s_retro.sky_height; ++y) {
+    // Modulate the sky with a slow blue sine.
+    // TODO(m): Make this resolution-independent.
+    const int s = 128 + (sin16(frame_no * 2 + y * 3) >> 8);
+    const uint8x4_t sin_mod =
+        _mr32_mulhiu_b(0x0040160eu, _mr32_shuf(s, _MR32_SHUFCTL(0, 0, 0, 0, 0)));
 
-      vcp += 3;
+    // Generate a sweet sky gradient.
+    const int w = _mr32_ftou(w_scale * (float)y, 8);
+    const int idx = w >> 8;
+    const uint8x4_t sky_col = lerp8(SKY_COLS[idx], SKY_COLS[idx+1], w & 255);
+    vcp[2] = _mr32_addsu_b(sky_col, sin_mod);
+
+    // Draw the sun.
+    const int sun_y = y - (s_retro.sky_height - sun_rise);
+    uint32_t sun_w = sun_width(sun_y);
+
+    // Add horizontal masks, retro style!
+    // TODO(m): Make this resolution-independent.
+    if ((y & 31) < ((y - 320) >> 4)) {
+      sun_w = 0;
     }
-   }
 
-  // Create the checker board at the bottom of the screen.
-  {
-    const int checker_height = s_retro.height - s_retro.sky_height;
-    const float width_div2 = _mr32_itof(s_retro.width, 1);
-    const float scale_step = 10.0f / (float)checker_height;
-    float scale_div = 1.0f;
-    const int offs_base = 0x10000000 + (sin16(frame_no) * 64);
-    const float check_fade_scale = 255.0f / (float)checker_height;
-    uint32_t* vcp = s_retro.vcp2 + 5;
-    for (int y = 0; y < checker_height; ++y) {
-      // Calculate and set the XOFFS and XINCR registers.
-      const float scale = (1.0f / 8.0f) / scale_div;
-      scale_div += scale_step;
-      const float offs = scale * width_div2;
-      const int32_t xoffs = offs_base - _mr32_ftoir(offs, 16);
-      const int32_t xincr = _mr32_ftoir(scale, 16);
-      vcp[0] = vcp_emit_setreg(VCR_XOFFS, xoffs & 0x000fffffu);
-      vcp[1] = vcp_emit_setreg(VCR_XINCR, xincr & 0x00ffffffu);
+    vcp[4] = vcp_emit_setreg(VCR_HSTRT, horiz_mid - sun_w);
+    vcp[5] = vcp_emit_setreg(VCR_HSTOP, horiz_mid + sun_w);
 
-      // Calculate and set the palette colors.
-      // 1) Use alternating colors to achieve the checker effect.
-      uint32_t color0 = 0x00ffd0c0u;
-      uint32_t color1 = 0x00102030u;
-      if (((_mr32_ftoi(scale, 13) + frame_no) & 32) != 0) {
-        uint32_t tmp = color1;
-        color1 = color0;
-        color0 = tmp;
-      }
-      // 2) Fade towards a common color at the horizon.
-      const int w = (int)(check_fade_scale * (float)y);
-      vcp[3] = lerp8(0x00403020u, color0, w);
-      vcp[4] = lerp8(0x00403020u, color1, w);
-
-      vcp += 6;
-    }
+    vcp += 6;
   }
 }
 
-static void render_layer2(const int frame_no) {
+static void draw_checkerboard(const int frame_no) {
+  // Create the checker board at the bottom of the screen.
+  const int checker_height = s_retro.height - s_retro.sky_height;
+  const float width_div2 = _mr32_itof(s_retro.width, 1);
+  const float scale_step = 10.0f / (float)checker_height;
+  float scale_div = 1.0f;
+  const int offs_base = 0x10000000 + (sin16(frame_no) * 32);
+  const float check_fade_scale = 255.0f / (float)checker_height;
+  uint32_t* vcp = s_retro.vcp2 + 3;
+  for (int y = 0; y < checker_height; ++y) {
+    // Calculate and set the XOFFS and XINCR registers.
+    const float scale = (1.0f / 8.0f) / scale_div;
+    scale_div += scale_step;
+    const float offs = scale * width_div2;
+    const int32_t xoffs = offs_base - _mr32_ftoir(offs, 16);
+    const int32_t xincr = _mr32_ftoir(scale, 16);
+    vcp[1] = vcp_emit_setreg(VCR_XOFFS, xoffs & 0x000fffffu);
+    vcp[2] = vcp_emit_setreg(VCR_XINCR, xincr & 0x00ffffffu);
+
+    // Calculate and set the palette colors.
+    // 1) Use alternating colors to achieve the checker effect.
+    uint32_t color0 = 0x00ffc0d0u;
+    uint32_t color1 = 0x00302010u;
+    if (((_mr32_ftoi(scale, 13) + frame_no) & 32) != 0) {
+      uint32_t tmp = color1;
+      color1 = color0;
+      color0 = tmp;
+    }
+    // 2) Fade towards a common color at the horizon.
+    const int w = (int)(check_fade_scale * (float)y);
+    vcp[4] = lerp8(0x006060a0u, color0, w);
+    vcp[5] = lerp8(0x006060a0u, color1, w);
+
+    vcp += 6;
+  }
+}
+
+static void draw_raster_bars(const int frame_no) {
   // Clear the raster colors.
   {
     // TODO(m): Use a vector loop instead.
-    uint32_t* color_ptr = s_retro.vcp3 + 3;
+    uint32_t* color_ptr = s_retro.vcp3 + 1;
     for (int y = 0; y < s_retro.height; ++y) {
-      *color_ptr = 0u;
+      color_ptr[2] = 0u;
       color_ptr += 3;
     }
   }
@@ -139,14 +167,14 @@ static void render_layer2(const int frame_no) {
     const uint8x4_t bar_color_1 = 0xff44ffc7u;
     const uint8x4_t bar_color_2 = 0xffff43ffu;
 
+    // Calculate the bar alpha.
+    int alpha = (sin16((frame_no - 800) >> 1) >> 7) + 100;
+    alpha = (alpha < 0 ? 0 : (alpha > 255 ? 255 : alpha));
+
     for (int k = 0; k < NUM_BARS; ++k) {
       // Calculate the bar position.
       int pos = sin16((frame_no + 4 * k) * (SINE_LUT_ENTIRES / 256));
       pos = (s_retro.height >> 1) + (((s_retro.height * 3) * pos) >> 18);
-
-      // Calculate the bar alpha.
-      int alpha = (sin16((frame_no >> 1) + 2 * k) >> 7) + 100;
-      alpha = (alpha < 0 ? 0 : (alpha > 255 ? 255 : alpha));
 
       // Calculate the bar color.
       const uint32_t w1 = k * (255 / (NUM_BARS - 1));
@@ -167,11 +195,6 @@ static void render_layer2(const int frame_no) {
   }
 }
 
-static void render(const int frame_no) {
-  render_layer1(frame_no);
-  render_layer2(frame_no);
-}
-
 
 //--------------------------------------------------------------------------------------------------
 // Public API.
@@ -186,14 +209,16 @@ void retro_init(void) {
   s_retro.width = (int)MMIO(VIDWIDTH);
   s_retro.height = (int)MMIO(VIDHEIGHT);
   s_retro.sky_height = (s_retro.height * 5) >> 3;
+  s_retro.sun_radius = (s_retro.width * 3) >> 4;
+  s_retro.sun_max_height = (s_retro.sun_radius * 3) >> 1;
 
-  // VCP 1 (top of layer 1).
+  // VCP 1 (sky - top of layer 1).
   const int32_t vcp1_height = s_retro.sky_height;
-  const size_t vcp1_size = sizeof(uint32_t) * (1 + vcp1_height * 3);
+  const size_t vcp1_size = sizeof(uint32_t) * (4 + vcp1_height * 6);
 
-  // VCP 2 (bottom of layer 1).
+  // VCP 2 (checker board - bottom of layer 1).
   const int32_t vcp2_height = s_retro.height - s_retro.sky_height;
-  const size_t vcp2_size = sizeof(uint32_t) * (4 + vcp2_height * 6 + 1);
+  const size_t vcp2_size = sizeof(uint32_t) * (3 + vcp2_height * 6 + 1);
 
   // VCP 3 (layer 2).
   const size_t vcp3_size = sizeof(uint32_t) * (1 + s_retro.height * 3 + 1);
@@ -204,8 +229,11 @@ void retro_init(void) {
   // Sine LUT.
   const size_t sine_size = sizeof(int16_t) * SINE_LUT_ENTIRES;
 
+  // Sun outline LUT.
+  const size_t sun_size = sizeof(uint16_t) * s_retro.sun_radius;
+
   // Calculate the required memory size.
-  const size_t total_size = vcp1_size + vcp2_size + vcp3_size + pix1_size + sine_size;
+  const size_t total_size = vcp1_size + vcp2_size + vcp3_size + pix1_size + sine_size + sun_size;
 
   uint8_t* mem = (uint8_t*)mem_alloc(total_size, MEM_TYPE_VIDEO | MEM_CLEAR);
   if (mem == NULL) {
@@ -218,28 +246,40 @@ void retro_init(void) {
   s_retro.vcp3 = (uint32_t*)(mem + vcp1_size + vcp2_size);
   s_retro.pixels1 = (uint32_t*)(mem + vcp1_size + vcp2_size + vcp3_size);
   s_retro.sine_lut = (int16_t*)(mem + vcp1_size + vcp2_size + vcp3_size + pix1_size);
+  s_retro.sun_lut = (uint16_t*)(mem + vcp1_size + vcp2_size + vcp3_size + pix1_size + sine_size);
 
   // Create the VCP for layer 1 (VCP 1 + VCP 2).
   {
     uint32_t* vcp = s_retro.vcp1;
 
     // Prologue.
-    // Set the dither mode.
-    *vcp++ = vcp_emit_setreg(VCR_RMODE, 0x135);
+    *vcp++ = vcp_emit_setreg(VCR_RMODE, 0x135);  // Set the dither mode
+    *vcp++ = vcp_emit_setreg(VCR_CMODE, CMODE_PAL1);
+    *vcp++ = vcp_emit_setreg(VCR_ADDR, to_vcp_addr((uint32_t)s_retro.pixels1));
+    *vcp++ = vcp_emit_setreg(VCR_XINCR, 0x000000);
 
     // The sky.
     int y = 0;
-    for (; y < s_retro.sky_height; ++y) {
-      *vcp++ = vcp_emit_waity(y);
-      *vcp++ = vcp_emit_setpal(0, 1);
-      ++vcp;  // Palette color 0
+    {
+      const int sun_top_y = s_retro.sky_height - s_retro.sun_max_height;
+      for (; y < s_retro.sky_height; ++y) {
+        const int w = (255 * (y - sun_top_y)) / s_retro.sun_max_height;
+        const uint8x4_t sun_col = lerp8(0x0019ffff, 0x009c09fd, w);
+
+        *vcp++ = vcp_emit_waity(y);
+        *vcp++ = vcp_emit_setpal(0, 2);
+        ++vcp;             // Palette color 0
+        *vcp++ = sun_col;  // Palette color 1
+        *vcp++ = vcp_emit_setreg(VCR_HSTRT, 0);
+        *vcp++ = vcp_emit_setreg(VCR_HSTOP, 0);
+      }
     }
 
     // Checkerboard prologue.
+    // Note: This is where s_retro.vcp2 points.
     *vcp++ = vcp_emit_waity(y);
-    *vcp++ = vcp_emit_setreg(VCR_ADDR, to_vcp_addr((uint32_t)s_retro.pixels1));
+    *vcp++ = vcp_emit_setreg(VCR_HSTRT, 0);
     *vcp++ = vcp_emit_setreg(VCR_HSTOP, s_retro.width);
-    *vcp++ = vcp_emit_setreg(VCR_CMODE, CMODE_PAL1);
 
     // The checker board.
     {
@@ -282,8 +322,18 @@ void retro_init(void) {
 
   // Create the sine LUT.
   for (int k = 0; k < SINE_LUT_ENTIRES; ++k) {
-    float y = fast_sin(k * (6.283185307f / (float)SINE_LUT_ENTIRES));
+    const float y = fast_sin(k * (6.283185307f / (float)SINE_LUT_ENTIRES));
     s_retro.sine_lut[k] = (int16_t)(32767.0f * y);
+  }
+
+  // Create the sun outline LUT.
+  {
+    const float sun_width = (float)s_retro.sun_radius;
+    for (int k = 0; k < s_retro.sun_radius; ++k) {
+      const float y = (1.0f / sun_width) * (float)(s_retro.sun_radius - k);
+      const float x = fast_sqrt(1.0f - y * y);
+      s_retro.sun_lut[k] = (uint16_t)(sun_width * x);
+    }
   }
 }
 
@@ -305,6 +355,10 @@ void retro(int frame_no) {
   vcp_set_prg(LAYER_1, s_retro.vcp1);
   vcp_set_prg(LAYER_2, s_retro.vcp3);
 
-  render(frame_no);
+  // We draw top-to-bottom (roughly) in order to be done with the work before the raster beam
+  // catches up (to avoid tearing).
+  draw_sky(frame_no);
+  draw_raster_bars(frame_no);
+  draw_checkerboard(frame_no);
 }
 
