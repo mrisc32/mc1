@@ -74,7 +74,7 @@ $(OUT)/retro.o: demo/retro.c
 #-----------------------------------------------------------------------------
 
 $(OUT)/rom.vhd: $(OUT)/rom.raw rom.vhd.in
-	./raw2vhd.py $(OUT)/rom.raw rom.vhd.in > $@
+	tools/raw2vhd.py $(OUT)/rom.raw rom.vhd.in > $@
 
 $(OUT)/rom.raw: $(OUT)/rom.elf
 	$(OBJCOPY) -O binary $< $@
@@ -134,7 +134,7 @@ $(OUT)/mc1-font-8x8.s: mc1/mc1-font-8x8.raw
 	    tail -c +257  | \
 	    head -c -1024 \
 	    > $(OUT)/mc1-font-8x8-part.raw
-	./raw2asm.py --rev $(OUT)/mc1-font-8x8-part.raw mc1_font_8x8 > $@
+	tools/raw2asm.py --rev $(OUT)/mc1-font-8x8-part.raw mc1_font_8x8 > $@
 
 $(OUT)/mem_copy.o: mc1/mem_copy.s
 	$(AS) $(ASFLAGS) -o $@ $<
