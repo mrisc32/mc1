@@ -21,6 +21,9 @@
 OUT = out
 SELFTESTOUT = selftest/out
 
+HOST_CC      = gcc
+HOST_CCFLAGS = -c -O2 -Wall -Wextra -Werror -MMD -MP
+
 CC      = mrisc32-elf-gcc
 CCFLAGS = -c -Os -I . -ffast-math -Wall -Wextra -Werror -MMD -MP
 AS      = mrisc32-elf-gcc
@@ -34,7 +37,7 @@ CP      = cp -a
 
 .PHONY: clean all selftest
 
-all: $(OUT)/rom.vhd
+all: $(OUT)/rom.vhd $(OUT)/png2mci
 
 clean:
 	rm -f $(OUT)/*.a \
@@ -48,13 +51,32 @@ clean:
 
 
 #-----------------------------------------------------------------------------
+# Tools (compiled for the host!)
+#-----------------------------------------------------------------------------
+
+PNG2MCI_OBJS = \
+    $(OUT)/png2mci.o \
+    $(OUT)/lodepng.o
+
+$(OUT)/png2mci: $(PNG2MCI_OBJS)
+	$(HOST_CC) -o $@ $(PNG2MCI_OBJS)
+
+$(OUT)/png2mci.o: tools/png2mci.c
+	$(HOST_CC) $(HOST_CCFLAGS) -o $@ $<
+
+$(OUT)/lodepng.o: tools/lodepng/lodepng.c
+	$(HOST_CC) $(HOST_CCFLAGS) -o $@ $<
+
+
+#-----------------------------------------------------------------------------
 # Demo application
 #-----------------------------------------------------------------------------
 
-DEMOOBJS = $(OUT)/demo.o \
-           $(OUT)/mandelbrot.o \
-           $(OUT)/raytrace.o \
-           $(OUT)/retro.o
+DEMO_OBJS = \
+    $(OUT)/demo.o \
+    $(OUT)/mandelbrot.o \
+    $(OUT)/raytrace.o \
+    $(OUT)/retro.o
 
 $(OUT)/demo.o: demo/demo.c
 	$(CC) $(CCFLAGS) -o $@ $<
@@ -79,8 +101,8 @@ $(OUT)/rom.vhd: $(OUT)/rom.raw rom.vhd.in
 $(OUT)/rom.raw: $(OUT)/rom.elf
 	$(OBJCOPY) -O binary $< $@
 
-$(OUT)/rom.elf: $(DEMOOBJS) $(OUT)/libmc1.a $(OUT)/libselftest.a link.ld
-	$(LD) $(LDFLAGS) -o $@ $(DEMOOBJS) -lmc1 -lselftest -lm
+$(OUT)/rom.elf: $(DEMO_OBJS) $(OUT)/libmc1.a $(OUT)/libselftest.a link.ld
+	$(LD) $(LDFLAGS) -o $@ $(DEMO_OBJS) -lmc1 -lselftest -lm
 
 
 #-----------------------------------------------------------------------------
@@ -98,20 +120,21 @@ selftest:
 # libmc1.a - MC1 system library
 #-----------------------------------------------------------------------------
 
-MC1OBJS = $(OUT)/crt0.o \
-          $(OUT)/fast_math.o \
-          $(OUT)/framebuffer.o \
-          $(OUT)/leds.o \
-          $(OUT)/mc1-font-8x8.o \
-          $(OUT)/mem_copy.o \
-          $(OUT)/mem_fill.o \
-          $(OUT)/memory.o \
-          $(OUT)/time.o \
-          $(OUT)/vconsole.o \
-          $(OUT)/vcp.o
+LIBMC1_OBJS = \
+    $(OUT)/crt0.o \
+    $(OUT)/fast_math.o \
+    $(OUT)/framebuffer.o \
+    $(OUT)/leds.o \
+    $(OUT)/mc1-font-8x8.o \
+    $(OUT)/mem_copy.o \
+    $(OUT)/mem_fill.o \
+    $(OUT)/memory.o \
+    $(OUT)/time.o \
+    $(OUT)/vconsole.o \
+    $(OUT)/vcp.o
 
-$(OUT)/libmc1.a: $(MC1OBJS)
-	$(AR) $(ARFLAGS) $@ $(MC1OBJS)
+$(OUT)/libmc1.a: $(LIBMC1_OBJS)
+	$(AR) $(ARFLAGS) $@ $(LIBMC1_OBJS)
 
 $(OUT)/crt0.o: mc1/crt0.s mc1/memory.inc mc1/mmio.inc
 	$(AS) $(ASFLAGS) -o $@ mc1/crt0.s
@@ -156,5 +179,7 @@ $(OUT)/vcp.o: mc1/vcp.c
 
 
 # Include dependency files (generated when building the object files).
--include $(DEMOOBJS:.o=.d) $(MC1OBJS:.o=.d)
+-include $(PNG2MCI_OBJS:.o=.d)
+-include $(DEMO_OBJS:.o=.d)
+-include $(LIBMC1_OBJS:.o=.d)
 
