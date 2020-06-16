@@ -593,9 +593,29 @@ static void compress_image(image_t* image, unsigned comp_mode) {
   if (comp_mode == COMP_NONE) {
     // Nothing to do!
   } else if (comp_mode == COMP_LZG) {
-    // TODO(m): Implement me!
-    fprintf(stderr, "Support for LZG compression has not yet been implemented.\n");
-    exit(1);
+    // Allocate memory for the compressed data.
+    lzg_uint32_t max_enc_size = LZG_MaxEncodedSize(image->pixels_size);
+    unsigned char* enc_buf = (unsigned char*)malloc(max_enc_size);
+    if (enc_buf == NULL) {
+      fprintf(stderr, "liblzg: Out of memory!\n");
+      exit(1);
+    }
+
+    // Compress the data.
+    lzg_uint32_t enc_size = LZG_Encode(image->pixels,
+                                       image->pixels_size,
+                                       enc_buf,
+                                       max_enc_size,
+                                       NULL);
+    if (enc_size == 0u) {
+      fprintf(stderr, "liblzg: Compression failed!\n");
+      exit(1);
+    }
+
+    // Replace the raw pixel data with the compressed pixel data.
+    free(image->pixels);
+    image->pixels = enc_buf;
+    image->pixels_size = (size_t)enc_size;
   } else {
     fprintf(stderr, "Unsupportd compression mode: %d.\n", comp_mode);
     exit(1);
