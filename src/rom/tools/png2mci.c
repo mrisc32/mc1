@@ -24,6 +24,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 //--------------------------------------------------------------------------------------------------
 // MCI image file format
@@ -601,64 +602,103 @@ static void compress_image(image_t* image, unsigned comp_mode) {
   image->comp_mode = comp_mode;
 }
 
-static void write_uint8(const uint32_t x) {
+static void write_uint8(const uint32_t x, FILE* f) {
   uint8_t buf[1] = { x & 255u };
-  (void) fwrite(&buf[0], 1, 1, stdout);
+  (void) fwrite(&buf[0], 1, 1, f);
 }
 
-static void write_uint16(const uint32_t x) {
+static void write_uint16(const uint32_t x, FILE* f) {
   uint8_t buf[2] = { x & 255u, (x >> 8) & 255u };
-  (void) fwrite(&buf[0], 1, 2, stdout);
+  (void) fwrite(&buf[0], 1, 2, f);
 }
 
-static void write_uint32(const uint32_t x) {
+static void write_uint32(const uint32_t x, FILE* f) {
   uint8_t buf[4] = { x & 255u, (x >> 8) & 255u, (x >> 16) & 255u,  (x >> 24) & 255u };
-  (void) fwrite(&buf[0], 1, 4, stdout);
+  (void) fwrite(&buf[0], 1, 4, f);
 }
 
-static void write_image(const image_t* image) {
+static void write_image(const image_t* image, FILE* f) {
   const int no_palette_colors = palette_colors_for_pixfmt(image->pixfmt);
 
   // Write the header.
-  write_uint32(0x3149434du);       // Magic ID
-  write_uint16(image->width);      // Image width
-  write_uint16(image->height);     // Image height
-  write_uint8(image->pixfmt);      // Pixel format
-  write_uint8(image->comp_mode);   // Compression method
-  write_uint16(no_palette_colors); // Number of palette colors
+  write_uint32(0x3149434du, f);       // Magic ID
+  write_uint16(image->width, f);      // Image width
+  write_uint16(image->height, f);     // Image height
+  write_uint8(image->pixfmt, f);      // Pixel format
+  write_uint8(image->comp_mode, f);   // Compression method
+  write_uint16(no_palette_colors, f); // Number of palette colors
 
   // Write the palette, if any.
   for (int i = 0; i < no_palette_colors; ++i) {
-    write_uint32(to_rgba8888(image->palette[i]));
+    write_uint32(to_rgba8888(image->palette[i]), f);
   }
 
   // Write the pixel data.
-  write_uint32(image->pixels_size);
-  fwrite(image->pixels, 1, image->pixels_size, stdout);
+  write_uint32(image->pixels_size, f);
+  fwrite(image->pixels, 1, image->pixels_size, f);
+}
+
+static void print_usage(const char* prg_name) {
+  fprintf(stderr, "Usage: %s [options] PNGFILE [MCIFILE]\n\n", prg_name);
+  fprintf(stderr, "  PNGFILE     - The name of the PNG file\n");
+  fprintf(stderr, "  MCIFILE     - The name of the MCI file (optional)\n");
+  fprintf(stderr, "\nPixel format options:\n");
+  fprintf(stderr, "  --rgba8888  - Pixel format = RGBA8888 (default)\n");
+  fprintf(stderr, "  --rgba5551  - Pixel format = RGBA5551\n");
+  fprintf(stderr, "  --pal8      - Pixel format = PAL8 (8 bpp palette)\n");
+  fprintf(stderr, "  --pal4      - Pixel format = PAL4 (4 bpp palette)\n");
+  fprintf(stderr, "  --pal2      - Pixel format = PAL2 (2 bpp palette)\n");
+  fprintf(stderr, "  --pal1      - Pixel format = PAL1 (1 bpp palette)\n");
+  fprintf(stderr, "\nCompression options:\n");
+  fprintf(stderr, "  --nocomp    - Use no compression (default)\n");
+  fprintf(stderr, "  --lzg       - Use LZG compression\n");
+  fprintf(stderr, "\nGeneral options:\n");
+  fprintf(stderr, "  --help      - Show this help text\n");
+  fprintf(stderr, "\nIf MCIFILE is not given, the image is written to stdout.\n");
 }
 
 int main(int argc, char** argv) {
   // Parse command line arguments.
-  int target_pixfmt = PIXFMT_RGBA8888;
-  int comp_mode = COMP_NONE;
-  if (argc < 2 || argc > 3) {
-    fprintf(stderr, "Usage: %s PNGFILE [FORMAT]\n\n", argv[0]);
-    fprintf(stderr, "  PNGFILE - The name of the PNG file.\n");
-    fprintf(stderr, "  FORMAT  - The output pixel format:\n");
-    fprintf(stderr, "              0 = RGBA8888 (default)\n");
-    fprintf(stderr, "              1 = RGBA5551\n");
-    fprintf(stderr, "              2 = PAL8\n");
-    fprintf(stderr, "              3 = PAL4\n");
-    fprintf(stderr, "              4 = PAL2\n");
-    fprintf(stderr, "              5 = PAL1\n");
-    fprintf(stderr, "\nThe generated MCI image is written to stdout.\n");
+  if (argc < 2) {
+    print_usage(argv[0]);
     exit(1);
   }
-  const char* filename = argv[1];
-  if (argc >= 3) {
-    target_pixfmt = atoi(argv[2]);
-    if (target_pixfmt < 0 || target_pixfmt > 5) {
-      fprintf(stderr, "Invalid pixel format: %d.\n", target_pixfmt);
+  int target_pixfmt = PIXFMT_RGBA8888;
+  int comp_mode = COMP_NONE;
+  const char* png_file_name = NULL;
+  const char* mci_file_name = NULL;
+  for (int i = 1; i < argc; ++i) {
+    const char* arg = argv[i];
+    if (strcmp(arg, "--help") == 0) {
+      print_usage(argv[0]);
+      exit(0);
+    } else if (strcmp(arg, "--rgba8888") == 0) {
+      target_pixfmt = PIXFMT_RGBA8888;
+    } else if (strcmp(arg, "--rgba5551") == 0) {
+      target_pixfmt = PIXFMT_RGBA5551;
+    } else if (strcmp(arg, "--pal8") == 0) {
+      target_pixfmt = PIXFMT_PAL8;
+    } else if (strcmp(arg, "--pal4") == 0) {
+      target_pixfmt = PIXFMT_PAL4;
+    } else if (strcmp(arg, "--pal2") == 0) {
+      target_pixfmt = PIXFMT_PAL2;
+    } else if (strcmp(arg, "--pal1") == 0) {
+      target_pixfmt = PIXFMT_PAL1;
+    } else if (strcmp(arg, "--nocomp") == 0) {
+      comp_mode = COMP_NONE;
+    } else if (strcmp(arg, "--lzg") == 0) {
+      comp_mode = COMP_LZG;
+    } else if (arg[0] == '-') {
+      fprintf(stderr, "Unrecognized option: %s\n", arg);
+      print_usage(argv[0]);
+      exit(1);
+    } else if (png_file_name == NULL) {
+      png_file_name = arg;
+    } else if (mci_file_name == NULL) {
+      mci_file_name = arg;
+    } else {
+      fprintf(stderr, "Unrecognized argument: %s\n", arg);
+      print_usage(argv[0]);
       exit(1);
     }
   }
@@ -666,7 +706,10 @@ int main(int argc, char** argv) {
   // Load the PNG image.
   image_t image;
   {
-    unsigned error = lodepng_decode32_file(&image.pixels, &image.width, &image.height, filename);
+    unsigned error = lodepng_decode32_file(&image.pixels,
+                                           &image.width,
+                                           &image.height,
+                                           png_file_name);
     if (error) {
       fprintf(stderr, "Decoder error %u: %s\n", error, lodepng_error_text(error));
       exit(1);
@@ -685,7 +728,18 @@ int main(int argc, char** argv) {
   compress_image(&image, comp_mode);
 
   // Write the MCI image.
-  write_image(&image);
+  FILE* out_file = stdout;
+  if (mci_file_name != NULL) {
+    out_file = fopen(mci_file_name, "wb");
+    if (out_file == NULL) {
+      fprintf(stderr, "Error: Unable to open %s for writing.\n", mci_file_name);
+      exit(1);
+    }
+  }
+  write_image(&image, out_file);
+  if (mci_file_name != NULL) {
+    fclose(out_file);
+  }
 
   // Free the memory.
   free(image.pixels);
