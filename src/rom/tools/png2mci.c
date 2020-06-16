@@ -20,6 +20,8 @@
 
 #include "lodepng/lodepng.h"
 
+#include <lzg.h>
+
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>

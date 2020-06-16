@@ -21,8 +21,9 @@
 OUT = out
 SELFTESTOUT = selftest/out
 
+HOST_OUT     = $(OUT)/host
 HOST_CC      = gcc
-HOST_CCFLAGS = -c -O2 -Wall -Wextra -Werror -MMD -MP
+HOST_CCFLAGS = -c -O2 -I tools/liblzg/include -Wall -Wextra -Werror -MMD -MP
 
 CC      = mrisc32-elf-gcc
 CCFLAGS = -c -Os -I . -ffast-math -Wall -Wextra -Werror -MMD -MP
@@ -37,7 +38,7 @@ CP      = cp -a
 
 .PHONY: clean all selftest
 
-all: $(OUT)/rom.vhd $(OUT)/png2mci
+all: $(OUT)/rom.vhd $(HOST_OUT)/png2mci
 
 clean:
 	rm -f $(OUT)/*.a \
@@ -46,7 +47,10 @@ clean:
 	      $(OUT)/*.o \
 	      $(OUT)/*.elf \
 	      $(OUT)/*.raw \
-	      $(OUT)/*.vhd
+	      $(OUT)/*.vhd \
+	      $(HOST_OUT)/*.o \
+	      $(HOST_OUT)/*.d \
+	      $(HOST_OUT)/png2mci
 	$(MAKE) -C selftest clean
 
 
@@ -55,17 +59,33 @@ clean:
 #-----------------------------------------------------------------------------
 
 PNG2MCI_OBJS = \
-    $(OUT)/png2mci.o \
-    $(OUT)/lodepng.o
+    $(HOST_OUT)/png2mci.o \
+    $(HOST_OUT)/lodepng.o \
+    $(HOST_OUT)/checksum.o \
+    $(HOST_OUT)/decode.o \
+    $(HOST_OUT)/encode.o \
+    $(HOST_OUT)/version.o
 
-$(OUT)/png2mci: $(PNG2MCI_OBJS)
+$(HOST_OUT)/png2mci: $(PNG2MCI_OBJS)
 	$(HOST_CC) -o $@ $(PNG2MCI_OBJS)
 
-$(OUT)/png2mci.o: tools/png2mci.c
+$(HOST_OUT)/png2mci.o: tools/png2mci.c
 	$(HOST_CC) $(HOST_CCFLAGS) -o $@ $<
 
-$(OUT)/lodepng.o: tools/lodepng/lodepng.c
+$(HOST_OUT)/lodepng.o: tools/lodepng/lodepng.c
 	$(HOST_CC) $(HOST_CCFLAGS) -o $@ $<
+
+$(HOST_OUT)/checksum.o: tools/liblzg/lib/checksum.c
+	$(HOST_CC) $(HOST_CCFLAGS) -w -o $@ $<
+
+$(HOST_OUT)/decode.o: tools/liblzg/lib/decode.c
+	$(HOST_CC) $(HOST_CCFLAGS) -w -o $@ $<
+
+$(HOST_OUT)/encode.o: tools/liblzg/lib/encode.c
+	$(HOST_CC) $(HOST_CCFLAGS) -w -o $@ $<
+
+$(HOST_OUT)/version.o: tools/liblzg/lib/version.c
+	$(HOST_CC) $(HOST_CCFLAGS) -w -o $@ $<
 
 
 #-----------------------------------------------------------------------------
