@@ -145,7 +145,9 @@ LIBMC1_OBJS = \
     $(OUT)/fast_math.o \
     $(OUT)/framebuffer.o \
     $(OUT)/leds.o \
+    $(OUT)/lzg_mc1.o \
     $(OUT)/mc1-font-8x8.o \
+    $(OUT)/mci_decode.o \
     $(OUT)/mem_copy.o \
     $(OUT)/mem_fill.o \
     $(OUT)/memory.o \
@@ -168,6 +170,9 @@ $(OUT)/framebuffer.o: mc1/framebuffer.c
 $(OUT)/leds.o: mc1/leds.s mc1/mmio.inc
 	$(AS) $(ASFLAGS) -o $@ mc1/leds.s
 
+$(OUT)/lzg_mc1.o: mc1/lzg_mc1.c
+	$(CC) $(CCFLAGS) -o $@ $<
+
 $(OUT)/mc1-font-8x8.o: $(OUT)/mc1-font-8x8.s
 	$(AS) $(ASFLAGS) -o $@ $<
 
@@ -178,6 +183,9 @@ $(OUT)/mc1-font-8x8.s: mc1/mc1-font-8x8.raw
 	    head -c -1024 \
 	    > $(OUT)/mc1-font-8x8-part.raw
 	tools/raw2asm.py --rev $(OUT)/mc1-font-8x8-part.raw mc1_font_8x8 > $@
+
+$(OUT)/mci_decode.o: mc1/mci_decode.c
+	$(CC) $(CCFLAGS) -o $@ $<
 
 $(OUT)/mem_copy.o: mc1/mem_copy.s
 	$(AS) $(ASFLAGS) -o $@ $<

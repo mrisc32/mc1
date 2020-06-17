@@ -34,27 +34,28 @@
 //
 // All integer values are stored in little endian format.
 //
-//  +--------+--------+--------------------------+
-//  | Offset | Size   | Description              |
-//  +--------+--------+--------------------------+
-//  | 0      | 4      | Magic ID ("MCI1")        |
-//  | 4      | 2      | Width                    |
-//  | 6      | 2      | Height                   |
-//  | 8      | 1      | Pixel format:            |
-//  |        |        |   0 = RGBA8888           |
-//  |        |        |   1 = RGBA5551           |
-//  |        |        |   2 = PAL8               |
-//  |        |        |   3 = PAL4               |
-//  |        |        |   4 = PAL2               |
-//  |        |        |   5 = PAL1               |
-//  | 9      | 1      | Compression method:      |
-//  |        |        |   0 = No compression     |
-//  |        |        |   1 = LZG                |
-//  | 10     | 2      | Num. palette colors (N)  |
-//  | 12     | 4 * N  | Palette (N colors)       |
-//  | 12+4*N | 4      | Pixel data size (bytes)  |
-//  | 16+4*N | -      | Pixel data               |
-//  +--------+--------+--------------------------+
+//  +---------------------------------------------+
+//  | Header (16 bytes)                           |
+//  +---------+--------+--------------------------+
+//  | Offset  | Size   | Description              |
+//  +---------+--------+--------------------------+
+//  | 0       | 4      | Magic ID ("MCI1")        |
+//  | 4       | 2      | Width                    |
+//  | 6       | 2      | Height                   |
+//  | 8       | 1      | Pixel format             |
+//  | 9       | 1      | Compression method       |
+//  | 10      | 2      | Num. palette colors (Nc) |
+//  | 12      | 4      | Pixel data bytes (Nb)    |
+//  +---------+--------+--------------------------+
+//
+//  +---------------------------------------------+
+//  | Data                                        |
+//  +---------+--------+--------------------------+
+//  | Offset  | Size   | Description              |
+//  +---------+--------+--------------------------+
+//  | 16      | 4 * Nc | Palette (Nc colors)      |
+//  | 16+4*Nc | Nb     | Pixel data (Nb bytes)    |
+//  +---------+--------+--------------------------+
 //
 // Pixel formats
 // -------------
@@ -602,11 +603,14 @@ static void compress_image(image_t* image, unsigned comp_mode) {
     }
 
     // Compress the data.
+    lzg_encoder_config_t config;
+    LZG_InitEncoderConfig(&config);
+    config.level = LZG_LEVEL_9;
     lzg_uint32_t enc_size = LZG_Encode(image->pixels,
                                        image->pixels_size,
                                        enc_buf,
                                        max_enc_size,
-                                       NULL);
+                                       &config);
     if (enc_size == 0u) {
       fprintf(stderr, "liblzg: Compression failed!\n");
       exit(1);
@@ -643,12 +647,13 @@ static void write_image(const image_t* image, FILE* f) {
   const int no_palette_colors = palette_colors_for_pixfmt(image->pixfmt);
 
   // Write the header.
-  write_uint32(0x3149434du, f);       // Magic ID
-  write_uint16(image->width, f);      // Image width
-  write_uint16(image->height, f);     // Image height
-  write_uint8(image->pixfmt, f);      // Pixel format
-  write_uint8(image->comp_mode, f);   // Compression method
-  write_uint16(no_palette_colors, f); // Number of palette colors
+  write_uint32(0x3149434du, f);         // Magic ID
+  write_uint16(image->width, f);        // Image width
+  write_uint16(image->height, f);       // Image height
+  write_uint8(image->pixfmt, f);        // Pixel format
+  write_uint8(image->comp_mode, f);     // Compression method
+  write_uint16(no_palette_colors, f);   // Number of palette colors
+  write_uint32(image->pixels_size, f);  // Pixel data size (in bytes)
 
   // Write the palette, if any.
   for (int i = 0; i < no_palette_colors; ++i) {
@@ -656,7 +661,6 @@ static void write_image(const image_t* image, FILE* f) {
   }
 
   // Write the pixel data.
-  write_uint32(image->pixels_size, f);
   fwrite(image->pixels, 1, image->pixels_size, f);
 }
 
