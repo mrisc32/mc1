@@ -22,6 +22,7 @@
 #include <mc1/mmio.h>
 #include <mc1/mr32intrin.h>
 #include <mc1/vcp.h>
+#include <mc1/mci_decode.h>
 
 #include <stddef.h>
 #include <stdint.h>
@@ -37,6 +38,8 @@ typedef struct {
   uint32_t* pixels1;
   int16_t* sine_lut;
   uint16_t* sun_lut;
+  const mci_header_t* logo_hdr;
+  uint32_t* logo_pixels;
   int32_t width;
   int32_t height;
   int32_t sky_height;
@@ -45,6 +48,8 @@ typedef struct {
 } retro_t;
 
 static retro_t s_retro;
+
+extern const uint8_t* mc1_logo_464x182;
 
 
 //--------------------------------------------------------------------------------------------------
@@ -212,6 +217,9 @@ void retro_init(void) {
   s_retro.sun_radius = (s_retro.width * 3) >> 4;
   s_retro.sun_max_height = (s_retro.sun_radius * 3) >> 1;
 
+  // Get information about MCI images.
+  s_retro.logo_hdr = mci_get_header(mc1_logo_464x182);
+
   // VCP 1 (sky - top of layer 1).
   const int32_t vcp1_height = s_retro.sky_height;
   const size_t vcp1_size = sizeof(uint32_t) * (4 + vcp1_height * 6);
@@ -232,8 +240,17 @@ void retro_init(void) {
   // Sun outline LUT.
   const size_t sun_size = sizeof(uint16_t) * s_retro.sun_radius;
 
+  // Logo memory requirement.
+  const size_t logo_size = mci_get_pixels_size(s_retro.logo_hdr);
+
   // Calculate the required memory size.
-  const size_t total_size = vcp1_size + vcp2_size + vcp3_size + pix1_size + sine_size + sun_size;
+  const size_t total_size = vcp1_size +
+                            vcp2_size +
+                            vcp3_size +
+                            pix1_size +
+                            sine_size +
+                            sun_size +
+                            logo_size;
 
   uint8_t* mem = (uint8_t*)mem_alloc(total_size, MEM_TYPE_VIDEO | MEM_CLEAR);
   if (mem == NULL) {
@@ -247,6 +264,8 @@ void retro_init(void) {
   s_retro.pixels1 = (uint32_t*)(mem + vcp1_size + vcp2_size + vcp3_size);
   s_retro.sine_lut = (int16_t*)(mem + vcp1_size + vcp2_size + vcp3_size + pix1_size);
   s_retro.sun_lut = (uint16_t*)(mem + vcp1_size + vcp2_size + vcp3_size + pix1_size + sine_size);
+  s_retro.logo_pixels = (uint32_t*)(mem + vcp1_size + vcp2_size + vcp3_size + pix1_size +
+                                    sine_size + sun_size);
 
   // Create the VCP for layer 1 (VCP 1 + VCP 2).
   {
@@ -334,6 +353,11 @@ void retro_init(void) {
       const float x = fast_sqrt(1.0f - y * y);
       s_retro.sun_lut[k] = (uint16_t)(sun_width * x);
     }
+  }
+
+  // Decode the MC1 logo.
+  {
+    mci_decode_pixels(mc1_logo_464x182, s_retro.logo_pixels);
   }
 }
 

@@ -147,6 +147,7 @@ LIBMC1_OBJS = \
     $(OUT)/leds.o \
     $(OUT)/lzg_mc1.o \
     $(OUT)/mc1-font-8x8.o \
+    $(OUT)/mc1-logo-464x182.o \
     $(OUT)/mci_decode.o \
     $(OUT)/mem_copy.o \
     $(OUT)/mem_fill.o \
@@ -183,6 +184,13 @@ $(OUT)/mc1-font-8x8.s: mc1/mc1-font-8x8.raw
 	    head -c -1024 \
 	    > $(OUT)/mc1-font-8x8-part.raw
 	tools/raw2asm.py --rev $(OUT)/mc1-font-8x8-part.raw mc1_font_8x8 > $@
+
+$(OUT)/mc1-logo-464x182.o: $(OUT)/mc1-logo-464x182.s
+	$(AS) $(ASFLAGS) -o $@ $<
+
+$(OUT)/mc1-logo-464x182.s: mc1/mc1-logo-464x182.png $(HOST_OUT)/png2mci
+	$(HOST_OUT)/png2mci --lzg --pal4 mc1/mc1-logo-464x182.png $(OUT)/mc1-logo-464x182.mci
+	tools/raw2asm.py $(OUT)/mc1-logo-464x182.mci mc1_logo_464x182 > $@
 
 $(OUT)/mci_decode.o: mc1/mci_decode.c
 	$(CC) $(CCFLAGS) -o $@ $<
