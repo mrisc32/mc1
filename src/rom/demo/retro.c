@@ -27,8 +27,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define SINE_LUT_ENTIRES 1024
-#define PIXEL_WORDS      16
+#define LOG2_SINE_LUT_ENTIRES 10
+#define SINE_LUT_ENTIRES      (1 << LOG2_SINE_LUT_ENTIRES)
+#define PIXEL_WORDS           16
 
 typedef struct {
   void* base_ptr;
@@ -86,7 +87,8 @@ static void draw_sky(const int frame_no) {
   // TODO(m): Make the sun stop smoothly.
   const float w_scale = ((float)(sizeof(SKY_COLS)/sizeof(SKY_COLS[0]) - 1)) /
                         (float)s_retro.sky_height;
-  const int sun_rise = _mr32_min(frame_no, s_retro.sun_max_height);
+  int sun_rise = _mr32_min(frame_no, SINE_LUT_ENTIRES / 2);
+  sun_rise = (s_retro.sun_max_height * sin16(sun_rise >> 1)) >> 15;
   const uint32_t horiz_mid = (uint32_t)(s_retro.width >> 1);
   uint32_t* vcp = s_retro.vcp1 + 4;
   for (int y = 0; y < s_retro.sky_height; ++y) {
@@ -189,13 +191,22 @@ static void draw_logo_and_raster_bars(const int frame_no) {
       vcp += 6;
     }
 
-    const uint32_t hstop = (uint32_t)(img_x + (img_w >> 1));
-    const uint32_t hstrt = hstop - (uint32_t)img_w;
+    const int hstop_0 = img_x + (img_w >> 1);
     uint32_t img_adr = to_vcp_addr((uint32_t)s_retro.logo_pixels);
     const uint32_t img_stride = mci_get_stride(s_retro.logo_hdr) / 4;
 
     // The image.
     for (int y = 0; y < img_h; ++y) {
+      // Apply some horizontal wiggle.
+      int wiggle_x = frame_no * 8 + y * 3;
+      if ((wiggle_x & (3 << LOG2_SINE_LUT_ENTIRES)) != 0) {
+        wiggle_x = 0;
+      }
+      wiggle_x = sin16(wiggle_x + (SINE_LUT_ENTIRES / 4)) >> 10;
+
+      const uint32_t hstop = (uint32_t)(hstop_0 + wiggle_x);
+      const uint32_t hstrt = hstop - (uint32_t)img_w;
+
       vcp[2] = 0x80ffffffu;
       vcp[3] = vcp_emit_setreg(VCR_ADDR, img_adr);
       vcp[4] = vcp_emit_setreg(VCR_HSTRT, hstrt);
