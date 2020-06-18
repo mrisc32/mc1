@@ -20,10 +20,10 @@
 
 #include <mc1/fast_math.h>
 #include <mc1/mmio.h>
-#include <mc1/mr32intrin.h>
 #include <mc1/vcp.h>
 #include <mc1/mci_decode.h>
 
+#include <mr32intrin.h>
 #include <stddef.h>
 #include <stdint.h>
 
