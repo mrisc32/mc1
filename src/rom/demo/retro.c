@@ -35,6 +35,7 @@ typedef struct {
   uint32_t* vcp1;
   uint32_t* vcp2;
   uint32_t* vcp3;
+  uint32_t* vcp3_rows;
   uint32_t* pixels1;
   int16_t* sine_lut;
   uint16_t* sun_lut;
@@ -49,7 +50,7 @@ typedef struct {
 
 static retro_t s_retro;
 
-extern const uint8_t* mc1_logo_464x182;
+extern const unsigned char mrisc32_logo[];
 
 
 //--------------------------------------------------------------------------------------------------
@@ -96,19 +97,19 @@ static void draw_sky(const int frame_no) {
         _mr32_mulhiu_b(0x0040160eu, _mr32_shuf(s, _MR32_SHUFCTL(0, 0, 0, 0, 0)));
 
     // Generate a sweet sky gradient.
-    const int w = _mr32_ftou(w_scale * (float)y, 8);
+    const int w = _mr32_ftoi(w_scale * (float)y, 8);
     const int idx = w >> 8;
     const uint8x4_t sky_col = lerp8(SKY_COLS[idx], SKY_COLS[idx+1], w & 255);
     vcp[2] = _mr32_addsu_b(sky_col, sin_mod);
 
     // Draw the sun.
     const int sun_y = y - (s_retro.sky_height - sun_rise);
-    uint32_t sun_w = sun_width(sun_y);
+    uint32_t sun_w = (uint32_t)sun_width(sun_y);
 
     // Add horizontal masks, retro style!
     // TODO(m): Make this resolution-independent.
     if ((y & 31) < ((y - 320) >> 4)) {
-      sun_w = 0;
+      sun_w = 0u;
     }
 
     vcp[4] = vcp_emit_setreg(VCR_HSTRT, horiz_mid - sun_w);
@@ -134,8 +135,8 @@ static void draw_checkerboard(const int frame_no) {
     const float offs = scale * width_div2;
     const int32_t xoffs = offs_base - _mr32_ftoir(offs, 16);
     const int32_t xincr = _mr32_ftoir(scale, 16);
-    vcp[1] = vcp_emit_setreg(VCR_XOFFS, xoffs & 0x000fffffu);
-    vcp[2] = vcp_emit_setreg(VCR_XINCR, xincr & 0x00ffffffu);
+    vcp[1] = vcp_emit_setreg(VCR_XOFFS, (uint32_t)xoffs & 0x000fffffu);
+    vcp[2] = vcp_emit_setreg(VCR_XINCR, (uint32_t)xincr & 0x00ffffffu);
 
     // Calculate and set the palette colors.
     // 1) Use alternating colors to achieve the checker effect.
@@ -155,14 +156,58 @@ static void draw_checkerboard(const int frame_no) {
   }
 }
 
-static void draw_raster_bars(const int frame_no) {
+static void draw_logo_and_raster_bars(const int frame_no) {
   // Clear the raster colors.
   {
-    // TODO(m): Use a vector loop instead.
-    uint32_t* color_ptr = s_retro.vcp3 + 1;
+    // TODO(m): Do this in a vector loop instead.
+    uint32_t* vcp = s_retro.vcp3_rows;
     for (int y = 0; y < s_retro.height; ++y) {
-      color_ptr[2] = 0u;
-      color_ptr += 3;
+      vcp[2] = 0u;
+      vcp[4] = vcp_emit_setreg(VCR_HSTRT, 0);
+      vcp[5] = vcp_emit_setreg(VCR_HSTOP, 0);
+      vcp += 6;
+    }
+  }
+
+  // Update the image.
+  {
+    // Calculate the image position and properties.
+    const int width_div2 = s_retro.width >> 1;
+    const int height_div2 = s_retro.height >> 1;
+    const int img_x = width_div2 + ((width_div2 * sin16(frame_no * 2)) >> 16);
+    const int img_y = height_div2 + ((height_div2 * sin16(frame_no * 3)) >> 16);
+    const int img_w = (int)s_retro.logo_hdr->width;
+    const int img_h = (int)s_retro.logo_hdr->height;
+
+    const int BANNER_H = 16;
+    const int y0 = img_y - (img_h >> 1) - BANNER_H;
+    uint32_t* vcp = s_retro.vcp3_rows + 6 * y0;
+
+    // The banner top.
+    for (int y = 0; y < BANNER_H; ++y) {
+      vcp[2] = lerp8(0x08ffffffu, 0x80ffffffu, y << 4);
+      vcp += 6;
+    }
+
+    const uint32_t hstop = (uint32_t)(img_x + (img_w >> 1));
+    const uint32_t hstrt = hstop - (uint32_t)img_w;
+    uint32_t img_adr = to_vcp_addr((uint32_t)s_retro.logo_pixels);
+    const uint32_t img_stride = mci_get_stride(s_retro.logo_hdr) / 4;
+
+    // The image.
+    for (int y = 0; y < img_h; ++y) {
+      vcp[2] = 0x80ffffffu;
+      vcp[3] = vcp_emit_setreg(VCR_ADDR, img_adr);
+      vcp[4] = vcp_emit_setreg(VCR_HSTRT, hstrt);
+      vcp[5] = vcp_emit_setreg(VCR_HSTOP, hstop);
+      img_adr += img_stride;
+      vcp += 6;
+    }
+
+    // The banner bottom.
+    for (int y = 0; y < BANNER_H; ++y) {
+      vcp[2] = lerp8(0x80ffffffu, 0x08ffffffu, y << 4);
+      vcp += 6;
     }
   }
 
@@ -182,8 +227,8 @@ static void draw_raster_bars(const int frame_no) {
       pos = (s_retro.height >> 1) + (((s_retro.height * 3) * pos) >> 18);
 
       // Calculate the bar color.
-      const uint32_t w1 = k * (255 / (NUM_BARS - 1));
-      const uint32_t w2 = 255 - w1;
+      const uint32_t w1 = (uint32_t)(k * (255 / (NUM_BARS - 1)));
+      const uint32_t w2 = 255u - w1;
       const uint8x4_t bar_color = _mr32_addsu_b(
           _mr32_mulhiu_b(bar_color_1, _mr32_shuf(w1, _MR32_SHUFCTL(0, 0, 0, 0, 0))),
           _mr32_mulhiu_b(bar_color_2, _mr32_shuf(w2, _MR32_SHUFCTL(0, 0, 0, 0, 0))));
@@ -193,7 +238,7 @@ static void draw_raster_bars(const int frame_no) {
         const int y = pos + i;
         const uint32_t intensity = ((uint32_t)(alpha * (32 - iabs(i)))) >> 5;
         const uint8x4_t color = _mr32_mulhiu_b(bar_color, _mr32_shuf(intensity, 0));
-        uint8x4_t* color_ptr = s_retro.vcp3 + 3 + 3 * y;
+        uint8x4_t* color_ptr = s_retro.vcp3_rows + 2 + 6 * y;
         *color_ptr = _mr32_maxu_b(color, *color_ptr);
       }
     }
@@ -218,7 +263,7 @@ void retro_init(void) {
   s_retro.sun_max_height = (s_retro.sun_radius * 3) >> 1;
 
   // Get information about MCI images.
-  s_retro.logo_hdr = mci_get_header(mc1_logo_464x182);
+  s_retro.logo_hdr = mci_get_header(mrisc32_logo);
 
   // VCP 1 (sky - top of layer 1).
   const int32_t vcp1_height = s_retro.sky_height;
@@ -229,7 +274,8 @@ void retro_init(void) {
   const size_t vcp2_size = sizeof(uint32_t) * (3 + vcp2_height * 6 + 1);
 
   // VCP 3 (layer 2).
-  const size_t vcp3_size = sizeof(uint32_t) * (1 + s_retro.height * 3 + 1);
+  const size_t vcp3_size =
+      sizeof(uint32_t) * (4 + s_retro.logo_hdr->num_pal_colors + s_retro.height * 6 + 1);
 
   // Pixels for layer 1.
   const size_t pix1_size = sizeof(uint32_t) * PIXEL_WORDS;
@@ -264,8 +310,8 @@ void retro_init(void) {
   s_retro.pixels1 = (uint32_t*)(mem + vcp1_size + vcp2_size + vcp3_size);
   s_retro.sine_lut = (int16_t*)(mem + vcp1_size + vcp2_size + vcp3_size + pix1_size);
   s_retro.sun_lut = (uint16_t*)(mem + vcp1_size + vcp2_size + vcp3_size + pix1_size + sine_size);
-  s_retro.logo_pixels = (uint32_t*)(mem + vcp1_size + vcp2_size + vcp3_size + pix1_size +
-                                    sine_size + sun_size);
+  s_retro.logo_pixels =
+      (uint32_t*)(mem + vcp1_size + vcp2_size + vcp3_size + pix1_size + sine_size + sun_size);
 
   // Create the VCP for layer 1 (VCP 1 + VCP 2).
   {
@@ -320,14 +366,26 @@ void retro_init(void) {
     uint32_t* vcp = s_retro.vcp3;
 
     // Prologue.
-    // Set the blend mode.
-    *vcp++ = vcp_emit_setreg(VCR_RMODE, 0x135);
+    *vcp++ = vcp_emit_setreg(VCR_RMODE, 0x135);  // Set the blend mode.
+    *vcp++ = vcp_emit_setreg(VCR_CMODE, s_retro.logo_hdr->pixel_format);
+    *vcp++ = vcp_emit_setreg(VCR_XINCR, 0x010000u);
+
+    // Define the palette.
+    if (s_retro.logo_hdr->num_pal_colors > 0u) {
+      *vcp++ = vcp_emit_setpal(0, s_retro.logo_hdr->num_pal_colors);
+      mci_decode_palette(mrisc32_logo, vcp);
+      vcp += s_retro.logo_hdr->num_pal_colors;
+    }
 
     // Per-line commands.
+    s_retro.vcp3_rows = vcp;
     for (int y = 0; y < s_retro.height; ++y) {
       *vcp++ = vcp_emit_waity(y);
       *vcp++ = vcp_emit_setpal(0, 1);
       ++vcp;  // Palette color 0
+      *vcp++ = vcp_emit_setreg(VCR_ADDR, 0);
+      *vcp++ = vcp_emit_setreg(VCR_HSTRT, 0);
+      *vcp++ = vcp_emit_setreg(VCR_HSTOP, 0);
     }
 
     // Epilogue.
@@ -355,9 +413,9 @@ void retro_init(void) {
     }
   }
 
-  // Decode the MC1 logo.
+  // Decode images.
   {
-    mci_decode_pixels(mc1_logo_464x182, s_retro.logo_pixels);
+    mci_decode_pixels(mrisc32_logo, s_retro.logo_pixels);
   }
 }
 
@@ -382,7 +440,7 @@ void retro(int frame_no) {
   // We draw top-to-bottom (roughly) in order to be done with the work before the raster beam
   // catches up (to avoid tearing).
   draw_sky(frame_no);
-  draw_raster_bars(frame_no);
+  draw_logo_and_raster_bars(frame_no);
   draw_checkerboard(frame_no);
 }
 

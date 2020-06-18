@@ -50,6 +50,11 @@ typedef struct {
 /// @returns a pointer to the header, or NULL if the buffer is not a valid, aligned MCI data.
 const mci_header_t* mci_get_header(const uint8_t* mci_data);
 
+/// @brief Get the number of bytes per row.
+/// @param hdr The MCI header (must be valid!).
+/// @returns the byte stride for one row.
+uint32_t mci_get_stride(const mci_header_t* hdr);
+
 /// @brief Get the number of bytes required for the pixel data.
 /// @param hdr The MCI header (must be valid!).
 /// @returns the number of bytes that the uncompressed pixel data will occupy in memory.

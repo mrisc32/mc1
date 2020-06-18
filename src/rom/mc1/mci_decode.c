@@ -88,11 +88,14 @@ const mci_header_t* mci_get_header(const uint8_t* mci_data) {
   return (const mci_header_t*)mci_data;
 }
 
-uint32_t mci_get_pixels_size(const mci_header_t* hdr) {
+uint32_t mci_get_stride(const mci_header_t* hdr) {
   const uint32_t width = hdr->width;
   const uint32_t bpp = 32u >> hdr->pixel_format;
-  const uint32_t stride = ((width * bpp + 31u) / 32u) * 4u;
-  return stride * hdr->height;
+  return ((width * bpp + 31u) / 32u) * 4u;
+}
+
+uint32_t mci_get_pixels_size(const mci_header_t* hdr) {
+  return mci_get_stride(hdr) * hdr->height;
 }
 
 void mci_decode_palette(const uint8_t* mci_data, uint32_t* palette) {

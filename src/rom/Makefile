@@ -42,10 +42,12 @@ all: $(OUT)/rom.vhd $(HOST_OUT)/png2mci
 
 clean:
 	rm -f $(OUT)/*.a \
+	      $(OUT)/*.c \
 	      $(OUT)/*.d \
 	      $(OUT)/*.s \
 	      $(OUT)/*.o \
 	      $(OUT)/*.elf \
+	      $(OUT)/*.mci \
 	      $(OUT)/*.raw \
 	      $(OUT)/*.vhd \
 	      $(HOST_OUT)/*.o \
@@ -95,6 +97,7 @@ $(HOST_OUT)/version.o: tools/liblzg/lib/version.c
 DEMO_OBJS = \
     $(OUT)/demo.o \
     $(OUT)/mandelbrot.o \
+    $(OUT)/mrisc32_logo.o \
     $(OUT)/raytrace.o \
     $(OUT)/retro.o
 
@@ -109,6 +112,13 @@ $(OUT)/raytrace.o: demo/raytrace.c
 
 $(OUT)/retro.o: demo/retro.c
 	$(CC) $(CCFLAGS) -o $@ $<
+
+$(OUT)/mrisc32_logo.o: $(OUT)/mrisc32_logo.c
+	$(AS) $(ASFLAGS) -o $@ $<
+
+$(OUT)/mrisc32_logo.c: demo/mrisc32-logo-512x97.png $(HOST_OUT)/png2mci
+	$(HOST_OUT)/png2mci --lzg --pal4 demo/mrisc32-logo-512x97.png $(OUT)/mrisc32_logo.mci
+	tools/raw2c.py $(OUT)/mrisc32_logo.mci mrisc32_logo > $@
 
 
 #-----------------------------------------------------------------------------
@@ -147,7 +157,6 @@ LIBMC1_OBJS = \
     $(OUT)/leds.o \
     $(OUT)/lzg_mc1.o \
     $(OUT)/mc1-font-8x8.o \
-    $(OUT)/mc1-logo-464x182.o \
     $(OUT)/mci_decode.o \
     $(OUT)/mem_copy.o \
     $(OUT)/mem_fill.o \
@@ -184,13 +193,6 @@ $(OUT)/mc1-font-8x8.s: mc1/mc1-font-8x8.raw
 	    head -c -1024 \
 	    > $(OUT)/mc1-font-8x8-part.raw
 	tools/raw2asm.py --rev $(OUT)/mc1-font-8x8-part.raw mc1_font_8x8 > $@
-
-$(OUT)/mc1-logo-464x182.o: $(OUT)/mc1-logo-464x182.s
-	$(AS) $(ASFLAGS) -o $@ $<
-
-$(OUT)/mc1-logo-464x182.s: mc1/mc1-logo-464x182.png $(HOST_OUT)/png2mci
-	$(HOST_OUT)/png2mci --lzg --pal4 mc1/mc1-logo-464x182.png $(OUT)/mc1-logo-464x182.mci
-	tools/raw2asm.py $(OUT)/mc1-logo-464x182.mci mc1_logo_464x182 > $@
 
 $(OUT)/mci_decode.o: mc1/mci_decode.c
 	$(CC) $(CCFLAGS) -o $@ $<
