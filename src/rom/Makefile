@@ -25,16 +25,20 @@ HOST_OUT     = $(OUT)/host
 HOST_CC      = gcc
 HOST_CCFLAGS = -c -O2 -I tools/liblzg/include -Wall -Wextra -Werror -MMD -MP
 
-CC      = mrisc32-elf-gcc
-CCFLAGS = -c -Os -I . -ffast-math -Wall -Wextra -Werror -MMD -MP
-AS      = mrisc32-elf-gcc
-ASFLAGS = -c -I .
-LD      = mrisc32-elf-gcc
-LDFLAGS = -L$(OUT) -L$(SELFTESTOUT) -T link.ld -mno-crt0
-AR      = mrisc32-elf-ar
-ARFLAGS = rcs
-OBJCOPY = mrisc32-elf-objcopy
-CP      = cp -a
+CFLAGS_COMMON = -c -I . -Os -ffast-math -Wall -Wextra -Wshadow -pedantic -Werror -MMD -MP
+
+CC       = mrisc32-elf-gcc
+CCFLAGS  = $(CFLAGS_COMMON) -std=c11
+CXX      = mrisc32-elf-g++
+CXXFLAGS = $(CFLAGS_COMMON) -std=c++17 -Wold-style-cast -fno-exceptions
+AS       = mrisc32-elf-gcc
+ASFLAGS  = -c -I .
+LD       = mrisc32-elf-gcc
+LDFLAGS  = -L$(OUT) -L$(SELFTESTOUT) -T link.ld -mno-crt0
+AR       = mrisc32-elf-ar
+ARFLAGS  = rcs
+OBJCOPY  = mrisc32-elf-objcopy
+CP       = cp -a
 
 .PHONY: clean all selftest
 
@@ -110,8 +114,8 @@ $(OUT)/mandelbrot.o: demo/mandelbrot.c
 $(OUT)/raytrace.o: demo/raytrace.c
 	$(CC) $(CCFLAGS) -o $@ $<
 
-$(OUT)/retro.o: demo/retro.c
-	$(CC) $(CCFLAGS) -o $@ $<
+$(OUT)/retro.o: demo/retro.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
 
 $(OUT)/mrisc32_logo.o: $(OUT)/mrisc32_logo.c
 	$(AS) $(ASFLAGS) -o $@ $<

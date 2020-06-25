@@ -23,6 +23,10 @@
 
 #include <stddef.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /// @brief Forward copy a memory block.
 /// @param destination Target memory pointer (start of buffer).
 /// @param source Source memory pointer (start of buffer).
@@ -31,6 +35,10 @@
 void* mem_copy_fwd(void* destination, const void* source, size_t num);
 
 // TODO(m): Add mem_copy_bwd()
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // MC1_MEM_COPY_H_
 

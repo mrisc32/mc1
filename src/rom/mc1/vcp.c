@@ -28,7 +28,7 @@ void vcp_set_prg(const layer_t layer, const uint32_t* prg) {
   uint32_t* base_vcp = (uint32_t*)(VRAM_START + 16 * layer);
   if (prg != NULL) {
     // Jump to the given VCP.
-    *base_vcp = vcp_emit_jmp(to_vcp_addr((uint32_t)prg));
+    *base_vcp = vcp_emit_jmp(to_vcp_addr((uintptr_t)prg));
   } else {
     // Create a "clean screen" VCP that sets the background color to fully transparent black and
     // waits forever.

@@ -23,6 +23,10 @@
 
 #include <stddef.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /// @brief Fill memory with a value.
 ///
 /// Fill the given block of memory using the unsigned char conversion of the value argument.
@@ -31,6 +35,10 @@
 /// @param num Number of bytes to fill.
 /// @returns the @c ptr pointer.
 void* mem_fill(void* ptr, int value, size_t num);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // MC1_MEM_FILL_H_
 

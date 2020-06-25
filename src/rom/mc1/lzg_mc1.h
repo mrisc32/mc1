@@ -23,10 +23,18 @@
 
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 uint32_t LZG_Decode(const uint8_t* in,
                     const uint32_t insize,
                     uint8_t* out,
                     const uint32_t outsize);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // LZG_MC1_H_
 

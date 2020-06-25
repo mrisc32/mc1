@@ -26,6 +26,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum {
   LAYER_1 = 1,
   LAYER_2 = 2
@@ -107,8 +111,8 @@ static inline uint32_t vcp_emit_setreg(const uint32_t reg, const uint32_t value)
 /// @brief Convert a CPU address to a VCP address.
 /// @param cpu_addr The address in CPU address space.
 /// @returns the address in VCP address space.
-static inline uint32_t to_vcp_addr(const uint32_t cpu_addr) {
-  return (cpu_addr - VRAM_START) / 4u;
+static inline uint32_t to_vcp_addr(const uintptr_t cpu_addr) {
+  return (uint32_t)((cpu_addr - (uintptr_t)VRAM_START) / 4u);
 }
 
 /// @brief Set the VCP for the given layer.
@@ -116,5 +120,9 @@ static inline uint32_t to_vcp_addr(const uint32_t cpu_addr) {
 /// @param prg The VCP to use (NULL for no program).
 void vcp_set_prg(const layer_t layer, const uint32_t* prg);
 
-#endif // MC1_VCP_H_
+#ifdef __cplusplus
+}
+#endif
+
+#endif  // MC1_VCP_H_
 

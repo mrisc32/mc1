@@ -23,6 +23,10 @@
 
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // MMIO registers.
 #define CLKCNTLO   0
 #define CLKCNTHI   4
@@ -47,8 +51,16 @@
 #define LEDS       96
 
 // Macro for accessing MMIO registers.
+#ifdef __cplusplus
+#define MMIO(reg) \
+  *reinterpret_cast<volatile uint32_t*>(&reinterpret_cast<volatile uint8_t*>(0xc0000000)[reg])
+#else
 #define MMIO(reg) *(volatile uint32_t*)(&((volatile uint8_t*)0xc0000000)[reg])
+#endif
 
-#endif // MC1_MMIO_H_
+#ifdef __cplusplus
+}
+#endif
 
+#endif  // MC1_MMIO_H_
 

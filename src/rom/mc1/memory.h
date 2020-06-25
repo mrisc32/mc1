@@ -23,6 +23,10 @@
 
 #include <stddef.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Fixed memory areas.
 #define ROM_START  0x00000000
 #define VRAM_START 0x40000000
@@ -63,6 +67,10 @@ void mem_free(void* ptr);
 /// @param types Memory type(s) to allocate from (must be non-zero).
 /// @returns the total number of bytes that are free for allocation.
 size_t mem_query_free(unsigned types);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // MC1_MEMORY_H_
 

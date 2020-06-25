@@ -139,7 +139,7 @@ fb_t* fb_create(int width, int height, int mode) {
   }
 
   // Address pointers.
-  uint32_t vcp_fb_addr = to_vcp_addr((uint32_t)fb->pixels);
+  uint32_t vcp_fb_addr = to_vcp_addr((uintptr_t)fb->pixels);
   *vcp++ = vcp_emit_waity(0);
   *vcp++ = vcp_emit_setreg(VCR_HSTOP, native_width);
   *vcp++ = vcp_emit_setreg(VCR_ADDR, vcp_fb_addr);

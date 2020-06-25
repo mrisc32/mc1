@@ -26,6 +26,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct {
   void* pixels;
   uint32_t* vcp;
@@ -53,5 +57,9 @@ void fb_destroy(fb_t* fb);
 /// @param layer The layer to use for the framebuffer (1 or 2).
 void fb_show(fb_t* fb, layer_t layer);
 
-#endif // MC1_FRAMEBUFFER_H_
+#ifdef __cplusplus
+}
+#endif
+
+#endif  // MC1_FRAMEBUFFER_H_
 

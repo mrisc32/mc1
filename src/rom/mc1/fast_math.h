@@ -24,6 +24,9 @@
 #include <stdint.h>
 #include <string.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 //--------------------------------------------------------------------------------------------------
 // Type punning functions. These are essentialy no-ops (zero cycles) on MRISC32.
@@ -84,6 +87,9 @@ static inline float fast_pow(const float x, const float p) {
   return fast_pow2(p * fast_log2(x));
 }
 
+#ifdef __cplusplus
+}
+#endif
 
-#endif // MC1_FAST_MATH_H_
+#endif  // MC1_FAST_MATH_H_
 

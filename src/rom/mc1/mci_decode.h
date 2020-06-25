@@ -23,6 +23,10 @@
 
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Pixel formats.
 #define MCI_PIXFMT_RGBA8888 0
 #define MCI_PIXFMT_RGBA5551 1
@@ -69,6 +73,10 @@ void mci_decode_palette(const uint8_t* mci_data, uint32_t* palette);
 /// @param mci_data The MCI data buffer.
 /// @param[out] pixels The target pixel buffer.
 void mci_decode_pixels(const uint8_t* mci_data, uint32_t* pixels);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // MC1_MCI_DECODE_H_
 

@@ -46,6 +46,15 @@ SECTIONS
         *(.sdata*)
     }
 
+    /* C++ code may generate an eh_frame section. We don't use exceptions, but
+       just in case it slips in, we put eh_frame sections in the ROM just to
+       avoid having it end up in RAM (which would confuse objcopy into
+       producing a multi-GB ROM image). */
+    .eh_frame :
+    {
+        *(.eh_frame*)
+    }
+
     __rom_size = . - 0x00000000;
 
 

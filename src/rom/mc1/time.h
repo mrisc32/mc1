@@ -21,9 +21,17 @@
 #ifndef MC1_TIME_H_
 #define MC1_TIME_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /// @brief Sleep for a specified number of milliseconds.
 /// @param milliseconds The number of milliseconds to sleep.
 void msleep(unsigned milliseconds);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // MC1_TIME_H_
 

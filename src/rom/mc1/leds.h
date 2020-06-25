@@ -21,6 +21,10 @@
 #ifndef MC1_LEDS_H_
 #define MC1_LEDS_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /// @brief Set the LED:s of the board.
 /// @param bits Each bit represents one LED (bit #0 is LED #0).
 void set_leds(unsigned bits);
@@ -36,6 +40,10 @@ void sevseg_print_dec(int number);
 /// @brief Print an ASCII string to the board segment displays.
 /// @param text The string to print.
 void sevseg_print(const char* text);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // MC1_LEDS_H_
 

@@ -23,6 +23,10 @@
 
 #include <mc1/framebuffer.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // These are meant to be called from the ROM boot routine.
 unsigned vcon_memory_requirement(void);
 void vcon_init(void* addr);
@@ -36,5 +40,9 @@ void vcon_print_hex(unsigned x);
 void vcon_print_dec(int x);
 int vcon_putc(const int c);
 
-#endif // MC1_VCONSOLE_H_
+#ifdef __cplusplus
+}
+#endif
+
+#endif  // MC1_VCONSOLE_H_
 
