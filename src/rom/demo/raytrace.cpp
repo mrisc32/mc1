@@ -26,10 +26,6 @@
 #include <cstdint>
 #include <cstring>
 
-// TODO(m): These should be part of mr32intrin.h.
-static inline uint16x2_t _mr32_pack(uint32_t a, uint32_t b) { uint16x2_t r; __asm__ ("pack\t%0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
-static inline uint8x4_t _mr32_pack_h(uint16x2_t a, uint16x2_t b) { uint8x4_t r; __asm__ ("pack.h\t%0, %1, %2" : "=r"(r) : "r"(a), "r"(b)); return r; }
-
 namespace {
 
 //--------------------------------------------------------------------------------------------------
