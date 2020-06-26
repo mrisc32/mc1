@@ -111,8 +111,8 @@ $(OUT)/demo.o: demo/demo.c
 $(OUT)/mandelbrot.o: demo/mandelbrot.c
 	$(CC) $(CCFLAGS) -o $@ $<
 
-$(OUT)/raytrace.o: demo/raytrace.c
-	$(CC) $(CCFLAGS) -o $@ $<
+$(OUT)/raytrace.o: demo/raytrace.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
 
 $(OUT)/retro.o: demo/retro.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $<
