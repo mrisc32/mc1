@@ -1,0 +1,21 @@
+---
+Language: Cpp
+BasedOnStyle: Chromium
+AccessModifierOffset: -2
+AllowShortFunctionsOnASingleLine: None
+BinPackArguments: false
+ColumnLimit: 100
+IncludeCategories:
+  - Regex:    '^(<(base/|cache/|config/|sys/|wrappers/).+\.hpp)'
+    Priority: 2
+  - Regex:    '^<(.*\.h>|c)'
+    Priority: 3
+  - Regex:    '^<.*'
+    Priority: 4
+  - Regex:    '^"'
+    Priority: 1
+  - Regex:    '.*'
+    Priority: 5
+SortIncludes: true
+...
+
