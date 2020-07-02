@@ -269,20 +269,16 @@ vec3_t trace_ray(const ray_t ray, int recursion_left) {
   return col;
 }
 
-float clamp(const float x) {
-  // For color clamping: We clamp to the range [0.0, 1.0).
-  return x < 0.0f ? 0.0f : (x > 0.999999940395f ? 0.999999940395f : x);
-}
-
-vec3_t clamp_color(const vec3_t col) {
-  return vec3(clamp(col.x), clamp(col.y), clamp(col.z));
-}
-
 ray_t make_camera_ray(const vec3_t origin, const camera_t cam, const float dx, const float dy) {
   ray_t ray;
   ray.origin = origin;
   ray.dir = normalize(cam.forward + cam.right * dx + cam.up * dy);
   return ray;
+}
+
+uint32_t clamp5(const uint32_t x) {
+  // Clamp to an unsigned 5-bit value. This requires a single MINU instruction on MRISC32.
+  return x <= 31u ? x : 31u;
 }
 
 void render_image(const float t) {
@@ -304,20 +300,20 @@ void render_image(const float t) {
       const auto ray = make_camera_ray(origin, cam, dx, dy);
 
       // Trace!
-      const auto col = clamp_color(trace_ray(ray, 2));
+      const auto col = trace_ray(ray, 2);
 
       // Write the pixel to the framebuffer memory.
       if (s_fb->mode == CMODE_RGBA8888) {
-        const uint32_t r = _mr32_ftou(col.x, 8);
-        const uint32_t g = _mr32_ftou(col.y, 8);
-        const uint32_t b = _mr32_ftou(col.z, 8);
-        const uint32_t pix = _mr32_pack_h(_mr32_pack(255, g), _mr32_pack(b, r));
+        const uint32_t r = _mr32_ftour(col.x, 8);
+        const uint32_t g = _mr32_ftour(col.y, 8);
+        const uint32_t b = _mr32_ftour(col.z, 8);
+        const uint32_t pix = _mr32_packsu_h(_mr32_packsu(255, g), _mr32_packsu(b, r));
         *reinterpret_cast<uint32_t*>(pixels) = pix;
         pixels += 4;
       } else if (s_fb->mode == CMODE_RGBA5551) {
-        const uint32_t r = _mr32_ftou(col.x, 5);
-        const uint32_t g = _mr32_ftou(col.y, 5);
-        const uint32_t b = _mr32_ftou(col.z, 5);
+        const uint32_t r = clamp5(_mr32_ftour(col.x, 5));
+        const uint32_t g = clamp5(_mr32_ftour(col.y, 5));
+        const uint32_t b = clamp5(_mr32_ftour(col.z, 5));
         const uint32_t pix = r | (g << 5) | (b << 10) | 0x8000u;
         *reinterpret_cast<uint16_t*>(pixels) = static_cast<uint16_t>(pix);
         pixels += 2;
