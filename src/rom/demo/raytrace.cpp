@@ -126,14 +126,15 @@ struct sphere_t {
   vec3_t center;
   float r2;
   float r_inv;
+  float r2_inv;
 };
 
 const int NUM_SPHERES = 4;
 
-const sphere_t s_spheres[NUM_SPHERES] = {{{-1.5f, 0.0f, 1.0f}, 1.0f, 1.0f},
-                                         {{1.5f, 0.0f, 1.0f}, 1.0f, 1.0f},
-                                         {{0.0f, -1.5f, 0.5f}, 0.25f, 2.0f},
-                                         {{0.0f, 1.5f, 0.5f}, 0.25f, 2.0f}};
+const sphere_t s_spheres[NUM_SPHERES] = {{{-1.5f, 0.0f, 1.0f}, 1.0f, 1.0f, 1.0f},
+                                         {{1.5f, 0.0f, 1.0f}, 1.0f, 1.0f, 1.0f},
+                                         {{0.0f, -1.5f, 0.5f}, 0.25f, 2.0f, 4.0f},
+                                         {{0.0f, 1.5f, 0.5f}, 0.25f, 2.0f, 4.0f}};
 
 const vec3_t s_colors[NUM_SPHERES] = {{0.25f, 0.4f, 0.25f},
                                       {0.4f, 0.4f, 0.25f},
@@ -173,7 +174,8 @@ ray_t make_ray(const vec3_t origin, const vec3_t dir) {
 }
 
 vec3_t reflect(const vec3_t v, const vec3_t n) {
-  return v - (n * (2.0f * dot(v, n) / dot(n, n)));
+  // Note: The normal, n, needs to be unit length.
+  return v - (n * (2.0f * dot(v, n)));
 }
 
 float intersect_sphere(const ray_t ray, const sphere_t sphere) {
@@ -194,10 +196,7 @@ float intersect_sphere(const ray_t ray, const sphere_t sphere) {
 }
 
 float intersect_ground(const ray_t ray) {
-  if (ray.dir.z >= 0.0f) {
-    return flt21(-1e10);
-  }
-
+  // Note: ray.dir.z must be negative.
   return -ray.origin.z / ray.dir.z;
 }
 
@@ -218,11 +217,18 @@ vec3_t trace_ray(const ray_t ray, int recursion_left) {
     }
   }
 
-  // Second, try the ground.
-  const auto t_ground = intersect_ground(ray);
-  if (t_ground > 0.0f && (t_ground < t || t < 0.0f)) {
-    sphere_idx = -1;
-    t = t_ground;
+  // If we hit a sphere, calculate surface properties for the sphere.
+  // Note: If we've hit a sphere, we'll never hit the ground (since all rays are above the ground).
+  if (sphere_idx >= 0) {
+    pos = ray.origin + ray.dir * t;
+    normal = (pos - s_spheres[sphere_idx].center) * s_spheres[sphere_idx].r_inv;
+
+    // Modulate the color based on the value of the normal z-axis (fake GI / AO).
+    const auto light = 0.5f * (1.0f + normal.z);
+    col = s_colors[sphere_idx] * light;
+  } else if (ray.dir.z < 0.0f) {
+    // Second, go for the ground (we have a hit if the ray is going down).
+    t = intersect_ground(ray);
     pos = vec3(ray.origin.x + ray.dir.x * t, ray.origin.y + ray.dir.y * t, 0.0f);
     normal = vec3(0.0f, 0.0f, 1.0f);
 
@@ -232,35 +238,24 @@ vec3_t trace_ray(const ray_t ray, int recursion_left) {
       const auto dv = vec3(pos.x - s_spheres[i].center.x, pos.y - s_spheres[i].center.y, 0.0f);
       const auto d2 = dot(dv, dv);
       if (d2 < s_spheres[i].r2) {
-        const auto r2_inv = s_spheres[i].r_inv * s_spheres[i].r_inv;
-        light *= d2 * r2_inv;
+        light *= d2 * s_spheres[i].r2_inv;
       }
     }
 
-    // Calculate final color of the ground.
+    // Apply a checkerboard pattern.
     const auto checker_idx =
-        ((static_cast<int>(pos.x + 131072.0f) ^ static_cast<int>(pos.y + 131072.0f)) >> 1) & 1;
-    const auto checker_dcol = light * (flt21(0.6) + flt21(0.4) * static_cast<float>(checker_idx));
-    col = vec3(1.0f * checker_dcol, flt21(0.2) * checker_dcol, flt21(0.2) * checker_dcol);
-  }
-
-  // If we hit a sphere, but not the ground, calculate surface properties for the sphere.
-  if (sphere_idx >= 0) {
-    pos = ray.origin + ray.dir * t;
-    normal = (pos - s_spheres[sphere_idx].center) * s_spheres[sphere_idx].r_inv;
-
-    // Modulate the color based on the value of the normal z-axis (fake GI / AO).
-    const auto light = 0.5f * (1.0f + normal.z);
-    col = s_colors[sphere_idx] * light;
-  }
-
-  if (t < 0.0f) {
+        (static_cast<int>(pos.x + 131072.0f) ^ static_cast<int>(pos.y + 131072.0f)) & 2;
+    const auto checker_dcol = light * (flt21(0.6) + flt21(0.2) * static_cast<float>(checker_idx));
+    col = vec3(checker_dcol, flt21(0.2) * checker_dcol, flt21(0.2) * checker_dcol);
+  } else {
     // No hit! The ray is looking at the sky (and we know that ray.dir.z > 0).
     const auto s = flt21(0.4);
     const auto fade = s * ray.dir.z;
-    col = vec3(s - fade, s - fade, 1.0f - fade);
-  } else if (recursion_left > 0) {
-    // Reflection.
+    return vec3(s - fade, s - fade, 1.0f - fade);
+  }
+
+  // Since we hit a surface (sphere or ground), do reflection.
+  if (recursion_left > 0) {
     const auto ray2 = make_ray(pos, reflect(ray.dir, normal));
     const auto col2 = trace_ray(ray2, recursion_left - 1);
     col = col + col2 * flt21(0.3);
