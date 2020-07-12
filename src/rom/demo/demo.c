@@ -37,14 +37,26 @@ void retro(int frame_no);
 static void wait_vblank() {
   // Wait for the next vertical blanking interval. We busy lopp since we don't have interrupts yet.
   uint32_t vid_frame_no = MMIO(VIDFRAMENO);
-  while (vid_frame_no == MMIO(VIDFRAMENO));
+  while (vid_frame_no == MMIO(VIDFRAMENO))
+    ;
+}
+
+static int should_pause() {
+  // Check if we should pause.
+  uint32_t buttons = MMIO(BUTTONS);
+  return (buttons & 1) != 0u;
 }
 
 int main(void) {
   uint32_t switches_old = 0xffffffffu;
   vcon_print("Use switches to select demo...\n");
 
-  for (int frame_no = 0; ; ++frame_no) {
+  int frame_no = 0;
+  while (1) {
+    if (should_pause()) {
+      continue;
+    }
+
     uint32_t switches = MMIO(SWITCHES);
     if (switches != switches_old) {
       mandelbrot_deinit();
@@ -57,24 +69,21 @@ int main(void) {
     // Select program with the board switches.
     if (switches == 1) {
       mandelbrot_init();
-      sevseg_print_dec(frame_no);
       mandelbrot(frame_no);
     } else if (switches == 2) {
       raytrace_init();
-      sevseg_print_dec(frame_no);
       raytrace(frame_no);
     } else if (switches == 4) {
       retro_init();
       retro(frame_no);
-      sevseg_print_dec(MMIO(VIDY));  // For profiling: Show current raster Y position.
       wait_vblank();
     } else {
       sevseg_print("OLLEH");  // Print a friendly "HELLO".
       vcon_show(LAYER_1);
       wait_vblank();
     }
+    ++frame_no;
   }
 
   return 0;
 }
-

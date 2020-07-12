@@ -20,6 +20,7 @@
 
 #include <mc1/fast_math.h>
 #include <mc1/framebuffer.h>
+#include <mc1/leds.h>
 
 #include <mr32intrin.h>
 
@@ -342,6 +343,8 @@ extern "C" void raytrace(int frame_no) {
   if (s_fb == nullptr) {
     return;
   }
+
+  sevseg_print_dec(frame_no);
 
   fb_show(s_fb, LAYER_1);
 

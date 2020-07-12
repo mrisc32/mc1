@@ -20,6 +20,7 @@
 
 #include <mc1/fast_math.h>
 #include <mc1/framebuffer.h>
+#include <mc1/leds.h>
 
 #include <stdint.h>
 
@@ -206,6 +207,8 @@ void mandelbrot(int frame_no) {
   if (s_fb == NULL) {
     return;
   }
+
+  sevseg_print_dec(frame_no);
 
   fb_show(s_fb, LAYER_1);
 

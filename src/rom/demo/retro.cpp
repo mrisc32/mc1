@@ -19,6 +19,7 @@
 //--------------------------------------------------------------------------------------------------
 
 #include <mc1/fast_math.h>
+#include <mc1/leds.h>
 #include <mc1/mci_decode.h>
 #include <mc1/mmio.h>
 #include <mc1/vcp.h>
@@ -270,6 +271,9 @@ void retro_t::draw(const int frame_no) {
   draw_sky(frame_no);
   draw_logo_and_raster_bars(frame_no);
   draw_checkerboard(frame_no);
+
+  // For profiling: Show current raster Y position.
+  sevseg_print_dec(static_cast<int>(MMIO(VIDY)));
 }
 
 int retro_t::sin16(const int x) const {
