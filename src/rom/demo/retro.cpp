@@ -272,6 +272,15 @@ void retro_t::draw(const int frame_no) {
   draw_logo_and_raster_bars(frame_no);
   draw_checkerboard(frame_no);
 
+  // Light up the leds.
+  {
+    int led_pos = (frame_no / 8) % 20;
+    if (led_pos >= 10) {
+      led_pos = 20 - led_pos;
+    }
+    set_leds(1 << led_pos);
+  }
+
   // For profiling: Show current raster Y position.
   sevseg_print_dec(static_cast<int>(MMIO(VIDY)));
 }
