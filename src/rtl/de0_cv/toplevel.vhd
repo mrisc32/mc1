@@ -227,7 +227,7 @@ begin
   s_io_switches(31 downto 10) <= (others => '0');
   s_io_switches(9 downto 0) <= SW;
   s_io_buttons(31 downto 4) <= (others => '0');
-  s_io_buttons(3 downto 0) <= KEY;
+  s_io_buttons(3 downto 0) <= not KEY;
 
   -- I/O: Output.
   HEX0 <= not s_io_regs_w.SEGDISP0(6 downto 0);
