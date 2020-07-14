@@ -43,11 +43,16 @@ static uint32_t _LZG_GetUINT32(const uint8_t* in, const int offs) {
   return (b3 << 24) | (b2 << 16) | (b1 << 8) | b0;
 }
 
+// Get the minimum integer value.
+static int32_t _LZG_Min(const int32_t a, const int32_t b) {
+  return a < b ? a : b;
+}
+
 #ifdef CONF_DO_CHECKS
 // Calculate the checksum.
 static uint32_t _LZG_CalcChecksum(const uint8_t* data, uint32_t size) {
   uint16_t a = 1, b = 0;
-  uint8_t* end = (uint8_t*)data + size;
+  const uint8_t* end = ((const uint8_t*)data) + size;
   while (data != end) {
     a += *data++;
     b += a;
@@ -94,23 +99,23 @@ uint32_t LZG_Decode(const uint8_t* in,
 #endif  // CONF_DO_CHECKS
 
   // Initialize the byte streams.
-  const uint8_t* src = (uint8_t*)in + LZG_HEADER_SIZE;
-  const uint8_t* in_end = ((uint8_t*)in) + insize;
+  const uint8_t* src = ((const uint8_t*)in) + LZG_HEADER_SIZE;
+  const uint8_t* in_end = ((const uint8_t*)in) + insize;
   uint8_t* dst = out;
   const uint8_t* out_end = out + outsize;
 
   // Check which method to use.
-  const uint8_t method = in[15];
+  const uint32_t method = (uint32_t)in[15];
   if (method == LZG_METHOD_LZG1) {
 #ifdef CONF_DO_CHECKS
     if (!((src + 4) <= in_end)) {
       return 0;
     }
 #endif
-    const uint8_t m1 = *src++;
-    const uint8_t m2 = *src++;
-    const uint8_t m3 = *src++;
-    const uint8_t m4 = *src++;
+    const uint32_t m1 = (uint32_t)*src++;
+    const uint32_t m2 = (uint32_t)*src++;
+    const uint32_t m3 = (uint32_t)*src++;
+    const uint32_t m4 = (uint32_t)*src++;
 
     // Main decompression loop.
     while (src < in_end) {
@@ -131,7 +136,7 @@ uint32_t LZG_Decode(const uint8_t* in,
           return 0;
         }
 #endif
-        const uint32_t b = *src++;
+        const uint32_t b = (uint32_t)*src++;
         if (b != 0) {
           uint32_t length, offset;
           if (symbol == m1) {
@@ -142,7 +147,7 @@ uint32_t LZG_Decode(const uint8_t* in,
             }
 #endif
             length = _LZG_LENGTH_DECODE_LUT[b & 0x1f];
-            const uint32_t b2 = *src++;
+            const uint32_t b2 = (uint32_t)*src++;
             offset = ((b & 0xe0) << 11) | (b2 << 8) | (*src++);
             offset += 2056;
           } else if (symbol == m2) {
@@ -153,7 +158,7 @@ uint32_t LZG_Decode(const uint8_t* in,
             }
 #endif
             length = _LZG_LENGTH_DECODE_LUT[b & 0x1f];
-            const uint32_t b2 = *src++;
+            const uint32_t b2 = (uint32_t)*src++;
             offset = ((b & 0xe0) << 3) | b2;
             offset += 8;
           } else if (symbol == m3) {
@@ -173,7 +178,7 @@ uint32_t LZG_Decode(const uint8_t* in,
             return 0;
           }
 #endif
-          for (uint32_t i = 0; i < length; ++i) {
+          for (int32_t i = 0; i < (int32_t)length; ++i) {
             *dst++ = *copy++;
           }
         } else {
@@ -189,8 +194,9 @@ uint32_t LZG_Decode(const uint8_t* in,
     }
   } else if (method == LZG_METHOD_COPY) {
     // Plain copy.
-    while ((src < in_end) && (dst < out_end)) {
-      *dst++ = *src++;
+    const int32_t count = _LZG_Min((int32_t)(in_end - src), (int32_t)(out_end - dst));
+    for (int32_t i = 0; i < count; ++i) {
+      dst[i] = src[i];
     }
   }
 
