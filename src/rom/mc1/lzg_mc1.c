@@ -24,6 +24,8 @@
 
 #include "lzg_mc1.h"
 
+#include <mr32intrin.h>
+
 //-- PRIVATE ---------------------------------------------------------------------------------------
 
 // Define to enable safety checks (increases code size).
@@ -40,11 +42,15 @@ static uint32_t _LZG_GetUINT32(const uint8_t* in, const int offs) {
   const uint32_t b2 = (uint32_t)in[offs + 1];
   const uint32_t b1 = (uint32_t)in[offs + 2];
   const uint32_t b0 = (uint32_t)in[offs + 3];
+#ifdef __MRISC32_PACKED_OPS__
+  return _mr32_pack_h(_mr32_pack(b3, b1), _mr32_pack(b2, b0));
+#else
   return (b3 << 24) | (b2 << 16) | (b1 << 8) | b0;
+#endif
 }
 
 // Get the minimum integer value.
-static int32_t _LZG_Min(const int32_t a, const int32_t b) {
+static inline uint32_t _LZG_Min(const uint32_t a, const uint32_t b) {
   return a < b ? a : b;
 }
 
@@ -178,7 +184,7 @@ uint32_t LZG_Decode(const uint8_t* in,
             return 0;
           }
 #endif
-          for (int32_t i = 0; i < (int32_t)length; ++i) {
+          for (uint32_t i = 0u; i < length; ++i) {
             *dst++ = *copy++;
           }
         } else {
@@ -194,10 +200,11 @@ uint32_t LZG_Decode(const uint8_t* in,
     }
   } else if (method == LZG_METHOD_COPY) {
     // Plain copy.
-    const int32_t count = _LZG_Min((int32_t)(in_end - src), (int32_t)(out_end - dst));
-    for (int32_t i = 0; i < count; ++i) {
-      dst[i] = src[i];
+    const uint32_t count = _LZG_Min((uint32_t)(in_end - src), (uint32_t)(out_end - dst));
+    for (uint32_t i = 0u; i < count; ++i) {
+      *dst++ = *src++;
     }
+
   }
 
 #ifdef CONF_DO_CHECKS
