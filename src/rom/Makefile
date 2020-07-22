@@ -21,9 +21,11 @@
 OUT = out
 SELFTESTOUT = selftest/out
 
-HOST_OUT     = $(OUT)/host
-HOST_CC      = gcc
-HOST_CCFLAGS = -c -O2 -I tools/liblzg/include -Wall -Wextra -Werror -MMD -MP
+HOST_OUT      = $(OUT)/host
+HOST_CC       = gcc
+HOST_CXX      = g++
+HOST_CCFLAGS  = -c -O2 -I tools/liblzg/include -Wall -Wextra -Werror -MMD -MP
+HOST_CXXFLAGS = $(HOST_CCFLAGS)
 
 CFLAGS_COMMON = -c -I . -Os -ffast-math -Wall -Wextra -Wshadow -pedantic -Werror -MMD -MP
 
@@ -42,7 +44,7 @@ CP       = cp -a
 
 .PHONY: clean all selftest
 
-all: $(OUT)/rom.vhd $(HOST_OUT)/png2mci
+all: $(OUT)/rom.vhd $(HOST_OUT)/png2mci $(HOST_OUT)/font_test
 
 clean:
 	rm -f $(OUT)/*.a \
@@ -56,7 +58,8 @@ clean:
 	      $(OUT)/*.vhd \
 	      $(HOST_OUT)/*.o \
 	      $(HOST_OUT)/*.d \
-	      $(HOST_OUT)/png2mci
+	      $(HOST_OUT)/png2mci \
+	      $(HOST_OUT)/font_test
 	$(MAKE) -C selftest clean
 
 
@@ -92,6 +95,19 @@ $(HOST_OUT)/encode.o: tools/liblzg/lib/encode.c
 
 $(HOST_OUT)/version.o: tools/liblzg/lib/version.c
 	$(HOST_CC) $(HOST_CCFLAGS) -w -o $@ $<
+
+FONT_TEST_OBJS = \
+    $(HOST_OUT)/font_test.o \
+    $(HOST_OUT)/glyph_renderer.o
+
+$(HOST_OUT)/font_test: $(FONT_TEST_OBJS)
+	$(HOST_CXX) -o $@ $(FONT_TEST_OBJS)
+
+$(HOST_OUT)/font_test.o: tools/font_test.cpp
+	$(HOST_CXX) $(HOST_CXXFLAGS) -I . -o $@ $<
+
+$(HOST_OUT)/glyph_renderer.o: mc1/glyph_renderer.cpp
+	$(HOST_CXX) $(HOST_CXXFLAGS) -I . -o $@ $<
 
 
 #-----------------------------------------------------------------------------
