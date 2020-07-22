@@ -158,6 +158,7 @@ LIBMC1_OBJS = \
     $(OUT)/crt0.o \
     $(OUT)/fast_math.o \
     $(OUT)/framebuffer.o \
+    $(OUT)/glyph_renderer.o \
     $(OUT)/leds.o \
     $(OUT)/lzg_mc1.o \
     $(OUT)/mc1-font-8x8.o \
@@ -180,6 +181,9 @@ $(OUT)/fast_math.o: mc1/fast_math.c
 
 $(OUT)/framebuffer.o: mc1/framebuffer.c
 	$(CC) $(CCFLAGS) -o $@ $<
+
+$(OUT)/glyph_renderer.o: mc1/glyph_renderer.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
 
 $(OUT)/leds.o: mc1/leds.s mc1/mmio.inc
 	$(AS) $(ASFLAGS) -o $@ mc1/leds.s
