@@ -19,6 +19,7 @@
 //--------------------------------------------------------------------------------------------------
 
 #include <mc1/fast_math.h>
+#include <mc1/glyph_renderer.h>
 #include <mc1/leds.h>
 #include <mc1/mci_decode.h>
 #include <mc1/mmio.h>
@@ -53,28 +54,41 @@ private:
   static const int SINE_LUT_ENTIRES = (1 << LOG2_SINE_LUT_ENTIRES);
   static const int PIXEL_WORDS = 16;
 
+  static const int LOG2_GLYPH_WIDTH = 6;
+  static const int LOG2_GLYPH_HEIGHT = 6;
+  static const int GLYPH_WIDTH = 1 << LOG2_GLYPH_WIDTH;
+  static const int GLYPH_HEIGHT = 1 << LOG2_GLYPH_HEIGHT;
+
   int sin16(const int x) const;
   int sun_width(int y) const;
 
   void draw_sky(const int frame_no);
   void draw_checkerboard(const int frame_no);
   void draw_logo_and_raster_bars(const int frame_no);
+  void draw_text(const int frame_no);
 
   void* m_base_ptr;
   uint32_t* m_vcp1;
   uint32_t* m_vcp2;
   uint32_t* m_vcp3;
   uint32_t* m_vcp3_rows;
+  uint32_t* m_vcp4;
+  uint32_t* m_vcp4_xoffs;
   uint32_t* m_pixels1;
   int16_t* m_sine_lut;
   uint16_t* m_sun_lut;
   const mci_header_t* m_logo_hdr;
   uint32_t* m_logo_pixels;
+  uint8_t* m_text_pixels;
   int32_t m_width;
   int32_t m_height;
   int32_t m_sky_height;
   int32_t m_sun_radius;
   int32_t m_sun_max_height;
+  int32_t m_vcp3_height;
+  uint32_t m_text_pix_stride;
+
+  mc1::glyph_renderer_t m_glyph_renderer;
 };
 
 void retro_t::init() {
@@ -89,6 +103,8 @@ void retro_t::init() {
   m_sun_radius = (m_width * 3) >> 4;
   m_sun_max_height = (m_sun_radius * 3) >> 1;
 
+  m_vcp3_height = m_height - GLYPH_HEIGHT;
+
   // Get information about MCI images.
   m_logo_hdr = mci_get_header(mrisc32_logo);
 
@@ -100,9 +116,12 @@ void retro_t::init() {
   const auto vcp2_height = m_height - m_sky_height;
   const auto vcp2_size = sizeof(uint32_t) * static_cast<size_t>(3 + vcp2_height * 6 + 1);
 
-  // VCP 3 (layer 2).
+  // VCP 3 (logo & raster bars - top of layer 2).
   const auto vcp3_size =
-      sizeof(uint32_t) * static_cast<size_t>(4 + m_logo_hdr->num_pal_colors + m_height * 6 + 1);
+      sizeof(uint32_t) * static_cast<size_t>(4 + m_logo_hdr->num_pal_colors + m_vcp3_height * 6);
+
+  // VCP 4 (text - bottom of layer 2).
+  const auto vcp4_size = sizeof(uint32_t) * static_cast<size_t>(7 + 4 + GLYPH_HEIGHT * 2 + 1);
 
   // Pixels for layer 1.
   const auto pix1_size = sizeof(uint32_t) * PIXEL_WORDS;
@@ -116,9 +135,13 @@ void retro_t::init() {
   // Logo memory requirement.
   const auto logo_size = mci_get_pixels_size(m_logo_hdr);
 
+  // Pixels for the text.
+  m_text_pix_stride = static_cast<uint32_t>(m_width + GLYPH_WIDTH) / 4u;
+  const auto text_pixels_size = static_cast<size_t>(GLYPH_HEIGHT) * m_text_pix_stride;
+
   // Calculate the required memory size.
-  const auto total_size =
-      vcp1_size + vcp2_size + vcp3_size + pix1_size + sine_size + sun_size + logo_size;
+  const auto total_size = vcp1_size + vcp2_size + vcp3_size + vcp4_size + pix1_size + sine_size +
+                          sun_size + logo_size + text_pixels_size;
 
   // Allocate memory and define all memory pointers.
   {
@@ -134,6 +157,8 @@ void retro_t::init() {
     mem += vcp2_size;
     m_vcp3 = reinterpret_cast<uint32_t*>(mem);
     mem += vcp3_size;
+    m_vcp4 = reinterpret_cast<uint32_t*>(mem);
+    mem += vcp4_size;
     m_pixels1 = reinterpret_cast<uint32_t*>(mem);
     mem += pix1_size;
     m_sine_lut = reinterpret_cast<int16_t*>(mem);
@@ -141,6 +166,8 @@ void retro_t::init() {
     m_sun_lut = reinterpret_cast<uint16_t*>(mem);
     mem += sun_size;
     m_logo_pixels = reinterpret_cast<uint32_t*>(mem);
+    mem += logo_size;
+    m_text_pixels = reinterpret_cast<uint8_t*>(mem);
   }
 
   // Create the VCP for layer 1 (VCP 1 + VCP 2).
@@ -191,7 +218,7 @@ void retro_t::init() {
     *vcp = vcp_emit_waity(32767);
   }
 
-  // Create the VCP for layer 2.
+  // Create the VCP for layer 2 (vcp3 + vcp4).
   {
     auto* vcp = m_vcp3;
 
@@ -210,13 +237,37 @@ void retro_t::init() {
 
     // Per-line commands.
     m_vcp3_rows = vcp;
-    for (int y = 0; y < m_height; ++y) {
+    for (int y = 0; y < m_vcp3_height; ++y) {
       *vcp++ = vcp_emit_waity(y);
       *vcp++ = vcp_emit_setpal(0, 1);
       ++vcp;  // Palette color 0
       *vcp++ = vcp_emit_setreg(VCR_ADDR, 0);
       *vcp++ = vcp_emit_setreg(VCR_HSTRT, 0);
       *vcp++ = vcp_emit_setreg(VCR_HSTOP, 0);
+    }
+
+    // Define text render mode and palette.
+    *vcp++ = vcp_emit_waity(m_vcp3_height);
+    m_vcp4_xoffs = vcp;
+    *vcp++ = vcp_emit_setreg(VCR_XOFFS, 0);
+    *vcp++ = vcp_emit_setreg(VCR_XINCR, 0x010000u);
+    *vcp++ = vcp_emit_setreg(VCR_HSTRT, 0);
+    *vcp++ = vcp_emit_setreg(VCR_HSTOP, static_cast<uint32_t>(m_width));
+    *vcp++ = vcp_emit_setreg(VCR_CMODE, CMODE_PAL2);
+    *vcp++ = vcp_emit_setpal(0, 4);
+    *vcp++ = 0xe0000000u;
+    *vcp++ = 0xa0104010u;
+    *vcp++ = 0x80209020u;
+    *vcp++ = 0x6040ff40u;
+
+    // Text per-line commands.
+    {
+      auto addr = reinterpret_cast<uintptr_t>(m_text_pixels);
+      for (int y = m_vcp3_height; y < m_height; ++y) {
+        *vcp++ = vcp_emit_waity(y);
+        *vcp++ = vcp_emit_setreg(VCR_ADDR, to_vcp_addr(addr));
+        addr += m_text_pix_stride;
+      }
     }
 
     // Epilogue.
@@ -246,10 +297,15 @@ void retro_t::init() {
 
   // Decode images.
   mci_decode_pixels(mrisc32_logo, m_logo_pixels);
+
+  // Initiate the glyph renderer.
+  m_glyph_renderer.init(6, 6);
 }
 
 void retro_t::de_init() {
   if (m_base_ptr != nullptr) {
+    m_glyph_renderer.deinit();
+
     mem_free(m_base_ptr);
     m_base_ptr = nullptr;
 
@@ -271,6 +327,7 @@ void retro_t::draw(const int frame_no) {
   draw_sky(frame_no);
   draw_logo_and_raster_bars(frame_no);
   draw_checkerboard(frame_no);
+  draw_text(frame_no);
 
   // Light up the leds.
   {
@@ -378,7 +435,7 @@ void retro_t::draw_logo_and_raster_bars(const int frame_no) {
   {
     // TODO(m): Do this in a vector loop instead.
     auto* vcp = m_vcp3_rows;
-    for (int y = 0; y < m_height; ++y) {
+    for (int y = 0; y < m_vcp3_height; ++y) {
       vcp[2] = 0u;
       vcp[4] = vcp_emit_setreg(VCR_HSTRT, 0);
       vcp[5] = vcp_emit_setreg(VCR_HSTOP, 0);
@@ -468,6 +525,76 @@ void retro_t::draw_logo_and_raster_bars(const int frame_no) {
         *color_ptr = _mr32_maxu_b(color, *color_ptr);
       }
     }
+  }
+}
+
+void retro_t::draw_text(const int frame_no) {
+  static const char SCROLL_TEXT[] =
+      "HELLO WORLD! THIS RETRO STYLE DEMO IS RUNNING AT 1920*1080 AT 60 FPS, WITH LOTS OF CPU "
+      "TIME TO SPARE AND USING LESS THAN 110KB VRAM... THIS IS POSSIBLE THANKS TO THE VCPP - SHORT "
+      "FOR \"VIDEO CONTROL PROGRAM PROCESSOR\".              ";
+  const auto SCROLL_SPEED = 4;
+
+  // Calculate the text position.
+  const auto text_pos = frame_no * SCROLL_SPEED;
+  const auto scroll_pos = text_pos % GLYPH_WIDTH;
+
+  // Update the horizontal scroll value.
+  *m_vcp4_xoffs = vcp_emit_setreg(VCR_XOFFS, static_cast<uint32_t>(scroll_pos) << 16);
+
+  // Render & paint the next glyph.
+  if (scroll_pos == (GLYPH_WIDTH - 4 * SCROLL_SPEED)) {
+    // Phase 1: Select character and render the glyph.
+    const auto text_idx =
+        static_cast<uint32_t>(text_pos / GLYPH_WIDTH) % (sizeof(SCROLL_TEXT) - 1u);
+    const auto c = SCROLL_TEXT[text_idx];
+    m_glyph_renderer.draw_char(c);
+    m_glyph_renderer.grow();
+    m_glyph_renderer.grow();
+  } else if (scroll_pos == (GLYPH_WIDTH - 3 * SCROLL_SPEED)) {
+    // Phase 2: Continue rendering the glyph.
+    m_glyph_renderer.grow();
+    m_glyph_renderer.grow();
+  } else if (scroll_pos == (GLYPH_WIDTH - 2 * SCROLL_SPEED)) {
+    // Phase 3: Continue rendering the glyph.
+    m_glyph_renderer.grow();
+    m_glyph_renderer.grow();
+  } else if (scroll_pos == (GLYPH_WIDTH - SCROLL_SPEED)) {
+    // Phase 4: Continue rendering the glyph.
+    m_glyph_renderer.grow();
+    m_glyph_renderer.grow();
+  } else if (scroll_pos == 0) {
+    // Phase 5: Scroll the text pixels to the left, one glyph...
+    {
+      const int words_per_glyph = (GLYPH_WIDTH >> 2) / static_cast<int>(sizeof(uint32_t));
+      const int words_per_row = (m_width >> 2) / static_cast<int>(sizeof(uint32_t));
+      auto* dst = reinterpret_cast<uint32_t*>(m_text_pixels);
+      const auto* src = dst + words_per_glyph;
+      for (int y = 0; y < GLYPH_HEIGHT; ++y) {
+        auto words_left = words_per_row;
+        __asm__ volatile(
+            "cpuid   s2, z, z\n"
+            "1:\n\t"
+            "min     vl, %0, s2\n\t"
+            "sub     %0, %0, vl\n\t"
+            "ldw     v1, %1, #4\n\t"
+            "ldea    %1, %1, vl*4\n\t"
+            "stw     v1, %2, #4\n\t"
+            "ldea    %2, %2, vl*4\n\t"
+            "bnz     %0, 1b"
+            : "+r"(words_left),  // %0
+              "+r"(src),         // %1
+              "+r"(dst)          // %2
+            :
+            : "s2", "vl", "memory");
+        dst += words_per_glyph;
+        src += words_per_glyph;
+      }
+    }
+
+    // ...and paint the glyph.
+    auto* pix_ptr = m_text_pixels + m_text_pix_stride - (GLYPH_WIDTH / 4);
+    m_glyph_renderer.paint_2bpp(pix_ptr, m_text_pix_stride);
   }
 }
 
