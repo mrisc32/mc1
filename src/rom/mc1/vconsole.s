@@ -6,8 +6,8 @@
 .include "mc1/memory.inc"
 .include "mc1/mmio.inc"
 
-VCON_COLS = 40
-VCON_ROWS = 22
+VCON_COLS = 80
+VCON_ROWS = 45
 
 VCON_WIDTH  = VCON_COLS*8
 VCON_HEIGHT = VCON_ROWS*8

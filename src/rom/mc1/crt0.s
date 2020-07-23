@@ -36,6 +36,20 @@ bss_cleared:
 
 
     ; ------------------------------------------------------------------------
+    ; Set up the stack area.
+    ; ------------------------------------------------------------------------
+
+    ; Initialize the stack: Place the stack at the top of VRAM.
+    ldi     s1, #MMIO_START
+    ldw     s1, s1, #VRAMSIZE
+    ldi     sp, #VRAM_START
+    add     sp, sp, s1
+
+    ldi     s20, #STACK_SIZE
+    sub     s20, sp, s20        ; s20 = Start of stack.
+
+
+    ; ------------------------------------------------------------------------
     ; Make both video layers "silent" (use no memory cycles).
     ; ------------------------------------------------------------------------
 
@@ -43,96 +57,6 @@ bss_cleared:
     ldi     s2, #VRAM_START
     stw     s1, s2, #16         ; Layer 1
     stw     s1, s2, #32         ; Layer 2
-
-
-    ; ------------------------------------------------------------------------
-    ; Set up the stack area.
-    ; ------------------------------------------------------------------------
-
-    ; Initialize the stack: Place the stack at the top of VRAM.
-    ldhi    s1, #MMIO_START
-    ldw     s1, s1, #VRAMSIZE
-    ldhi    sp, #VRAM_START
-    add     sp, sp, s1
-
-
-    ; ------------------------------------------------------------------------
-    ; Initialize the video console.
-    ; ------------------------------------------------------------------------
-
-    bl      vcon_memory_requirement
-    mov     s21, s1                 ; s21 = vcon size
-
-    ldhi    s2, #MMIO_START
-    ldw     s2, s2, #VRAMSIZE
-    ldhi    s3, #VRAM_START
-    add     s3, s3, s2              ; s3 = VRAM end
-
-    ldi     s2, #STACK_SIZE
-    add     s2, s1, s2              ; s2 = stack size + vconsole size
-    sub     s20, s3, s2             ; s20 = start of vcon (end of free VRAM)
-
-    mov     s1, s20
-    bl      vcon_init
-
-
-    ; ------------------------------------------------------------------------
-    ; Boot text: Print some memory information etc.
-    ; ------------------------------------------------------------------------
-
-    ldi     s1, #boot_text_1@pc
-    bl      vcon_print
-
-    ldi     s1, #rom_text_1@pc
-    ldi     s2, #ROM_START
-    ldi     s3, #__rom_size
-    bl      print_mem_info
-
-    ldi     s1, #vram_text_1@pc
-    ldi     s2, #VRAM_START
-    ldi     s3, #MMIO_START
-    ldw     s3, s3, #VRAMSIZE
-    bl      print_mem_info
-
-    ldi     s1, #bss_text_1@pc
-    ldi     s2, #__bss_start
-    ldi     s3, #__bss_size
-    bl      print_mem_info
-
-    ldi     s1, #vcon_text_1@pc
-    mov     s2, s20
-    mov     s3, s21
-    bl      print_mem_info
-
-    ldi     s1, #stack_text_1@pc
-    ldi     s3, #STACK_SIZE
-    mov     s2, sp
-    sub     s2, s2, s3
-    bl      print_mem_info
-
-    ldi     s1, #xram_text_1@pc
-    ldi     s2, #XRAM_START
-    ldi     s3, #MMIO_START
-    ldw     s3, s3, #XRAMSIZE
-    bl      print_mem_info
-
-
-    ; ------------------------------------------------------------------------
-    ; Run the selftest.
-    ; ------------------------------------------------------------------------
-
-    ldi     s1, #selftest_text@pc
-    bl      vcon_print
-    ldi     s1, #selftest_callback@pc
-    bl      selftest_run
-
-    ; s1 contains the pass/fail status (pass = all bits set).
-    ldi     s2, #selftest_pass_text@pc
-    bs      s1, 1f
-    ldi     s2, #selftest_fail_text@pc
-1:
-    mov     s1, s2
-    bl      vcon_print
 
 
     ; ------------------------------------------------------------------------
@@ -252,56 +176,6 @@ bss_cleared:
     b       1$
 
 
-    ; ------------------------------------------------------------------------
-    ; Print memory area info.
-    ; s1 = text
-    ; s2 = mem start
-    ; s3 = mem size
-    ; ------------------------------------------------------------------------
-
-print_mem_info:
-    add     sp, sp, #-12
-    stw     lr, sp, #0
-    stw     s20, sp, #4
-    stw     s21, sp, #8
-
-    mov     s20, s2
-    mov     s21, s3
-
-    bl      vcon_print
-
-    mov     s1, s20
-    bl      vcon_print_hex
-
-    ldi     s1, #mem_info_text_2@pc
-    bl      vcon_print
-
-    mov     s1, s21
-    bl      vcon_print_dec
-
-    ldi     s1, #mem_info_text_3@pc
-    bl      vcon_print
-
-    ldw     lr, sp, #0
-    ldw     s20, sp, #4
-    ldw     s21, sp, #8
-    add     sp, sp, #12
-    ret
-
-
-    ; ------------------------------------------------------------------------
-    ; Callback routine for the selftest.
-    ; s1 = pass/fail (-1/0)
-    ; s2 = test no.
-    ; ------------------------------------------------------------------------
-
-selftest_callback:
-    ldi     s3, #33
-    and     s4, s1, #9
-    add     s1, s3, s4      ; s1 = "*" for pass, "!" for fail
-    b       vcon_putc
-
-
     .section .rodata
 
     .p2align 2
@@ -311,31 +185,3 @@ argv:
 arg0:
     ; We provide a fake program name (just to have a valid call to main).
     .asciz  "program"
-
-boot_text_1:
-    .asciz  "\n  **** MC1 - The MRISC32 computer ****\n\n"
-
-rom_text_1:
-    .asciz  "ROM:    0x"
-vram_text_1:
-    .asciz  "VRAM:   0x"
-bss_text_1:
-    .asciz  " BSS:   0x"
-vcon_text_1:
-    .asciz  " VCON:  0x"
-stack_text_1:
-    .asciz  " Stack: 0x"
-xram_text_1:
-    .asciz  "XRAM:   0x"
-mem_info_text_2:
-    .asciz  ", "
-mem_info_text_3:
-    .asciz  " bytes\n"
-
-selftest_text:
-    .asciz  "\nSelftest: "
-selftest_pass_text:
-    .asciz  " PASS\n\n"
-selftest_fail_text:
-    .asciz  " FAIL\n\n"
-

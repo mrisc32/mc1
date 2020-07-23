@@ -21,15 +21,11 @@
 #include <mc1/memory.h>
 
 #include <mc1/mem_fill.h>
-#include <mc1/vconsole.h>
 
 
 //--------------------------------------------------------------------------------------------------
 // Private
 //--------------------------------------------------------------------------------------------------
-
-// Uncomment this to enable memory allocator debugging.
-// #define ENABLE_DEBUG
 
 #define MAX_NUM_POOLS 4         // Maximum number of supported memory pools.
 #define MIN_MAX_NUM_ALLOCS 16   // Minimum size of a memory pool.
@@ -82,17 +78,6 @@ static int init_mem_pool(mem_pool_t* pool, void* start, size_t size, unsigned ty
   pool->size = size - blocks_array_size;
   pool->type = type;
 
-#ifdef ENABLE_DEBUG
-  // Print memory pool information.
-  vcon_print("Memory pool:\n  0x");
-  vcon_print_hex(pool->start);
-  vcon_print(", ");
-  vcon_print_dec(pool->size);
-  vcon_print(" bytes free\n  Type: ");
-  vcon_print_hex(pool->type);
-  vcon_print("\n");
-#endif // ENABLE_DEBUG
-
   return 1;
 }
 
@@ -104,9 +89,6 @@ static size_t ensure_aligned(size_t size) {
 static void* allocate_from(mem_pool_t* pool, size_t size) {
   // We can't do empty allocations nor allocate more blocks than max_num_allocs.
   if (size == 0 || pool->num_allocs >= pool->max_num_allocs) {
-#ifdef ENABLE_DEBUG
-    vcon_print("allocate_from: No more blocks\n");
-#endif // ENABLE_DEBUG
     return NULL;
   }
 
@@ -127,11 +109,6 @@ static void* allocate_from(mem_pool_t* pool, size_t size) {
                                                   (pool->start + pool->size);
     size_t free_bytes = block_start - prev_block_end;
     if (size <= free_bytes && free_bytes < best_free_bytes) {
-#ifdef ENABLE_DEBUG
-      vcon_print("allocate_from: Found idx: ");
-      vcon_print_dec(i);
-      vcon_print("\n");
-#endif // ENABLE_DEBUG
       best_idx = i;
       best_block_start = prev_block_end;
       best_free_bytes = free_bytes;
@@ -140,9 +117,6 @@ static void* allocate_from(mem_pool_t* pool, size_t size) {
 
   // Could we not find a slot?
   if (best_idx < 0) {
-#ifdef ENABLE_DEBUG
-    vcon_print("allocate_from: No block found\n");
-#endif // ENABLE_DEBUG
     return NULL;
   }
 
@@ -217,35 +191,16 @@ void* mem_alloc(size_t num_bytes, unsigned types) {
     }
   }
 
-#ifdef ENABLE_DEBUG
-  vcon_print("mem_alloc:\t0x");
-  vcon_print_hex((size_t)ptr);
-  vcon_print(", ");
-  vcon_print_dec(num_bytes);
-  vcon_print(" bytes\n");
-#endif // ENABLE_DEBUG
-
   return ptr;
 }
 
 void mem_free(void* ptr) {
   if (ptr != NULL) {
-#ifdef ENABLE_DEBUG
-    vcon_print("mem_free:\t0x");
-    vcon_print_hex((size_t)ptr);
-#endif // ENABLE_DEBUG
-
     for (int i = 0; i < s_num_pools; ++i) {
       if (free_from(&s_pools[i], ptr)) {
-#ifdef ENABLE_DEBUG
-        vcon_print(" - OK\n");
-#endif
         return;
       }
     }
-#ifdef ENABLE_DEBUG
-    vcon_print(" - FAIL!\n");
-#endif
   }
 }
 
