@@ -502,7 +502,7 @@ void glyph_renderer_t::init(const unsigned log2_width, const unsigned log2_heigh
   m_height = 1u << log2_height;
   const size_t mem_required = m_width * (m_height + 2);
 #ifdef __MRISC32__
-  m_pixels = reinterpret_cast<uint8_t*>(mem_alloc(mem_required, MEM_TYPE_ANY));
+  m_pixels = reinterpret_cast<uint8_t*>(mem_alloc(mem_required, MEM_TYPE_ANY | MEM_CLEAR));
 #else
   m_pixels = reinterpret_cast<uint8_t*>(malloc(mem_required));
 #endif

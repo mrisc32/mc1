@@ -468,9 +468,10 @@ void retro_t::draw_logo_and_raster_bars(const int frame_no) {
     auto row_adr = to_vcp_addr(reinterpret_cast<uintptr_t>(m_logo_pixels));
 
     // The image.
+    const auto wiggle_x0 = frame_no * 13 + 123;
     for (int y = 0; y < img_h; ++y) {
       // Apply some horizontal wiggle.
-      auto wiggle_x = frame_no * 8 + y * 3;
+      auto wiggle_x = wiggle_x0 + y * 3;
       if ((wiggle_x & (3 << LOG2_SINE_LUT_ENTIRES)) != 0) {
         wiggle_x = 0;
       }
