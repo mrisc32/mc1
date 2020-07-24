@@ -115,11 +115,15 @@ $(HOST_OUT)/glyph_renderer.o: mc1/glyph_renderer.cpp
 #-----------------------------------------------------------------------------
 
 DEMO_OBJS = \
+    $(OUT)/console.o \
     $(OUT)/demo.o \
     $(OUT)/mandelbrot.o \
     $(OUT)/mrisc32_logo.o \
     $(OUT)/raytrace.o \
     $(OUT)/retro.o
+
+$(OUT)/console.o: demo/console.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
 
 $(OUT)/demo.o: demo/demo.c
 	$(CC) $(CCFLAGS) -o $@ $<
