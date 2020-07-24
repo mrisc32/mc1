@@ -325,15 +325,22 @@ void render_image(const float t) {
 //--------------------------------------------------------------------------------------------------
 
 extern "C" void raytrace_init(void) {
-  const int NUM_VMODES = static_cast<int>(sizeof(VMODES) / sizeof(VMODES[0]));
-  for (int i = 0; i < NUM_VMODES && s_fb == nullptr; ++i) {
-    const auto& vm = VMODES[i];
-    s_fb = fb_create(vm.width, vm.height, vm.mode);
+  if (s_fb == nullptr) {
+    const auto NUM_VMODES = static_cast<int>(sizeof(VMODES) / sizeof(VMODES[0]));
+    for (int i = 0; i < NUM_VMODES; ++i) {
+      const auto& vm = VMODES[i];
+      s_fb = fb_create(vm.width, vm.height, vm.mode);
+      if (s_fb != nullptr) {
+        fb_show(s_fb, LAYER_1);
+        break;
+      }
+    }
   }
 }
 
 extern "C" void raytrace_deinit(void) {
   if (s_fb != nullptr) {
+    vcp_set_prg(LAYER_1, nullptr);
     fb_destroy(s_fb);
     s_fb = nullptr;
   }
@@ -345,8 +352,6 @@ extern "C" void raytrace(int frame_no) {
   }
 
   sevseg_print_dec(frame_no);
-
-  fb_show(s_fb, LAYER_1);
 
   const float t = flt21(0.1) * static_cast<float>(frame_no);
   render_image(t);

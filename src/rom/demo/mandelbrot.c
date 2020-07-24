@@ -189,6 +189,7 @@ void mandelbrot_init(void) {
       const vmode_t* vm = &VMODES[i];
       s_fb = fb_create(vm->width, vm->height, vm->mode);
       if (s_fb != NULL) {
+        fb_show(s_fb, LAYER_1);
         set_palette(s_fb);
         break;
       }
@@ -198,6 +199,7 @@ void mandelbrot_init(void) {
 
 void mandelbrot_deinit(void) {
   if (s_fb != NULL) {
+    vcp_set_prg(LAYER_1, NULL);
     fb_destroy(s_fb);
     s_fb = NULL;
   }
@@ -209,8 +211,6 @@ void mandelbrot(int frame_no) {
   }
 
   sevseg_print_dec(frame_no);
-
-  fb_show(s_fb, LAYER_1);
 
   float step = get_zoom(frame_no) * MAX_SIZE / (float)s_fb->width;
 

@@ -255,10 +255,10 @@ void retro_t::init() {
     *vcp++ = vcp_emit_setreg(VCR_HSTOP, static_cast<uint32_t>(m_width));
     *vcp++ = vcp_emit_setreg(VCR_CMODE, CMODE_PAL2);
     *vcp++ = vcp_emit_setpal(0, 4);
-    *vcp++ = 0xe0000000u;
-    *vcp++ = 0xa0104010u;
-    *vcp++ = 0x80209020u;
-    *vcp++ = 0x6040ff40u;
+    *vcp++ = 0xa0000000u;
+    *vcp++ = 0xb54a5545u;
+    *vcp++ = 0xca95aa8au;
+    *vcp++ = 0xe0e0ffd0u;
 
     // Text per-line commands.
     {

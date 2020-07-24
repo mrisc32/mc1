@@ -65,6 +65,7 @@ int main(void) {
       mandelbrot_deinit();
       raytrace_deinit();
       retro_deinit();
+      wait_vblank();
       switches_old = switches;
       frame_no = 0;
     }

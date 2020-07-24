@@ -604,6 +604,7 @@ void glyph_renderer_t::grow() {
   }
 }
 
+#ifndef __MRISC32__
 void glyph_renderer_t::paint_8bpp(uint8_t* pix, const unsigned stride) {
   if (m_pixels == nullptr) {
     return;
@@ -619,6 +620,7 @@ void glyph_renderer_t::paint_8bpp(uint8_t* pix, const unsigned stride) {
     dst += stride - m_width;
   }
 }
+#endif
 
 void glyph_renderer_t::paint_2bpp(uint8_t* pix, const unsigned stride) {
   if (m_pixels == nullptr) {
