@@ -40,6 +40,9 @@ extern "C" {
 #define VIDY       36
 #define SWITCHES   40
 #define BUTTONS    44
+#define KEYCODE    48
+#define MOUSEPOS   52
+#define MOUSEBTNS  56
 #define SEGDISP0   64
 #define SEGDISP1   68
 #define SEGDISP2   72

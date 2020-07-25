@@ -86,6 +86,11 @@ architecture rtl of toplevel is
 
   signal s_io_switches : std_logic_vector(31 downto 0);
   signal s_io_buttons : std_logic_vector(31 downto 0);
+  signal s_io_kb_scancode : std_logic_vector(7 downto 0);
+  signal s_io_kb_press : std_logic;
+  signal s_io_kb_stb : std_logic;
+  signal s_io_mousepos : std_logic_vector(31 downto 0);
+  signal s_io_mousebtns : std_logic_vector(31 downto 0);
   signal s_io_regs_w : T_MMIO_REGS_WO;
 begin
   -- We use SW(9) as reset.
@@ -188,8 +193,21 @@ begin
       -- I/O registers.
       i_io_switches => s_io_switches,
       i_io_buttons => s_io_buttons,
+      i_io_kb_scancode => s_io_kb_scancode,
+      i_io_kb_press => s_io_kb_press,
+      i_io_kb_stb => s_io_kb_stb,
+      i_io_mousepos => s_io_mousepos,
+      i_io_mousebtns => s_io_mousebtns,
       o_io_regs_w => s_io_regs_w
     );
+
+  -- I/O: Keyboard and mouse input.
+  -- TODO(m): Should we support keyboard (PS/2 or USB) via GPIO, for instance?
+  s_io_kb_scancode <= (others => '0');
+  s_io_kb_press <= '0';
+  s_io_kb_stb <= '0';
+  s_io_mousepos <= (others => '0');
+  s_io_mousebtns <= (others => '0');
 
   -- I/O: Input.
   s_io_switches(31 downto 9) <= (others => '0');

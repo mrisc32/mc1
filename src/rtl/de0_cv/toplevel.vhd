@@ -119,6 +119,11 @@ architecture rtl of toplevel is
 
   signal s_io_switches : std_logic_vector(31 downto 0);
   signal s_io_buttons : std_logic_vector(31 downto 0);
+  signal s_io_kb_scancode : std_logic_vector(7 downto 0);
+  signal s_io_kb_press : std_logic;
+  signal s_io_kb_stb : std_logic;
+  signal s_io_mousepos : std_logic_vector(31 downto 0);
+  signal s_io_mousebtns : std_logic_vector(31 downto 0);
   signal s_io_regs_w : T_MMIO_REGS_WO;
 begin
   -- Select the system clock.
@@ -220,8 +225,23 @@ begin
       -- I/O registers.
       i_io_switches => s_io_switches,
       i_io_buttons => s_io_buttons,
+      i_io_kb_scancode => s_io_kb_scancode,
+      i_io_kb_press => s_io_kb_press,
+      i_io_kb_stb => s_io_kb_stb,
+      i_io_mousepos => s_io_mousepos,
+      i_io_mousebtns => s_io_mousebtns,
       o_io_regs_w => s_io_regs_w
     );
+
+  -- I/O: PS/2 interface.
+  -- TODO(m): Implement me!
+  s_io_kb_scancode <= (others => '0');
+  s_io_kb_press <= '0';
+  s_io_kb_stb <= '0';
+
+  -- TODO(m): Implement me!
+  s_io_mousepos <= (others => '0');
+  s_io_mousebtns <= (others => '0');
 
   -- I/O: Input.
   s_io_switches(31 downto 10) <= (others => '0');

@@ -56,6 +56,11 @@ entity mmio is
     i_raster_y : in std_logic_vector(15 downto 0);
     i_switches : in std_logic_vector(31 downto 0);
     i_buttons : in std_logic_vector(31 downto 0);
+    i_kb_scancode : in std_logic_vector(7 downto 0);
+    i_kb_press : in std_logic;
+    i_kb_stb : in std_logic;
+    i_mousepos : in std_logic_vector(31 downto 0);
+    i_mousebtns : in std_logic_vector(31 downto 0);
 
     -- All output registers are exported externally.
     o_regs_w: out T_MMIO_REGS_WO
@@ -83,6 +88,9 @@ architecture rtl of mmio is
   constant C_ADR_VIDY       : T_REG_ADR := reg_adr(9);
   constant C_ADR_SWITCHES   : T_REG_ADR := reg_adr(10);
   constant C_ADR_BUTTONS    : T_REG_ADR := reg_adr(11);
+  constant C_ADR_KEYCODE    : T_REG_ADR := reg_adr(12);
+  constant C_ADR_MOUSEPOS   : T_REG_ADR := reg_adr(13);
+  constant C_ADR_MOUSEBTNS  : T_REG_ADR := reg_adr(14);
 
   constant C_ADR_SEGDISP0   : T_REG_ADR := reg_adr(16);
   constant C_ADR_SEGDISP1   : T_REG_ADR := reg_adr(17);
@@ -149,6 +157,7 @@ begin
       s_regs_r.CLKCNTLO <= (others => '0');
       s_regs_r.CLKCNTHI <= (others => '0');
       s_regs_r.VIDFRAMENO <= (others => '0');
+      s_regs_r.KEYCODE <= (others => '0');
       s_prev_vidy_msb <= '0';
     elsif rising_edge(i_wb_clk) then
       -- Update the clock count.
@@ -160,6 +169,17 @@ begin
 
       -- Remember last MSB from the raster Y coordinate (used for detecting end-of-frame).
       s_prev_vidy_msb <= s_vidy_msb;
+
+      -- Update the keyboard key code when we have a keycode strobe signal.
+      if i_kb_stb = '1' then
+        -- The KEYCODE register is encoded as follows:
+        --       31 - Press (0) / Release (1)
+        --    30-24 - Unused (zero)
+        --    23-16 - Scancode
+        --     15-0 - Event counter
+        s_regs_r.KEYCODE <= (not i_kb_press) & 7x"00" & i_kb_scancode &
+                            std_logic_vector(unsigned(s_regs_r.KEYCODE(15 downto 0)) + 1);
+      end if;
     end if;
   end process;
 
@@ -167,6 +187,8 @@ begin
   s_regs_r.VIDY <= sign_ext_raster(i_raster_y);
   s_regs_r.SWITCHES <= i_switches;
   s_regs_r.BUTTONS <= i_buttons;
+  s_regs_r.MOUSEPOS <= i_mousepos;
+  s_regs_r.MOUSEBTNS <= i_mousebtns;
 
 
   --------------------------------------------------------------------------------------------------
@@ -219,6 +241,12 @@ begin
         o_wb_dat <= s_regs_r.SWITCHES;
       elsif s_reg_adr = C_ADR_BUTTONS then
         o_wb_dat <= s_regs_r.BUTTONS;
+      elsif s_reg_adr = C_ADR_KEYCODE then
+        o_wb_dat <= s_regs_r.KEYCODE;
+      elsif s_reg_adr = C_ADR_MOUSEPOS then
+        o_wb_dat <= s_regs_r.MOUSEPOS;
+      elsif s_reg_adr = C_ADR_MOUSEBTNS then
+        o_wb_dat <= s_regs_r.MOUSEBTNS;
       elsif s_reg_adr = C_ADR_SEGDISP0 then
         o_wb_dat <= s_regs_w.SEGDISP0;
       elsif s_reg_adr = C_ADR_SEGDISP1 then

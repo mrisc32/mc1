@@ -44,9 +44,12 @@ package mmio_types is
     VIDY : T_MMIO_REG_WORD;        -- Video raster Y position.
 
     -- External registers.
-    -- TODO(m): microSD inputs, PS/2 inputs, GPIO inputs.
+    -- TODO(m): microSD inputs, GPIO inputs.
     SWITCHES : T_MMIO_REG_WORD;    -- Switches (one bit per switch, active high).
     BUTTONS : T_MMIO_REG_WORD;     -- Buttons (one bit per button, active high).
+    KEYCODE : T_MMIO_REG_WORD;     -- Keyboard keycode and counter (keycode in bits 16..23).
+    MOUSEPOS : T_MMIO_REG_WORD;    -- Mouse position (x & y coord in upper & lower 16 bits)
+    MOUSEBTNS : T_MMIO_REG_WORD;   -- Mouse buttons (left, middle, right in bits 0, 1, 2)
   end record T_MMIO_REGS_RO;
 
   --------------------------------------------------------------------------------------------------

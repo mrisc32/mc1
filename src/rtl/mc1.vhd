@@ -56,6 +56,11 @@ entity mc1 is
     -- I/O: Generic input and output registers.
     i_io_switches : in std_logic_vector(31 downto 0);
     i_io_buttons : in std_logic_vector(31 downto 0);
+    i_io_kb_scancode : in std_logic_vector(7 downto 0);
+    i_io_kb_press : in std_logic;
+    i_io_kb_stb : in std_logic;
+    i_io_mousepos : in std_logic_vector(31 downto 0);
+    i_io_mousebtns : in std_logic_vector(31 downto 0);
     o_io_regs_w : out T_MMIO_REGS_WO;
 
     -- Debug trace interface.
@@ -273,6 +278,12 @@ begin
       i_raster_y => s_raster_y_cpu,
       i_switches => i_io_switches,
       i_buttons => i_io_buttons,
+      i_kb_scancode => i_io_kb_scancode,
+      i_kb_press => i_io_kb_press,
+      i_kb_stb => i_io_kb_stb,
+      i_mousepos => i_io_mousepos,
+      i_mousebtns => i_io_mousebtns,
+
       o_regs_w => o_io_regs_w
     );
 
