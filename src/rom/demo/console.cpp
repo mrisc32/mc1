@@ -57,6 +57,7 @@ private:
   }
 
   void* m_vcon_mem;
+  uint32_t m_last_keycode;
 };
 
 void console_t::init() {
@@ -92,6 +93,9 @@ void console_t::init() {
 
   // Give instructions.
   vcon_print("Use switches to select demo...\n");
+
+  // Remember the last keycode.
+  m_last_keycode = MMIO(KEYCODE);
 }
 
 void console_t::de_init() {
@@ -107,6 +111,29 @@ void console_t::draw(const int frame_no) {
   // TODO(m): Can we do anything interesting here?
   (void)frame_no;
   sevseg_print("OLLEH");  // Print a friendly "HELLO".
+
+  // Print characters from the keyboard.
+  const auto keycode = MMIO(KEYCODE);
+  if (keycode != m_last_keycode) {
+    // Decode scancode and press/release.
+    const auto release = (static_cast<int>(keycode) < 0);
+    const auto scancode = (keycode >> 16) & 0xffu;
+
+    // HACK: Print the scancode.
+    // TODO(m): Decode the keycode to ASCII and control codes (e.g. return).
+    if (release) {
+      vcon_print("- ");
+    } else {
+      vcon_print("+ ");
+    }
+    vcon_print_dec(static_cast<int>(scancode));
+    vcon_print(" (");
+    vcon_print("0x");
+    vcon_print_hex(keycode);
+    vcon_print(")\n");
+
+    m_last_keycode = keycode;
+  }
 }
 
 console_t s_console;
