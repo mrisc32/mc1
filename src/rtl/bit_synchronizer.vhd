@@ -1,5 +1,5 @@
 ----------------------------------------------------------------------------------------------------
--- Copyright (c) 2019 Marcus Geelnard
+-- Copyright (c) 2020 Marcus Geelnard
 --
 -- This software is provided 'as-is', without any express or implied warranty. In no event will the
 -- authors be held liable for any damages arising from the use of this software.
@@ -18,21 +18,20 @@
 ----------------------------------------------------------------------------------------------------
 
 ----------------------------------------------------------------------------------------------------
--- This is a two-flip-flop synchronization circuit for multi-bit signals.
+-- This is a two-flip-flop synchronization circuit for single-bit signals.
 --
 -- In addition to passing a signal over from one clock domain to another, this design also employs
--- mitigations against timing differences between individual bits of the signal. This is done by
--- detecting changes in the signal and only propagating the new signal value to the output once the
--- signal has stayed constant for a certain number of clock cycles (this functionality is optional).
+-- mitigations bounces and instabilities. This is done by detecting changes in the signal and only
+-- propagating the new signal value to the output once the signal has stayed constant for a certain
+-- number of clock cycles (this functionality is optional).
 ----------------------------------------------------------------------------------------------------
 
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-entity synchronizer is
+entity bit_synchronizer is
   generic(
-    BITS : positive;
     STEADY_CYCLES : integer := 3
   );
   port(
@@ -42,43 +41,26 @@ entity synchronizer is
     i_clk : in std_logic;
 
     -- Signal from the source clock domain (or an asynchronous signal).
-    i_d : in std_logic_vector(BITS-1 downto 0);
+    i_d : in std_logic;
 
     -- Synchronized signal.
-    o_q : out std_logic_vector(BITS-1 downto 0)
+    o_q : out std_logic
   );
-end synchronizer;
+end bit_synchronizer;
 
-architecture rtl of synchronizer is
-  -- Determine how many bits are required to represent an integer number
-  -- (it is essentially log2()).
-  function num_bits_required_for(x : integer) return positive is
-    variable v_num_bits : positive;
-    variable v_next_pot : positive;
-  begin
-    v_num_bits := 1;
-    v_next_pot := 2;
-    while x >= v_next_pot loop
-      v_next_pot := v_next_pot * 2;
-      v_num_bits := v_num_bits + 1;
-    end loop;
-    return v_num_bits;
-  end;
-
-  constant C_STEADY_CYCLES_BITS : positive := num_bits_required_for(STEADY_CYCLES);
-
+architecture rtl of bit_synchronizer is
   -- Signals for the synchronizer flip-flops.
-  signal s_metastable : std_logic_vector(BITS-1 downto 0);
-  signal s_stable : std_logic_vector(BITS-1 downto 0);
+  signal s_metastable : std_logic;
+  signal s_stable : std_logic;
 
   -- Signals for the value change detector.
-  signal s_prev_stable : std_logic_vector(BITS-1 downto 0);
+  signal s_prev_stable : std_logic;
   signal s_stable_changed : std_logic;
-  signal s_steady_cycles : unsigned(C_STEADY_CYCLES_BITS-1 downto 0);
+  signal s_steady_cycles : integer range 0 to STEADY_CYCLES;
 
   -- Intel/Altera specific constraints.
   attribute ALTERA_ATTRIBUTE : string;
-  attribute ALTERA_ATTRIBUTE of rtl : architecture is "-name SDC_STATEMENT ""set_false_path -to [get_registers {*|synchronizer:*|s_metastable*}] """;
+  attribute ALTERA_ATTRIBUTE of rtl : architecture is "-name SDC_STATEMENT ""set_false_path -to [get_registers {*|bit_synchronizer:*|s_metastable*}] """;
   attribute ALTERA_ATTRIBUTE of s_metastable : signal is "-name SYNCHRONIZER_IDENTIFICATION ""FORCED IF ASYNCHRONOUS""";
   attribute PRESERVE : boolean;
   attribute PRESERVE of s_metastable : signal is true;
@@ -95,8 +77,8 @@ begin
   process(i_rst, i_clk)
   begin
     if i_rst = '1' then
-      s_metastable <= (others => '0');
-      s_stable <= (others => '0');
+      s_metastable <= '0';
+      s_stable <= '0';
     elsif rising_edge(i_clk) then
       s_metastable <= i_d;
       s_stable <= s_metastable;
@@ -110,19 +92,19 @@ begin
     process(i_rst, i_clk)
     begin
       if i_rst = '1' then
-        s_prev_stable <= (others => '0');
-        s_steady_cycles <= to_unsigned(0, C_STEADY_CYCLES_BITS);
-        o_q <= (others => '0');
+        s_prev_stable <= '0';
+        s_steady_cycles <= 0;
+        o_q <= '0';
       elsif rising_edge(i_clk) then
         -- Count the number of steady cycles that we have.
         if s_stable_changed = '1' then
-          s_steady_cycles <= to_unsigned(0, C_STEADY_CYCLES_BITS);
+          s_steady_cycles <= 0;
         else
-          s_steady_cycles <= s_steady_cycles + to_unsigned(1, C_STEADY_CYCLES_BITS);
+          s_steady_cycles <= s_steady_cycles + 1;
         end if;
 
         -- Time to update the output value?
-        if s_steady_cycles = to_unsigned(STEADY_CYCLES, C_STEADY_CYCLES_BITS) then
+        if s_steady_cycles = STEADY_CYCLES then
           o_q <= s_stable;
         end if;
 

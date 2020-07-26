@@ -94,6 +94,7 @@ architecture rtl of toplevel is
 
   -- 70 MHz seems to be a good safe bet, but going higher is certainly possible.
   constant C_CPU_CLK_MHZ : string := "70 MHz";
+  constant C_CPU_CLK_HZ_INT : integer := 70000000;
 
   -- Pixel frequencies for supported video modes:
   --  1920x1080 @ 60 Hz: 148.500 MHz
@@ -233,12 +234,22 @@ begin
       o_io_regs_w => s_io_regs_w
     );
 
-  -- I/O: PS/2 interface.
-  -- TODO(m): Implement me!
-  s_io_kb_scancode <= (others => '0');
-  s_io_kb_press <= '0';
-  s_io_kb_stb <= '0';
+  -- I/O: PS/2 keyboard input.
+  ps2_keyboard_1: entity work.ps2_keyboard
+    generic map (
+      clk_freq => C_CPU_CLK_HZ_INT
+    )
+    port map (
+      i_rst => s_cpu_rst,
+      i_clk => s_cpu_clk,
+      i_ps2_clk => PS2_CLK,
+      i_ps2_data => PS2_DAT,
+      o_scancode  => s_io_kb_scancode,
+      o_press => s_io_kb_press,
+      o_stb => s_io_kb_stb
+    );
 
+  -- I/O: Mouse input.
   -- TODO(m): Implement me!
   s_io_mousepos <= (others => '0');
   s_io_mousebtns <= (others => '0');
