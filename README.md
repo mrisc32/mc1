@@ -40,6 +40,8 @@ For more details, see the [video logic documentation](docs/video_logic.md).
 
 Primitive I/O, such as reading buttons and switches and writing to leds and seven-segment displays, is provided as memory mapped I/O (see the [MC1 memory map](docs/memory_map.md)), directly accessible for the CPU.
 
+Keyboard input is provided for boards that have a PS/2 connector.
+
 ## Operating system
 
 No operating system is planned at this point. There will be libraries of helper routined (e.g. for I/O and timing) that can be statically linked to MC1 binaries.
@@ -59,4 +61,4 @@ The following things are not yet implemented, but planned:
   * Support for off-chip RAM (e.g. DRAM or SRAM) - probably with an on-chip L2 cache.
 * I/O:
   * A Micro SD interface to read programs and data.
-  * An interface for mouse/keyboard (e.g. PS/2 or USB).
+  * Mouse input.
