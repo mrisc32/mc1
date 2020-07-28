@@ -18,6 +18,7 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
+#include <mc1/keyboard.h>
 #include <mc1/leds.h>
 #include <mc1/memory.h>
 #include <mc1/mmio.h>
@@ -57,7 +58,6 @@ private:
   }
 
   void* m_vcon_mem;
-  uint32_t m_last_keycode;
 };
 
 void console_t::init() {
@@ -93,9 +93,6 @@ void console_t::init() {
 
   // Give instructions.
   vcon_print("Use switches to select demo...\n");
-
-  // Remember the last keycode.
-  m_last_keycode = MMIO(KEYCODE);
 }
 
 void console_t::de_init() {
@@ -113,26 +110,27 @@ void console_t::draw(const int frame_no) {
   sevseg_print("OLLEH");  // Print a friendly "HELLO".
 
   // Print characters from the keyboard.
-  const auto keycode = MMIO(KEYCODE);
-  if (keycode != m_last_keycode) {
-    // Decode scancode and press/release.
-    const auto release = (static_cast<int>(keycode) < 0);
-    const auto scancode = (keycode >> 16) & 0xffu;
+  const auto event = kb_get_next_event();
+  if (event != 0) {
+    // Decode the event.
+    const auto release = kb_event_is_release(event);
+    const auto scancode = kb_event_scancode(event);
+    const auto character = kb_event_to_char(event);
 
-    // HACK: Print the scancode.
-    // TODO(m): Decode the keycode to ASCII and control codes (e.g. return).
+    // HACK: Print event info.
     if (release) {
       vcon_print("- ");
     } else {
       vcon_print("+ ");
     }
+    if (character != 0) {
+      const char str[5] = {'\"', static_cast<char>(character), '\"', ' ', 0};
+      vcon_print(str);
+    }
     vcon_print_dec(static_cast<int>(scancode));
-    vcon_print(" (");
-    vcon_print("0x");
-    vcon_print_hex(keycode);
+    vcon_print(" (0x");
+    vcon_print_hex(event);
     vcon_print(")\n");
-
-    m_last_keycode = keycode;
   }
 }
 
