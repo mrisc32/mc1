@@ -109,28 +109,15 @@ void console_t::draw(const int frame_no) {
   (void)frame_no;
   sevseg_print("OLLEH");  // Print a friendly "HELLO".
 
-  // Print characters from the keyboard.
-  const auto event = kb_get_next_event();
-  if (event != 0) {
-    // Decode the event.
-    const auto release = kb_event_is_release(event);
-    const auto scancode = kb_event_scancode(event);
-    const auto character = kb_event_to_char(event);
-
-    // HACK: Print event info.
-    if (release) {
-      vcon_print("- ");
-    } else {
-      vcon_print("+ ");
+  // Print character events from the keyboard.
+  while (auto event = kb_get_next_event()) {
+    if (kb_event_is_press(event)) {
+      const auto character = kb_event_to_char(event);
+      if (character != 0) {
+        const char str[2] = {static_cast<char>(character), 0};
+        vcon_print(str);
+      }
     }
-    if (character != 0) {
-      const char str[5] = {'\"', static_cast<char>(character), '\"', ' ', 0};
-      vcon_print(str);
-    }
-    vcon_print_dec(static_cast<int>(scancode));
-    vcon_print(" (0x");
-    vcon_print_hex(event);
-    vcon_print(")\n");
   }
 }
 
