@@ -76,7 +76,7 @@ The registers are all 32 bits wide, and are located in the I/O memory area start
 | C0000024 | VIDY |  R  | Video raster Y position (signed) |
 | C0000028 | SWITCHES |  R  | Switches (one bit per switch, active high) |
 | C000002C | BUTTONS |  R  | Buttons (one bit per switch, active high) |
-| C0000030 | KEYCODE |  R  | Keycode (keycode in bits 16..23, event count in bits 0..16, bit 31 is 1 for key release) |
+| C0000030 | KEYCODE |  R  | Keycode (keycode in bits 16..24, event count in bits 0..16, bit 31 is 1 for key release) |
 | C0000034 | MOUSEPOS |  R  | Mouse pos (x in bits 0..15, y in bits 16..31) |
 | C0000038 | MOUSEBTNS |  R  | Mouse buttons (bit 0 = left, bit 1 = middle, bit 2 = right, ...) |
 | C000003C | - |  -  | (reserved) |

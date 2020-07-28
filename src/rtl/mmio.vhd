@@ -56,7 +56,7 @@ entity mmio is
     i_raster_y : in std_logic_vector(15 downto 0);
     i_switches : in std_logic_vector(31 downto 0);
     i_buttons : in std_logic_vector(31 downto 0);
-    i_kb_scancode : in std_logic_vector(7 downto 0);
+    i_kb_scancode : in std_logic_vector(8 downto 0);
     i_kb_press : in std_logic;
     i_kb_stb : in std_logic;
     i_mousepos : in std_logic_vector(31 downto 0);
@@ -174,10 +174,10 @@ begin
       if i_kb_stb = '1' then
         -- The KEYCODE register is encoded as follows:
         --       31 - Press (0) / Release (1)
-        --    30-24 - Unused (zero)
-        --    23-16 - Scancode
+        --    30-25 - Unused (zero)
+        --    24-16 - Scancode
         --     15-0 - Event counter
-        s_regs_r.KEYCODE <= (not i_kb_press) & 7x"00" & i_kb_scancode &
+        s_regs_r.KEYCODE <= (not i_kb_press) & "000000" & i_kb_scancode &
                             std_logic_vector(unsigned(s_regs_r.KEYCODE(15 downto 0)) + 1);
       end if;
     end if;

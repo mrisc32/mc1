@@ -56,7 +56,7 @@ entity mc1 is
     -- I/O: Generic input and output registers.
     i_io_switches : in std_logic_vector(31 downto 0);
     i_io_buttons : in std_logic_vector(31 downto 0);
-    i_io_kb_scancode : in std_logic_vector(7 downto 0);
+    i_io_kb_scancode : in std_logic_vector(8 downto 0);
     i_io_kb_press : in std_logic;
     i_io_kb_stb : in std_logic;
     i_io_mousepos : in std_logic_vector(31 downto 0);

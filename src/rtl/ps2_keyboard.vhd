@@ -38,7 +38,7 @@ entity ps2_keyboard is
     i_ps2_data : in std_logic;
 
     -- Keyboard output.
-    o_scancode : out std_logic_vector(7 downto 0);
+    o_scancode : out std_logic_vector(8 downto 0);
     o_press : out std_logic;
     o_stb : out std_logic
   );
@@ -53,7 +53,7 @@ architecture rtl of ps2_keyboard is
   signal s_state : STATE_T;
   signal s_is_break : std_logic;
   signal s_is_long : std_logic;
-  signal s_scancode : std_logic_vector(6 downto 0);
+  signal s_scancode : std_logic_vector(7 downto 0);
 begin
   -- Instantiate the PS/2 interface.
   ps2_if: entity work.ps2_receiver
@@ -93,7 +93,7 @@ begin
           s_is_break <= '0';
           s_is_long <= '0';
           if s_data_stb = '1' then
-            s_scancode <= s_data(6 downto 0);
+            s_scancode <= s_data;
             if s_data = x"e0" then
               s_state <= LONGCODE;
             elsif s_data = x"f0" then
@@ -106,7 +106,7 @@ begin
         when LONGCODE =>
           s_is_long <= '1';
           if s_data_stb = '1' then
-            s_scancode <= s_data(6 downto 0);
+            s_scancode <= s_data;
             if s_data = x"f0" then
               s_state <= BREAK;
             else
@@ -117,7 +117,7 @@ begin
         when BREAK =>
           s_is_break <= '1';
           if s_data_stb = '1' then
-            s_scancode <= s_data(6 downto 0);
+            s_scancode <= s_data;
             s_state <= DONE;
           end if;
 

@@ -86,7 +86,7 @@ architecture rtl of toplevel is
 
   signal s_io_switches : std_logic_vector(31 downto 0);
   signal s_io_buttons : std_logic_vector(31 downto 0);
-  signal s_io_kb_scancode : std_logic_vector(7 downto 0);
+  signal s_io_kb_s : std_logic_vector(8 downto 0);
   signal s_io_kb_press : std_logic;
   signal s_io_kb_stb : std_logic;
   signal s_io_mousepos : std_logic_vector(31 downto 0);
