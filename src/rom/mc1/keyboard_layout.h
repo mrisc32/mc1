@@ -29,7 +29,15 @@ struct keyboard_layout_entry_t {
   // TODO(m): Add more modifiers.
 };
 
-using keyboard_layout_t = keyboard_layout_entry_t[512];
+/// @brief A keyboard layout table.
+///
+/// A keyboard layout table esentially maps PS/2 scan codes (from PS/2 scan code set 2) to Latin 1
+/// characters.
+///
+/// There are two exceptions, in order to make all printable scan codes fit in seven bits:
+///   - Index 0x6d corresponds to PS/2 scan code e0, 4a
+///   - Index 0x6e corresponds to PS/2 scan code e0, 5a
+using keyboard_layout_t = keyboard_layout_entry_t[128];
 
 // Defined keyboard layouts.
 extern const keyboard_layout_t g_kb_layout_en_us;

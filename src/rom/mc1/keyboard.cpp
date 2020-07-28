@@ -123,12 +123,13 @@ uint32_t keyboard_t::get_next_event() {
 }
 
 uint32_t keyboard_t::event_to_char(const uint32_t event) {
-  if (event == 0u) {
+  const auto scancode = kb_event_scancode(event);
+  if (scancode == 0u || scancode > 127u) {
     return 0u;
   }
 
   // Look up the character from the keyboard mapping.
-  const auto& layout_entry = (*m_layout)[kb_event_scancode(event)];
+  const auto& layout_entry = (*m_layout)[scancode];
   return kb_event_has_shift(event) ? layout_entry.shifted : layout_entry.normal;
 }
 
@@ -140,11 +141,28 @@ uint16_t keyboard_t::encode_event(const uint32_t keycode,
                                   const bool has_shift,
                                   const bool has_alt,
                                   const bool has_ctrl) {
-  const auto scancode = (keycode >> 16) & 0x1ffu;
+  // Determine the scan code.
+  auto scancode = (keycode >> 16) & 0x1ffu;
+
+  // Special cases: Map some high PS/2 scancodes to a lower 7-bit representation (to enable more
+  // compact keyboard layout tables).
+  // TODO(m): Should this be handled in hardware instead? Rationale: The MMIO KEYCODE register
+  // should not really be tied to the PS/2 protocol, since we expect the encoding to be the same for
+  // USB keyboards. Thus we expect the hardware interface to do transcoding to our virtual scancodes
+  // anyway.
+  if (scancode == 0x14au) {
+    scancode = KB_KP_DIV;
+  } else if (scancode == 0x15au) {
+    scancode = KB_KP_ENTER;
+  }
+
+  // Determine event attributes.
   const auto release = (keycode >> 22) & 0x200u;
   const auto shift_mod = has_shift ? 0x400u : 0u;
   const auto alt_mod = has_alt ? 0x800u : 0u;
   const auto ctrl_mod = has_ctrl ? 0x1000u : 0u;
+
+  // Combine scancode and attributes into a single 16-bit word.
   return static_cast<uint16_t>(scancode | release | shift_mod | alt_mod | ctrl_mod);
 }
 
