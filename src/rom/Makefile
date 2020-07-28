@@ -179,6 +179,8 @@ LIBMC1_OBJS = \
     $(OUT)/fast_math.o \
     $(OUT)/framebuffer.o \
     $(OUT)/glyph_renderer.o \
+    $(OUT)/keyboard.o \
+    $(OUT)/keyboard_layout_en_us.o \
     $(OUT)/leds.o \
     $(OUT)/lzg_mc1.o \
     $(OUT)/mc1-font-8x8.o \
@@ -203,6 +205,12 @@ $(OUT)/framebuffer.o: mc1/framebuffer.c
 	$(CC) $(CCFLAGS) -o $@ $<
 
 $(OUT)/glyph_renderer.o: mc1/glyph_renderer.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+$(OUT)/keyboard.o: mc1/keyboard.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+$(OUT)/keyboard_layout_en_us.o: mc1/keyboard_layout_en_us.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $<
 
 $(OUT)/leds.o: mc1/leds.s mc1/mmio.inc
