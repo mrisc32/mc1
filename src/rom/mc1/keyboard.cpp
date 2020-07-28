@@ -141,7 +141,7 @@ uint16_t keyboard_t::encode_event(const uint32_t keycode,
                                   const bool has_alt,
                                   const bool has_ctrl) {
   const auto scancode = (keycode >> 16) & 0x1ffu;
-  const auto release = (keycode >> 23) & 0x200u;
+  const auto release = (keycode >> 22) & 0x200u;
   const auto shift_mod = has_shift ? 0x400u : 0u;
   const auto alt_mod = has_alt ? 0x800u : 0u;
   const auto ctrl_mod = has_ctrl ? 0x1000u : 0u;
