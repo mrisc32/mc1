@@ -71,6 +71,9 @@ entity toplevel is
 end toplevel;
 
 architecture rtl of toplevel is
+  -- 70 MHz seems to be a good safe bet, but going higher is certainly possible.
+  constant C_CPU_CLK_HZ_INT : integer := 70_000_000;
+
   signal s_reset_n : std_logic;
   signal s_system_rst : std_logic;
 
@@ -115,8 +118,8 @@ begin
   pll_cpu: entity work.pll
     generic map
     (
-      -- CPU clock: 50 * (7/5) = 70 MHz
-      CLK_MUL => 7,
+      -- CPU clock: 50 MHz * (N / 5) - E.g. for 70 MHz, N = 7.
+      CLK_MUL => (C_CPU_CLK_HZ_INT / 10_000_000),
       CLK_DIV => 5
     )
     port map
@@ -169,6 +172,7 @@ begin
   -- Instantiate the MC1 machine.
   mc1_1: entity work.mc1
     generic map (
+      CPU_CLK_HZ => C_CPU_CLK_HZ_INT,
       COLOR_BITS_R => VGA_R'length,
       COLOR_BITS_G => VGA_G'length,
       COLOR_BITS_B => VGA_B'length,

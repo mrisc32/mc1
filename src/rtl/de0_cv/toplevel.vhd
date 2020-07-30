@@ -94,7 +94,7 @@ architecture rtl of toplevel is
 
   -- 70 MHz seems to be a good safe bet, but going higher is certainly possible.
   constant C_CPU_CLK_MHZ : string := "70 MHz";
-  constant C_CPU_CLK_HZ_INT : integer := 70000000;
+  constant C_CPU_CLK_HZ_INT : integer := 70_000_000;
 
   -- Pixel frequencies for supported video modes:
   --  1920x1080 @ 60 Hz: 148.500 MHz
@@ -202,6 +202,7 @@ begin
   -- Instantiate the MC1 machine.
   mc1_1: entity work.mc1
     generic map (
+      CPU_CLK_HZ => C_CPU_CLK_HZ_INT,
       COLOR_BITS_R => VGA_R'length,
       COLOR_BITS_G => VGA_G'length,
       COLOR_BITS_B => VGA_B'length,

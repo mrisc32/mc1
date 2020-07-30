@@ -32,6 +32,7 @@ use work.vid_types.all;
 entity mc1 is
   generic(
     -- Note: Be sure to pass in values that are suitable for your target platform.
+    CPU_CLK_HZ : positive;            -- CPU clock frequency, in Hz.
     COLOR_BITS_R : positive := 8;     -- Set this to < 8 to enable dithering.
     COLOR_BITS_G : positive := 8;     -- Set this to < 8 to enable dithering.
     COLOR_BITS_B : positive := 8;     -- Set this to < 8 to enable dithering.
@@ -254,7 +255,7 @@ begin
   -- MMIO registers.
   mmio_1: entity work.mmio
     generic map (
-      CPU_CLK_HZ => 70000000,   -- TODO(m): Implement me!
+      CPU_CLK_HZ => CPU_CLK_HZ,
       VRAM_SIZE => (2**LOG2_VRAM_SIZE)*4,
       XRAM_SIZE => 0,
       VID_FPS => 60*65536,      -- TODO(m): Implement me!

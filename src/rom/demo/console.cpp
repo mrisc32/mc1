@@ -85,11 +85,19 @@ void console_t::init() {
   vcon_show(LAYER_1);
   vcon_print("\n                      **** MC1 - The MRISC32 computer ****\n\n");
 
+  // Print CPU info.
+  const auto cpu_mhz_times_10 = (static_cast<int>(MMIO(CPUCLK)) + 50000) / 100000;
+  vcon_print("CPU Freq: ");
+  vcon_print_dec(cpu_mhz_times_10 / 10);
+  vcon_print(".");
+  vcon_print_dec(cpu_mhz_times_10 % 10);
+  vcon_print(" MHz\n\n");
+
   // Print some memory information etc.
-  print_addr_and_size("ROM:  ", ROM_START, linker_constant(&__rom_size));
-  print_addr_and_size("VRAM: ", VRAM_START, MMIO(VRAMSIZE));
-  print_addr_and_size("XRAM: ", XRAM_START, MMIO(XRAMSIZE));
-  print_addr_and_size("\nbss:  ", linker_constant(&__bss_start), linker_constant(&__bss_size));
+  print_addr_and_size("ROM:      ", ROM_START, linker_constant(&__rom_size));
+  print_addr_and_size("VRAM:     ", VRAM_START, MMIO(VRAMSIZE));
+  print_addr_and_size("XRAM:     ", XRAM_START, MMIO(XRAMSIZE));
+  print_addr_and_size("\nbss:      ", linker_constant(&__bss_start), linker_constant(&__bss_size));
 
   // Run the selftest.
   vcon_print("\nSelftest: ");
