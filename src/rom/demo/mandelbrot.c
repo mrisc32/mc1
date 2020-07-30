@@ -18,8 +18,11 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
+#include "demo_select.h"
+
 #include <mc1/fast_math.h>
 #include <mc1/framebuffer.h>
+#include <mc1/keyboard.h>
 #include <mc1/leds.h>
 
 #include <stdint.h>
@@ -259,6 +262,22 @@ void mandelbrot(int frame_no) {
           ++pixels;
           pix = 0;
         }
+      }
+    }
+
+    // Check for keyboard ESC press.
+    {
+      kb_poll();
+      int stop = 0;
+      uint32_t event;
+      while ((event = kb_get_next_event()) != 0u) {
+        if (kb_event_is_press(event) && kb_event_scancode(event) == KB_ESC) {
+          stop = 1;
+        }
+      }
+      if (stop) {
+        g_demo_select = DEMO_NONE;
+        break;
       }
     }
   }

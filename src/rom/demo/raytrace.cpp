@@ -18,8 +18,11 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
+#include "demo_select.h"
+
 #include <mc1/fast_math.h>
 #include <mc1/framebuffer.h>
+#include <mc1/keyboard.h>
 #include <mc1/leds.h>
 
 #include <mr32intrin.h>
@@ -313,6 +316,21 @@ void render_image(const float t) {
         const uint32_t pix = r | (g << 5) | (b << 10) | 0x8000u;
         *reinterpret_cast<uint16_t*>(pixels) = static_cast<uint16_t>(pix);
         pixels += 2;
+      }
+    }
+
+    // Check for keyboard ESC press.
+    {
+      kb_poll();
+      bool stop = false;
+      while (auto event = kb_get_next_event()) {
+        if (kb_event_is_press(event) && kb_event_scancode(event) == KB_ESC) {
+          stop = true;
+        }
+      }
+      if (stop) {
+        g_demo_select = DEMO_NONE;
+        break;
       }
     }
   }

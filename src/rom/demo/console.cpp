@@ -18,11 +18,15 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
+#include "demo_select.h"
+
 #include <mc1/keyboard.h>
 #include <mc1/leds.h>
 #include <mc1/memory.h>
 #include <mc1/mmio.h>
 #include <mc1/vconsole.h>
+
+#include <cstring>
 
 // Defined by libselftest.
 extern "C" int selftest_run(void (*callback)(const int));
@@ -57,7 +61,11 @@ private:
     vcon_print(" bytes\n");
   }
 
+  static const int MAX_COMMAND_LEN = 127;
+
   void* m_vcon_mem;
+  char m_command[MAX_COMMAND_LEN + 1];
+  int m_command_pos;
 };
 
 void console_t::init() {
@@ -92,7 +100,9 @@ void console_t::init() {
   }
 
   // Give instructions.
-  vcon_print("Use switches to select demo...\n");
+  vcon_print("Use switches to select demo...\n\n\n");
+
+  m_command_pos = 0;
 }
 
 void console_t::de_init() {
@@ -116,6 +126,23 @@ void console_t::draw(const int frame_no) {
       if (character != 0) {
         const char str[2] = {static_cast<char>(character), 0};
         vcon_print(str);
+
+        if (kb_event_scancode(event) != KB_ENTER) {
+          if (m_command_pos < MAX_COMMAND_LEN) {
+            m_command[m_command_pos++] = static_cast<char>(character);
+          }
+        } else {
+          m_command[m_command_pos] = 0;
+          m_command_pos = 0;
+
+          if (std::strcmp(&m_command[0], "go mandelbrot") == 0) {
+            g_demo_select = DEMO_MANDELBROT;
+          } else if (std::strcmp(&m_command[0], "go raytrace") == 0) {
+            g_demo_select = DEMO_RAYTRACE;
+          } else if (std::strcmp(&m_command[0], "go retro") == 0) {
+            g_demo_select = DEMO_RETRO;
+          }
+        }
       }
     }
   }
