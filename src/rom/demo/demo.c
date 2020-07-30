@@ -24,6 +24,10 @@
 #include <mc1/leds.h>
 #include <mc1/mmio.h>
 
+void console_init(void);
+void console_deinit(void);
+void console(int frame_no);
+
 void mandelbrot_init(void);
 void mandelbrot_deinit(void);
 void mandelbrot(int frame_no);
@@ -36,9 +40,9 @@ void retro_init(void);
 void retro_deinit(void);
 void retro(int frame_no);
 
-void console_init(void);
-void console_deinit(void);
-void console(int frame_no);
+void stars_init(void);
+void stars_deinit(void);
+void stars(int frame_no);
 
 int g_demo_select;
 
@@ -78,6 +82,8 @@ int main(void) {
       demo_select = DEMO_RAYTRACE;
     } else if (switches == 4) {
       demo_select = DEMO_RETRO;
+    } else if (switches == 8) {
+      demo_select = DEMO_STARS;
     }
 
     // If we're moving to a new demo, deinit all.
@@ -86,6 +92,7 @@ int main(void) {
       mandelbrot_deinit();
       raytrace_deinit();
       retro_deinit();
+      stars_deinit();
       wait_vblank();
       demo_select_old = demo_select;
       frame_no = 0;
@@ -106,6 +113,12 @@ int main(void) {
       case DEMO_RETRO:
         retro_init();
         retro(frame_no);
+        wait_vblank();
+        break;
+
+      case DEMO_STARS:
+        stars_init();
+        stars(frame_no);
         wait_vblank();
         break;
 

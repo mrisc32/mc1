@@ -120,7 +120,8 @@ DEMO_OBJS = \
     $(OUT)/mandelbrot.o \
     $(OUT)/mrisc32_logo.o \
     $(OUT)/raytrace.o \
-    $(OUT)/retro.o
+    $(OUT)/retro.o \
+    $(OUT)/stars.o
 
 $(OUT)/console.o: demo/console.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $<
@@ -135,6 +136,9 @@ $(OUT)/raytrace.o: demo/raytrace.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $<
 
 $(OUT)/retro.o: demo/retro.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+$(OUT)/stars.o: demo/stars.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $<
 
 $(OUT)/mrisc32_logo.o: $(OUT)/mrisc32_logo.c

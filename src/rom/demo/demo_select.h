@@ -29,6 +29,7 @@ extern "C" {
 #define DEMO_MANDELBROT 1
 #define DEMO_RAYTRACE 2
 #define DEMO_RETRO 3
+#define DEMO_STARS 4
 
 // Global demo selection, controlled by the sub-demos.
 extern int g_demo_select;
