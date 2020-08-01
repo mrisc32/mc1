@@ -62,6 +62,9 @@ private:
   static const int LOG2_NUM_STARS = 15;
   static const int NUM_STARS = 1 << LOG2_NUM_STARS;
 
+  int is_inside_screen(const int x, const int y) const;
+  void plot(const int x, const int y, const int z, uint8_t* pix_buf) const;
+
   void draw_half_of_the_stars(const int frame_no, uint8_t* pix_buf, const bool flip_y);
   void draw_stars(const int frame_no);
 
@@ -80,8 +83,8 @@ void stars_t::init() {
     return;
   }
   m_fb->palette[0] = 0x00000000u;
-  m_fb->palette[1] = 0x44444444u;
-  m_fb->palette[2] = 0x88888888u;
+  m_fb->palette[1] = 0x22283f42u;
+  m_fb->palette[2] = 0x77707a87u;
   m_fb->palette[3] = 0xffffffffu;
 
   // Initiate the glyph renderer.
@@ -123,28 +126,97 @@ void stars_t::draw(const int frame_no) {
   }
 }
 
+inline int stars_t::is_inside_screen(const int x, const int y) const {
+  // This implements:
+  //    return (x >= 0 && x < STARS_WIDTH) && (y >= 0 && y < STARS_HEIGHT);
+  //
+  // For some reason GCC currently makes terrible code for this, so we use inline assembly instead.
+  int result;
+  uint32_t tmp;
+  __asm__(
+      "sltu    %[result], %[x], #%[STARS_WIDTH]\n\t"
+      "sltu    %[tmp], %[y], #%[STARS_HEIGHT]\n\t"
+      "and     %[result], %[result], %[tmp]"
+      : [result] "=r"(result), [tmp] "=&r"(tmp)
+      : [x] "r"(x), [y] "r"(y), [STARS_WIDTH] "i"(STARS_WIDTH), [STARS_HEIGHT] "i"(STARS_HEIGHT)
+      :);
+  return result;
+}
+
+inline void stars_t::plot(const int x, const int y, const int z, uint8_t* pix_buf) const {
+#if 0
+  const auto color = 3 - ((z * 3) >> (LOG2_NUM_STARS - 1));
+  auto* bptr = pix_buf + (STARS_STRIDE * y) + (x >> 2);
+  *bptr |= color << (2 * (x & 3));
+#else
+  const int three = 3;
+  uint32_t color;
+  uint32_t offset;
+  uint32_t pix;
+  uint32_t pix_shift;
+  uint32_t tmp;
+  __asm__ volatile(
+      // Do multiplications early.
+      "mul     %[color], %[z], %[three]\n\t"
+      "mul     %[offset], %[y], %[STARS_STRIDE]\n\t"
+
+      // Calculate the pixel shift.
+      "and     %[pix_shift], %[x], #3\n\t"
+      "lsl     %[pix_shift], %[pix_shift], #1\n\t"
+
+      // Calculate the color.
+      "asr     %[color], %[color], #%[LOG2_NUM_STARS]-1\n\t"
+      "sub     %[color], #3, %[color]\n\t"
+
+      // Calculate the byte pointer offset.
+      "asr     %[tmp], %[x], #2\n\t"
+      "add     %[offset], %[offset], %[tmp]\n\t"
+      "ldub    %[pix], %[pix_buf], %[offset]\n\t"
+
+      // Shift the color into the right bit-position.
+      "lsl     %[color], %[color], %[pix_shift]\n\t"
+
+      // Update the color
+      "or      %[pix], %[pix], %[color]\n\t"
+      "stb     %[pix], %[pix_buf], %[offset]\n\t"
+      : [color] "=&r"(color),
+        [offset] "=&r"(offset),
+        [pix] "=&r"(pix),
+        [pix_shift] "=&r"(pix_shift),
+        [tmp] "=&r"(tmp)
+      : [x] "r"(x),
+        [y] "r"(y),
+        [z] "r"(z),
+        [pix_buf] "r"(pix_buf),
+        [LOG2_NUM_STARS] "i"(LOG2_NUM_STARS),
+        [STARS_STRIDE] "r"(STARS_STRIDE),
+        [three] "r"(three)
+      : "memory");
+#endif
+}
+
 void stars_t::draw_half_of_the_stars(const int frame_no, uint8_t* pix_buf, const bool flip_y) {
   // Start by clearing the pixel framebuffer.
   mem_fill(pix_buf, 0, STARS_STRIDE * (STARS_HEIGHT / 2));
 
   // Draw them stars.
-  // TODO(m): Vectorize this routine!
-  s_seed = flip_y ? 9834325u : 3426784328u;
+  // TODO(m): Vectorize this routine.
+  s_seed = flip_y ? 0x48376213u : 0xe9a7663bu;
   const auto scale_x = static_cast<uint32_t>(STARS_WIDTH);
   const auto scale_y =
       static_cast<uint32_t>(static_cast<uint16_t>(flip_y ? -STARS_WIDTH : STARS_WIDTH));
   const auto scale = _mr32_itof_h((scale_y << 16) | scale_x, const16x2(0));
   const auto screen_offset =
       static_cast<uint32_t>((flip_y ? (STARS_HEIGHT / 2) << 16 : 0) | (STARS_WIDTH / 2));
-  const auto z_offset = 11 * frame_no;
-  for (int i = 0; i < (NUM_STARS / 2); ++i) {
+  const auto z_offset = 37 * frame_no;
+  for (int i = (NUM_STARS / 2) - 1; i >= 0; --i) {
     // Generate a 3D position for the star.
     const auto r = random() >> 1;
     const auto yx_2d = _mr32_itof_h(r, const16x2(16));
     const auto z = (i - z_offset) & ((NUM_STARS / 2) - 1);
 
     // Do perspective division.
-    const auto z_f = _mr32_utof_h(set16x2(z + (NUM_STARS / 256)), const16x2(LOG2_NUM_STARS - 1));
+    const auto z_f = _mr32_utof_h(set16x2(z + 1), const16x2(LOG2_NUM_STARS - 1));
     const auto yx_f = _mr32_fdiv_h(yx_2d, z_f);
 
     // Convert the coordinate to screen space (integer).
@@ -154,10 +226,8 @@ void stars_t::draw_half_of_the_stars(const int frame_no, uint8_t* pix_buf, const
     const auto x = static_cast<int32_t>(static_cast<int16_t>(yx));
 
     // Plot the star.
-    if (x >= 0 && x < STARS_WIDTH && y >= 0 && y < STARS_HEIGHT) {
-      const auto color = 3 - ((z * 3) >> (LOG2_NUM_STARS - 1));
-      auto* bptr = pix_buf + (STARS_STRIDE * y) + (x >> 2);
-      *bptr |= color << (2 * (x & 3));
+    if (is_inside_screen(x, y)) {
+      plot(x, y, z, pix_buf);
     }
   }
 }
