@@ -42,6 +42,8 @@ ARFLAGS  = rcs
 OBJCOPY  = mrisc32-elf-objcopy
 CP       = cp -a
 
+DHRYSTONE_FLAGS = -c -w -fno-inline -O3
+
 .PHONY: clean all selftest
 
 all: $(OUT)/rom.vhd $(HOST_OUT)/png2mci $(HOST_OUT)/font_test
@@ -123,23 +125,44 @@ DEMO_OBJS = \
     $(OUT)/retro.o \
     $(OUT)/stars.o
 
+# Optional features of the demo.
+DEMO_ENABLE_SELFTEST = yes
+DEMO_ENABLE_DHRYSTONE = no
+
+DEMO_FLAGS =
+ifeq ($(DEMO_ENABLE_SELFTEST),yes)
+  DEMO_FLAGS += -DENABLE_SELFTEST
+endif
+ifeq ($(DEMO_ENABLE_DHRYSTONE),yes)
+  DEMO_FLAGS += -DENABLE_DHRYSTONE
+  DEMO_OBJS += \
+      $(OUT)/dhry_1.o \
+      $(OUT)/dhry_2.o
+endif
+
 $(OUT)/console.o: demo/console.cpp
-	$(CXX) $(CXXFLAGS) -o $@ $<
+	$(CXX) $(CXXFLAGS) $(DEMO_FLAGS) -o $@ $<
 
 $(OUT)/demo.o: demo/demo.c
-	$(CC) $(CCFLAGS) -o $@ $<
+	$(CC) $(CCFLAGS) $(DEMO_FLAGS) -o $@ $<
+
+$(OUT)/dhry_1.o: demo/dhry_1.c
+	$(CC) $(DHRYSTONE_FLAGS) -o $@ $<
+
+$(OUT)/dhry_2.o: demo/dhry_2.c
+	$(CC) $(DHRYSTONE_FLAGS) -o $@ $<
 
 $(OUT)/mandelbrot.o: demo/mandelbrot.c
-	$(CC) $(CCFLAGS) -o $@ $<
+	$(CC) $(CCFLAGS) $(DEMO_FLAGS) -o $@ $<
 
 $(OUT)/raytrace.o: demo/raytrace.cpp
-	$(CXX) $(CXXFLAGS) -o $@ $<
+	$(CXX) $(CXXFLAGS) $(DEMO_FLAGS) -o $@ $<
 
 $(OUT)/retro.o: demo/retro.cpp
-	$(CXX) $(CXXFLAGS) -o $@ $<
+	$(CXX) $(CXXFLAGS) $(DEMO_FLAGS) -o $@ $<
 
 $(OUT)/stars.o: demo/stars.cpp
-	$(CXX) $(CXXFLAGS) -o $@ $<
+	$(CXX) $(CXXFLAGS) $(DEMO_FLAGS) -o $@ $<
 
 $(OUT)/mrisc32_logo.o: $(OUT)/mrisc32_logo.c
 	$(AS) $(ASFLAGS) -o $@ $<

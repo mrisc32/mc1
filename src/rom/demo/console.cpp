@@ -27,9 +27,17 @@
 #include <mc1/vconsole.h>
 
 #include <cstring>
+#include <mr32intrin.h>
 
+#ifdef ENABLE_SELFTEST
 // Defined by libselftest.
 extern "C" int selftest_run(void (*callback)(const int));
+#endif
+
+#ifdef ENABLE_DHRYSTONE
+// Defined by dhry_1.c.
+extern "C" void dhrystone(int Number_Of_Runs);
+#endif
 
 // Defined by the linker script.
 extern char __rom_size;
@@ -41,6 +49,41 @@ inline uint32_t linker_constant(const char* ptr) {
   return static_cast<uint32_t>(reinterpret_cast<uintptr_t>(ptr));
 }
 
+#ifdef ENABLE_DHRYSTONE
+struct clkticks_t {
+  uint32_t hi;
+  uint32_t lo;
+};
+
+clkticks_t get_ticks() {
+  clkticks_t clkticks;
+  clkticks.hi = MMIO(CLKCNTHI);
+  while (true) {
+    clkticks.lo = MMIO(CLKCNTLO);
+    const uint32_t new_cnthi = MMIO(CLKCNTHI);
+    if (new_cnthi == clkticks.hi) {
+      break;
+    }
+    clkticks.hi = new_cnthi;
+  }
+  return clkticks;
+}
+
+float elapsed_seconds(const clkticks_t start, const clkticks_t end) {
+  // Caclulate the clock tick difference.
+  const uint32_t hicorr = (start.lo > end.lo) ? 1 : 0;
+  const uint32_t dhi = end.hi - start.hi + hicorr;
+  const uint32_t dlo = end.lo - start.lo;
+  const float delta = _mr32_utof(dhi, 32) + _mr32_utof(dlo, 0);
+
+  // Get the CPU clock frequency (ticks per second).
+  const float ticks_per_s = _mr32_utof(MMIO(CPUCLK), 0);
+
+  // Return the time in seconds.
+  return delta / ticks_per_s;
+}
+#endif
+
 class console_t {
 public:
   void init();
@@ -48,8 +91,16 @@ public:
   void draw(const int frame_no);
 
 private:
+#ifdef ENABLE_SELFTEST
   static void selftest_callback(const int ok) {
     vcon_print(ok ? "*" : "!");
+  }
+#endif
+
+  static void print_dec_times_10(const int x_times_10) {
+    vcon_print_dec(x_times_10 / 10);
+    vcon_print(".");
+    vcon_print_dec(x_times_10 % 10);
   }
 
   static void print_addr_and_size(const char* str, const uint32_t addr, const uint32_t size) {
@@ -85,27 +136,54 @@ void console_t::init() {
   vcon_show(LAYER_1);
   vcon_print("\n                      **** MC1 - The MRISC32 computer ****\n\n");
 
-  // Print CPU info.
-  const auto cpu_mhz_times_10 = (static_cast<int>(MMIO(CPUCLK)) + 50000) / 100000;
-  vcon_print("CPU Freq: ");
-  vcon_print_dec(cpu_mhz_times_10 / 10);
-  vcon_print(".");
-  vcon_print_dec(cpu_mhz_times_10 % 10);
-  vcon_print(" MHz\n\n");
-
   // Print some memory information etc.
   print_addr_and_size("ROM:      ", ROM_START, linker_constant(&__rom_size));
   print_addr_and_size("VRAM:     ", VRAM_START, MMIO(VRAMSIZE));
   print_addr_and_size("XRAM:     ", XRAM_START, MMIO(XRAMSIZE));
   print_addr_and_size("\nbss:      ", linker_constant(&__bss_start), linker_constant(&__bss_size));
 
+  // Print CPU info.
+  vcon_print("\n\nCPU Freq: ");
+  print_dec_times_10((static_cast<int>(MMIO(CPUCLK)) + 50000) / 100000);
+  vcon_print(" MHz\n\n");
+
+#ifdef ENABLE_SELFTEST
   // Run the selftest.
-  vcon_print("\nSelftest: ");
+  vcon_print("Selftest: ");
   if (selftest_run(selftest_callback)) {
     vcon_print(" PASS\n\n");
   } else {
     vcon_print(" FAIL\n\n");
   }
+#endif
+
+#ifdef ENABLE_DHRYSTONE
+  {
+    // Run the Dhrystone benchmark.
+    vcon_print("Dhrystone: ");
+    const int number_of_runs = 100000;
+    const auto start_time = get_ticks();
+    dhrystone(number_of_runs);
+    const auto end_time = get_ticks();
+    const auto user_time = elapsed_seconds(start_time, end_time);
+
+    // Calculate metrics:
+    //  1) Dhrystones per second
+    //  2) DMIPS (relative to VAX 11/780)
+    //  3) DMIPS/MHz (relative to CPU frequency)
+    const auto dhrystones_per_second = static_cast<float>(number_of_runs) / user_time;
+    const auto dmips = dhrystones_per_second / 1757.0f;
+    const auto dmips_per_mhz = (dmips * 1000000.0f) / static_cast<float>(MMIO(CPUCLK));
+
+    // Print results.
+    print_dec_times_10(_mr32_ftoir(dhrystones_per_second * 10.0f, 0));
+    vcon_print(" Dhrystones/s, ");
+    print_dec_times_10(_mr32_ftoir(dmips * 10.0f, 0));
+    vcon_print(" DMIPS, ");
+    print_dec_times_10(_mr32_ftoir(dmips_per_mhz * 10.0f, 0));
+    vcon_print(" DMIPS/MHz\n\n");
+  }
+#endif
 
   // Give instructions.
   vcon_print("Use switches to select demo...\n\n\n");
