@@ -33,12 +33,29 @@
 
 namespace {
 
-uint32_t s_seed;
+/// @brief A very simple pseudorandom number generator (PRNG).
+///
+/// This is a linear congruential generator (LCG) on the form Xn+1 = (a*Xn + c) mod m, where
+/// a = 1103515245, c = 12345 and m = 2^32.
+///
+/// @see https://en.wikipedia.org/wiki/Linear_congruential_generator
+class rnd_t {
+public:
+  /// @brief Constructor.
+  /// @param seed The initial seed of the PRNG.
+  explicit rnd_t(const uint32_t seed) : m_state(seed) {
+  }
 
-uint32_t random() {
-  s_seed = 1103515245u * s_seed + 12345u;
-  return s_seed;
-}
+  /// @brief Get the next random number in the pseudorandom number sequence.
+  /// @returns an unsigned number in the range [0, 2^32-1].
+  uint32_t operator()() {
+    m_state = 1103515245u * m_state + 12345u;
+    return m_state;
+  }
+
+private:
+  uint32_t m_state;
+};
 
 inline constexpr int16x2_t const16x2(const int x) {
   return static_cast<int16x2_t>((x << 16) | x);
@@ -83,7 +100,7 @@ void stars_t::init() {
     return;
   }
   m_fb->palette[0] = 0x00000000u;
-  m_fb->palette[1] = 0x22283f42u;
+  m_fb->palette[1] = 0x44303f49u;
   m_fb->palette[2] = 0x77707a87u;
   m_fb->palette[3] = 0xffffffffu;
 
@@ -201,7 +218,7 @@ void stars_t::draw_half_of_the_stars(const int frame_no, uint8_t* pix_buf, const
 
   // Draw them stars.
   // TODO(m): Vectorize this routine.
-  s_seed = flip_y ? 0x48376213u : 0xe9a7663bu;
+  rnd_t random(flip_y ? 0x48376213u : 0xe9a7663bu);
   const auto scale_x = static_cast<uint32_t>(STARS_WIDTH);
   const auto scale_y =
       static_cast<uint32_t>(static_cast<uint16_t>(flip_y ? -STARS_WIDTH : STARS_WIDTH));
