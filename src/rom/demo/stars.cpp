@@ -18,6 +18,18 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
+//--------------------------------------------------------------------------------------------------
+// About the text string that is rendered by this demo:
+//  * The text display is 24 x 4 characters.
+//  * The string is zero terminated.
+//  * Only use characters defined by the font (e.g. only upper case characters).
+//  * The following control codes are understood:
+//    - '\n'   - New line.
+//    - '\001' - Clear the text display.
+//    - '\002' - Wait for N frames, where N is given by two bytes (little endian 16-bit number).
+//    - '\003' - Set the text color, where the color is given by three bytes (RGB888).
+//--------------------------------------------------------------------------------------------------
+
 #include "demo_select.h"
 
 #include <mc1/framebuffer.h>
@@ -95,10 +107,15 @@ private:
   static const int TEXT_ROW_HEIGHT = GLYPH_SIZE;
   static const int TEXT_ROW_SPACING = 64;
 
-  void plot(const int x, const int y, const int z, uint8_t* pix_buf) const;
+  static const int TEXT_CMD_CLEAR = 1;
+  static const int TEXT_CMD_WAIT = 2;
+  static const int TEXT_CMD_COLOR = 3;
 
+  void plot(const int x, const int y, const int z, uint8_t* pix_buf) const;
   void draw_half_of_the_stars(const int frame_no, uint8_t* pix_buf, const bool flip_y);
   void draw_stars(const int frame_no);
+  void clear_text();
+  void set_text_color(const uint32_t color);
   void draw_text(const int frame_no);
 
   mc1::glyph_renderer_t m_glyph_renderer;
@@ -106,12 +123,14 @@ private:
   void* m_text_mem;
   uint32_t* m_text_vcp;
   uint8_t* m_text_pixels;
+  uint32_t* m_text_palette;
 
-  const char* m_text;
+  const uint8_t* m_text;
   int m_text_idx;
   int m_text_row;
   int m_text_col;
   int m_text_glyph_phase;
+  int m_text_wait_frames;
 };
 
 void stars_t::init(const char* text) {
@@ -161,10 +180,10 @@ void stars_t::init(const char* text) {
       *vcp++ = vcp_emit_setreg(VCR_CMODE, CMODE_PAL2);
       *vcp++ = vcp_emit_setreg(VCR_XINCR, (0x010000u * 1920u) / native_width);
       *vcp++ = vcp_emit_setpal(0, 4);
-      *vcp++ = 0x00000000u;
-      *vcp++ = 0x44ffaa80u;
-      *vcp++ = 0x77ffaa80u;
-      *vcp++ = 0xffffaa80u;
+      m_text_palette = vcp;
+      vcp += 4;
+
+      set_text_color(0xffaa80u);
 
       // Text rows.
       // TODO(m): Make this resolution independent (vertically).
@@ -200,11 +219,12 @@ void stars_t::init(const char* text) {
   m_glyph_renderer.init(LOG2_GLYPH_SIZE, LOG2_GLYPH_SIZE);
 
   // Initialize the text.
-  m_text = text;
+  m_text = reinterpret_cast<const uint8_t*>(text);
   m_text_idx = 0;
   m_text_row = 0;
   m_text_col = 0;
   m_text_glyph_phase = 0;
+  m_text_wait_frames = 0;
 }
 
 void stars_t::de_init() {
@@ -354,6 +374,18 @@ void stars_t::draw_stars(const int frame_no) {
   }
 }
 
+void stars_t::clear_text() {
+  memset(m_text_pixels, 0, TEXT_NUM_ROWS * TEXT_ROW_HEIGHT * TEXT_ROW_STRIDE);
+}
+
+void stars_t::set_text_color(const uint32_t color) {
+  auto* vcp = m_text_palette;
+  *vcp++ = 0x00000000u;
+  *vcp++ = 0x55000000u | color;
+  *vcp++ = 0xaa000000u | color;
+  *vcp++ = 0xff000000u | color;
+}
+
 void stars_t::draw_text(const int frame_no) {
   if (m_text_mem == nullptr) {
     return;
@@ -361,7 +393,13 @@ void stars_t::draw_text(const int frame_no) {
 
   // Clear the buffer on the first frame.
   if (frame_no == 0) {
-    memset(m_text_pixels, 0, TEXT_NUM_ROWS * TEXT_ROW_HEIGHT * TEXT_ROW_STRIDE);
+    clear_text();
+  }
+
+  // Are we still waiting?
+  if (m_text_wait_frames > 0) {
+    --m_text_wait_frames;
+    return;
   }
 
   if (m_text_glyph_phase == 0) {
@@ -373,7 +411,25 @@ void stars_t::draw_text(const int frame_no) {
         m_text_col = 0;
       } else if (c == ' ') {
         ++m_text_col;
+      } else if (c == TEXT_CMD_CLEAR) {
+        clear_text();
+        m_text_row = 0;
+        m_text_col = 0;
+      } else if (c == TEXT_CMD_WAIT) {
+        const auto num_frames =
+            static_cast<int>(static_cast<uint32_t>(m_text[m_text_idx + 1]) |
+                             (static_cast<uint32_t>(m_text[m_text_idx + 2]) << 8));
+        m_text_wait_frames = num_frames;
+        m_text_idx += 3;
+        return;
+      } else if (c == TEXT_CMD_COLOR) {
+        const auto color = static_cast<uint32_t>(m_text[m_text_idx + 1]) |
+                           (static_cast<uint32_t>(m_text[m_text_idx + 2]) << 8) |
+                           (static_cast<uint32_t>(m_text[m_text_idx + 3]) << 16);
+        set_text_color(color);
+        m_text_idx += 3;
       } else {
+        // Regular printable character.
         ++m_text_idx;
         ++m_text_col;
         break;
@@ -382,7 +438,7 @@ void stars_t::draw_text(const int frame_no) {
     }
 
     // Draw the glyph.
-    m_glyph_renderer.draw_char(c);
+    m_glyph_renderer.draw_char(static_cast<char>(c));
   } else {
     // Grow the glyph.
     m_glyph_renderer.grow();
@@ -412,8 +468,15 @@ extern "C" void stars_init(void) {
   const char* THE_TEXT =
       "------------------------\n"
       " MEET THE WORLD'S FIRST\n"
+      "\002\x40\x00"
       "    MRISC32 COMPUTER!\n"
-      "------------------------ ";
+      "\003\x80\xff\x80"
+      "------------------------"
+      "\002\x00\x01"
+      "\001"
+      "CPU:   MRISC32-A1\n"
+      "CLOCK: 120 MHZ\n"
+      "VRAM:  256 KB ";
 
   s_stars.init(THE_TEXT);
 }
