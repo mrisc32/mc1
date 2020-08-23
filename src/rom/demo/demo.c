@@ -80,10 +80,9 @@ static int should_pause() {
   "\002\x80\x00"              \
   "\001"                      \
   "\003\xa0\xff\xe0"          \
-  " SINCE WE HAVE HARDWARE\n" \
-  " FLOATING-POINT SUPPORT\n" \
-  "    WE CAN RENDER A\n"     \
-  "  MANDELBROT FRACTAL... "
+  "\n"                        \
+  " LET'S START OFF WITH A\n" \
+  " FLOATING-POINT FRACTAL "
 
 #define STAR_TEXT_2        \
   "\003\xff\xff\x80"       \
@@ -95,15 +94,15 @@ static int should_pause() {
   "\003\xff\x80\xff"           \
   " NOW LET'S UTILIZE THE\n"   \
   "GRAPHICS CAPABILITIES OF\n" \
-  "  THE MC1 COMPUTER...\n"    \
+  "   THE MC1 COMPUTER...\n"   \
   "\002\x40\x00"               \
-  "  ...RETRO STYLE! "
+  "    ...RETRO STYLE! "
 
 #define STAR_TEXT_4          \
   "\003\xa0\xff\xc0"         \
   "\n"                       \
   " THANK'S FOR WATCHING!\n" \
-  "\002\x40\x00"             \
+  "\002\x60\x00"             \
   "\001"                     \
   "\003\xff\xff\xff"         \
   "\n"                       \
@@ -118,12 +117,12 @@ typedef struct {
 } demo_part_t;
 
 static demo_part_t DEMO_SEQUENCE[] = {
-    {DEMO_STARS, 1900, STAR_TEXT_1},
+    {DEMO_STARS, 1650, STAR_TEXT_1},
     {DEMO_MANDELBROT, 30, STAR_TEXT_NULL},
     {DEMO_STARS, 380, STAR_TEXT_2},
-    {DEMO_RAYTRACE, 30, STAR_TEXT_NULL},
+    {DEMO_RAYTRACE, 40, STAR_TEXT_NULL},
     {DEMO_STARS, 730, STAR_TEXT_3},
-    {DEMO_RETRO, 3000, STAR_TEXT_NULL},
+    {DEMO_RETRO, 2000, STAR_TEXT_NULL},
     {DEMO_STARS, 600, STAR_TEXT_4},
 };
 
