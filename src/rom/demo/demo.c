@@ -18,6 +18,9 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
+// Define this to interactively select which demo to run.
+//#define INTERACTIVE_MODE
+
 #include "demo_select.h"
 
 #include <mc1/keyboard.h>
@@ -40,7 +43,7 @@ void retro_init(void);
 void retro_deinit(void);
 void retro(int frame_no);
 
-void stars_init(void);
+void stars_init(const char* text);
 void stars_deinit(void);
 void stars(int frame_no);
 
@@ -60,12 +63,81 @@ static int should_pause() {
   return (buttons & 1) != 0u;
 }
 
+#define STAR_TEXT_NULL ((const char*)0)
+
+#define STAR_TEXT_1           \
+  "\002\x00\x01"              \
+  "\n"                        \
+  " MEET THE WORLD'S FIRST\n" \
+  "    MRISC32 COMPUTER!\n"   \
+  "\002\x80\x00"              \
+  "\001"                      \
+  "\003\x80\xff\x80"          \
+  "  MACHINE: MC1\n"          \
+  "  CPU:     MRISC32-A1\n"   \
+  "  CLOCK:   120 MHZ\n"      \
+  "  VRAM:    256 KB "        \
+  "\002\x80\x00"              \
+  "\001"                      \
+  "\003\xa0\xff\xe0"          \
+  " SINCE WE HAVE HARDWARE\n" \
+  " FLOATING-POINT SUPPORT\n" \
+  "    WE CAN RENDER A\n"     \
+  "  MANDELBROT FRACTAL... "
+
+#define STAR_TEXT_2        \
+  "\003\xff\xff\x80"       \
+  "\n"                     \
+  "   ...OR HOW ABOUT A\n" \
+  "       RAY TRACER? "
+
+#define STAR_TEXT_3            \
+  "\003\xff\x80\xff"           \
+  " NOW LET'S UTILIZE THE\n"   \
+  "GRAPHICS CAPABILITIES OF\n" \
+  "  THE MC1 COMPUTER...\n"    \
+  "\002\x40\x00"               \
+  "  ...RETRO STYLE! "
+
+#define STAR_TEXT_4          \
+  "\003\xa0\xff\xc0"         \
+  "\n"                       \
+  " THANK'S FOR WATCHING!\n" \
+  "\002\x40\x00"             \
+  "\001"                     \
+  "\003\xff\xff\xff"         \
+  "  FOR MORE INFO VISIT:\n" \
+  " GITHUB.COM/MRISC32/MC1 "
+
+#ifndef INTERACTIVE_MODE
+typedef struct {
+  int select;
+  int num_frames;
+  const char* text;
+} demo_part_t;
+
+static demo_part_t DEMO_SEQUENCE[] = {
+    {DEMO_STARS, 1900, STAR_TEXT_1},
+    {DEMO_MANDELBROT, 30, STAR_TEXT_NULL},
+    {DEMO_STARS, 400, STAR_TEXT_2},
+    {DEMO_RAYTRACE, 20, STAR_TEXT_NULL},
+    {DEMO_STARS, 730, STAR_TEXT_3},
+    {DEMO_RETRO, 5000, STAR_TEXT_NULL},
+    {DEMO_STARS, 600, STAR_TEXT_4},
+};
+
+#define DEMO_SEQUENCE_LAST (sizeof(DEMO_SEQUENCE) / sizeof(DEMO_SEQUENCE[0]) - 1)
+#endif
+
 int main(void) {
   kb_init();
 
   int demo_select_old = -1;
 
   int frame_no = 0;
+#ifndef INTERACTIVE_MODE
+  unsigned sequence_idx = 0;
+#endif
   while (1) {
     kb_poll();
 
@@ -73,8 +145,12 @@ int main(void) {
       continue;
     }
 
+    int demo_select;
+    const char* star_text;
+
+#ifdef INTERACTIVE_MODE
     // Select which demo to run.
-    int demo_select = g_demo_select;
+    demo_select = g_demo_select;
     const uint32_t switches = MMIO(SWITCHES);
     if (switches == 1) {
       demo_select = DEMO_MANDELBROT;
@@ -85,6 +161,20 @@ int main(void) {
     } else if (switches == 8) {
       demo_select = DEMO_STARS;
     }
+    star_text = STAR_TEXT_1;
+#else
+    {
+      // Select the current demo part.
+      const demo_part_t* part = &DEMO_SEQUENCE[sequence_idx];
+      if (frame_no >= part->num_frames && sequence_idx < DEMO_SEQUENCE_LAST) {
+        ++sequence_idx;
+        part = &DEMO_SEQUENCE[sequence_idx];
+      }
+
+      demo_select = part->select;
+      star_text = part->text;
+    }
+#endif  // INTERACTIVE_MODE
 
     // If we're moving to a new demo, deinit all.
     if (demo_select != demo_select_old) {
@@ -117,7 +207,7 @@ int main(void) {
         break;
 
       case DEMO_STARS:
-        stars_init();
+        stars_init(star_text);
         stars(frame_no);
         wait_vblank();
         break;

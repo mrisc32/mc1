@@ -463,22 +463,8 @@ stars_t s_stars;
 // Public API.
 //--------------------------------------------------------------------------------------------------
 
-extern "C" void stars_init(void) {
-  // TODO(m): Pass this string as a function argument.
-  const char* THE_TEXT =
-      "------------------------\n"
-      " MEET THE WORLD'S FIRST\n"
-      "\002\x40\x00"
-      "    MRISC32 COMPUTER!\n"
-      "\003\x80\xff\x80"
-      "------------------------"
-      "\002\x00\x01"
-      "\001"
-      "CPU:   MRISC32-A1\n"
-      "CLOCK: 120 MHZ\n"
-      "VRAM:  256 KB ";
-
-  s_stars.init(THE_TEXT);
+extern "C" void stars_init(const char* text) {
+  s_stars.init(text);
 }
 
 extern "C" void stars_deinit(void) {
