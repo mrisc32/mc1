@@ -470,6 +470,10 @@ const uint8_t FONT[] = {'A',
                         PP(3, 0, PNT_REGULAR),
                         PP(3, 1, PNT_LAST),
 
+                        '\'',
+                        PP(3, 0, PNT_REGULAR),
+                        PP(2, 1, PNT_LAST),
+
                         '+',
                         PP(1, 3, PNT_REGULAR),
                         PP(5, 3, PNT_END),
