@@ -24,12 +24,12 @@
 #include <mc1/glyph_renderer.h>
 #include <mc1/keyboard.h>
 #include <mc1/leds.h>
-#include <mc1/mem_fill.h>
 #include <mc1/mmio.h>
 
 #include <mr32intrin.h>
 
 #include <cstdint>
+#include <cstring>
 
 namespace {
 
@@ -58,7 +58,7 @@ private:
 };
 
 inline constexpr int16x2_t const16x2(const int x) {
-  return static_cast<int16x2_t>((x << 16) | x);
+  return _MR32_INT16X2(x, x);
 }
 
 inline int16x2_t set16x2(const int x) {
@@ -75,11 +75,10 @@ public:
 private:
   static const int STARS_WIDTH = 960;
   static const int STARS_HEIGHT = (STARS_WIDTH * 9) / 16;
-  static const int STARS_STRIDE = STARS_WIDTH / 4;
+  static const int STARS_STRIDE = (STARS_WIDTH * 2) / 8;  // 2 bpp
   static const int LOG2_NUM_STARS = 15;
   static const int NUM_STARS = 1 << LOG2_NUM_STARS;
 
-  int is_inside_screen(const int x, const int y) const;
   void plot(const int x, const int y, const int z, uint8_t* pix_buf) const;
 
   void draw_half_of_the_stars(const int frame_no, uint8_t* pix_buf, const bool flip_y);
@@ -143,23 +142,6 @@ void stars_t::draw(const int frame_no) {
   }
 }
 
-inline int stars_t::is_inside_screen(const int x, const int y) const {
-  // This implements:
-  //    return (x >= 0 && x < STARS_WIDTH) && (y >= 0 && y < STARS_HEIGHT);
-  //
-  // For some reason GCC currently makes terrible code for this, so we use inline assembly instead.
-  int result;
-  uint32_t tmp;
-  __asm__(
-      "sltu    %[result], %[x], #%[STARS_WIDTH]\n\t"
-      "sltu    %[tmp], %[y], #%[STARS_HEIGHT]\n\t"
-      "and     %[result], %[result], %[tmp]"
-      : [result] "=r"(result), [tmp] "=&r"(tmp)
-      : [x] "r"(x), [y] "r"(y), [STARS_WIDTH] "i"(STARS_WIDTH), [STARS_HEIGHT] "i"(STARS_HEIGHT)
-      :);
-  return result;
-}
-
 inline void stars_t::plot(const int x, const int y, const int z, uint8_t* pix_buf) const {
 #if 0
   const auto color = 3 - ((z * 3) >> (LOG2_NUM_STARS - 1));
@@ -214,7 +196,7 @@ inline void stars_t::plot(const int x, const int y, const int z, uint8_t* pix_bu
 
 void stars_t::draw_half_of_the_stars(const int frame_no, uint8_t* pix_buf, const bool flip_y) {
   // Start by clearing the pixel framebuffer.
-  mem_fill(pix_buf, 0, STARS_STRIDE * (STARS_HEIGHT / 2));
+  memset(pix_buf, 0, STARS_STRIDE * (STARS_HEIGHT / 2));
 
   // Draw them stars.
   // TODO(m): Vectorize this routine.
@@ -223,8 +205,8 @@ void stars_t::draw_half_of_the_stars(const int frame_no, uint8_t* pix_buf, const
   const auto scale_y =
       static_cast<uint32_t>(static_cast<uint16_t>(flip_y ? -STARS_WIDTH : STARS_WIDTH));
   const auto scale = _mr32_itof_h((scale_y << 16) | scale_x, const16x2(0));
-  const auto screen_offset =
-      static_cast<uint32_t>((flip_y ? (STARS_HEIGHT / 2) << 16 : 0) | (STARS_WIDTH / 2));
+  const auto screen_offset = _MR32_UINT16X2(flip_y ? STARS_HEIGHT / 2 : 0, STARS_WIDTH / 2);
+  const auto screen_yx_limits = _MR32_UINT16X2(STARS_HEIGHT / 2, STARS_WIDTH);
   const auto z_offset = 37 * frame_no;
   for (int i = (NUM_STARS / 2) - 1; i >= 0; --i) {
     // Generate a 3D position for the star.
@@ -239,11 +221,11 @@ void stars_t::draw_half_of_the_stars(const int frame_no, uint8_t* pix_buf, const
     // Convert the coordinate to screen space (integer).
     const auto yx =
         _mr32_add_h(_mr32_ftoir_h(_mr32_fmul_h(yx_f, scale), const16x2(0)), screen_offset);
-    const auto y = static_cast<int32_t>(yx) >> 16;
-    const auto x = static_cast<int32_t>(static_cast<int16_t>(yx));
 
-    // Plot the star.
-    if (is_inside_screen(x, y)) {
+    // If the star is within the screen limits, plot it.
+    if (_MR32_ALL_TRUE(_mr32_sltu_h(yx, screen_yx_limits))) {
+      const auto y = static_cast<int32_t>(yx) >> 16;
+      const auto x = static_cast<int32_t>(static_cast<int16_t>(yx));
       plot(x, y, z, pix_buf);
     }
   }
