@@ -541,9 +541,9 @@ void retro_t::draw_logo_and_raster_bars(const int frame_no) {
 
 void retro_t::draw_text(const int frame_no) {
   static const char SCROLL_TEXT[] =
-      "HELLO WORLD! THIS RETRO STYLE DEMO IS RUNNING AT 1920*1080 AT 60 FPS, WITH LOTS OF CPU "
-      "TIME TO SPARE AND USING LESS THAN 110KB VRAM... THIS IS POSSIBLE THANKS TO THE VCPP - SHORT "
-      "FOR \"VIDEO CONTROL PROGRAM PROCESSOR\".              ";
+      "        THIS DEMO IS RUNNING AT 1920*1080 AT 60FPS, WITH LOTS OF CPU TIME TO SPARE AND "
+      "USING LESS THAN 110KB VRAM...                      ";
+
   const auto SCROLL_SPEED = 4;
 
   // Calculate the text position.

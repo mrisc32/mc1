@@ -106,6 +106,7 @@ static int should_pause() {
   "\002\x40\x00"             \
   "\001"                     \
   "\003\xff\xff\xff"         \
+  "\n"                       \
   "  FOR MORE INFO VISIT:\n" \
   " GITHUB.COM/MRISC32/MC1 "
 
@@ -119,10 +120,10 @@ typedef struct {
 static demo_part_t DEMO_SEQUENCE[] = {
     {DEMO_STARS, 1900, STAR_TEXT_1},
     {DEMO_MANDELBROT, 30, STAR_TEXT_NULL},
-    {DEMO_STARS, 400, STAR_TEXT_2},
-    {DEMO_RAYTRACE, 20, STAR_TEXT_NULL},
+    {DEMO_STARS, 380, STAR_TEXT_2},
+    {DEMO_RAYTRACE, 30, STAR_TEXT_NULL},
     {DEMO_STARS, 730, STAR_TEXT_3},
-    {DEMO_RETRO, 5000, STAR_TEXT_NULL},
+    {DEMO_RETRO, 3000, STAR_TEXT_NULL},
     {DEMO_STARS, 600, STAR_TEXT_4},
 };
 
