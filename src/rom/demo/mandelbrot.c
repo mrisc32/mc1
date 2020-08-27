@@ -35,21 +35,14 @@
 typedef struct {
   int width;
   int height;
-  int mode;
 } vmode_t;
 
 // Different video modes to try (we try lower and lower until the framebuffer fits in memory).
 static const vmode_t VMODES[] = {
-  {1024, 576, CMODE_PAL8},
-  {1024, 576, CMODE_PAL4},
-  {640, 360, CMODE_PAL8},
-  {900, 506, CMODE_PAL4},
-  {624, 351, CMODE_PAL4},
-  {400, 225, CMODE_PAL8},
-  {400, 225, CMODE_PAL4},
-  {400, 225, CMODE_PAL2},
-  {400, 225, CMODE_PAL1},
-  {200, 112, CMODE_PAL1}
+  {1024, 576},
+  {640, 360},
+  {400, 225},
+  {200, 112}
 };
 #define NUM_VMODES (int)(sizeof(VMODES) / sizeof(VMODES[0]))
 
@@ -95,31 +88,9 @@ static const uint8_t PAL_128_RGB[128*3] = {
 };
 
 static void set_palette(fb_t* fb) {
-  int N;
-  int increment;
-  switch (fb->mode) {
-    case CMODE_PAL8:
-      N = 256;
-      increment = 1;
-      break;
-    case CMODE_PAL4:
-      N = 16;
-      increment = 9;
-      break;
-    case CMODE_PAL2:
-      N = 4;
-      increment = 63;
-      break;
-    case CMODE_PAL1:
-    default:
-      N = 2;
-      increment = 1;
-      break;
-  }
-
   fb->palette[0] = 0xff000000;
-  for (int k = 1; k < N; ++k) {
-    const int idx = ((k - 1) & 127) * (increment * 3);
+  for (int k = 1; k < 256; ++k) {
+    const int idx = ((k - 1) & 127) * 3;
     const uint32_t r = (uint32_t)PAL_128_RGB[idx];
     const uint32_t g = (uint32_t)PAL_128_RGB[idx + 1];
     const uint32_t b = (uint32_t)PAL_128_RGB[idx + 2];
@@ -142,41 +113,37 @@ static float sqr(const float x) {
 //--------------------------------------------------------------------------------------------------
 
 static float get_zoom(int frame_no) {
-  frame_no &= 255;
-  if (frame_no >= 128) {
-    frame_no = 256 - frame_no;
+  frame_no &= 127;
+  if (frame_no >= 64) {
+    frame_no = 128 - frame_no;
   }
-  return fast_pow(0.96f, (float)frame_no);
+  return fast_pow(0.90f, (float)frame_no);
 }
 
-static int iterate(const float re_c, const float im_c) {
+static void iterate(const float re_c, const float im_c, uint8_t* pix) {
   const cplx_t c = {re_c, im_c};
+  int n = 0;
 
   // Optimization: Skip computations inside M1 and M2. See:
   // - http://iquilezles.org/www/articles/mset_1bulb/mset1bulb.htm
   // - http://iquilezles.org/www/articles/mset_2bulb/mset2bulb.htm
-  {
-    float c2 = sqr(re_c) + sqr(im_c);
-    if ((256.0f * c2 * c2 - 96.0f * c2 + 32.0f * c.re - 3.0f) < 0.0f)
-      return 0;
-    if ((16.0f * (c2 + 2.0f * c.re + 1.0f) - 1.0f) < 0.0f)
-      return 0;
+  const float c2 = sqr(c.re) + sqr(c.im);
+  if (((256.0f * c2 * c2 - 96.0f * c2 + 32.0f * c.re - 3.0f) >= 0.0f) &&
+      ((16.0f * (c2 + 2.0f * c.re + 1.0f) - 1.0f) >= 0.0f)) {
+    cplx_t z = {0.0f, 0.0f};
+    float zre_sqr = 0.0f;
+    float zim_sqr = 0.0f;
+
+    do {
+      z.im = sqr(z.re + z.im) - zre_sqr - zim_sqr + c.im;
+      z.re = zre_sqr - zim_sqr + c.re;
+      zre_sqr = sqr(z.re);
+      zim_sqr = sqr(z.im);
+      ++n;
+    } while (n < MAX_ITERATIONS && (zre_sqr + zim_sqr) <= 4.0f);
   }
 
-  cplx_t z = {0.0f, 0.0f};
-  float zrsqr = sqr(z.re);
-  float zisqr = sqr(z.im);
-
-  int n;
-  for (n = 1; n < MAX_ITERATIONS && (zrsqr + zisqr) <= 4.0f; ++n) {
-    z.im = sqr(z.re + z.im) - zrsqr - zisqr;
-    z.im += c.im;
-    z.re = zrsqr - zisqr + c.re;
-    zrsqr = sqr(z.re);
-    zisqr = sqr(z.im);
-  }
-
-  return n >= MAX_ITERATIONS ? 0 : n;
+  *pix = (uint8_t)(n >= MAX_ITERATIONS ? 0 : n);
 }
 
 
@@ -190,7 +157,7 @@ void mandelbrot_init(void) {
   if (s_fb == NULL) {
     for (int i = 0; i < NUM_VMODES; ++i) {
       const vmode_t* vm = &VMODES[i];
-      s_fb = fb_create(vm->width, vm->height, vm->mode);
+      s_fb = fb_create(vm->width, vm->height, CMODE_PAL8);
       if (s_fb != NULL) {
         fb_show(s_fb, LAYER_1);
         set_palette(s_fb);
@@ -215,54 +182,41 @@ void mandelbrot(int frame_no) {
 
   sevseg_print_dec(frame_no);
 
-  float step = get_zoom(frame_no) * MAX_SIZE / (float)s_fb->width;
+  const int width = s_fb->width;
+  const int height = s_fb->height;
+  const size_t stride = s_fb->stride;
 
-  for (int k = 0; k < s_fb->height; ++k) {
+  // Get the scaling and rotation for this frame.
+  const float step = get_zoom(frame_no) * MAX_SIZE / (float)width;
+  const float dre_dx = step * fast_cos((-0.03125f) * (float)frame_no);
+  const float dim_dx = step * fast_sin((-0.03125f) * (float)frame_no);
+  const float dre_dy = -dim_dx;
+  const float dim_dy = dre_dx;
+
+  for (int k = 0; k < height; ++k) {
     // We start at the middle and alternatingly expand up and down.
     int dy = (k + 1) >> 1;
     if ((k & 1) == 1) {
       dy = -dy;
     }
-    const int y = s_fb->height / 2 + dy;
-    const float im_c = CENTER.im + step * (float)(y - s_fb->height / 2);
+    const int y = (height >> 1) + dy;
+
+    // Calculate the C value for the first pixel of this row.
+    const float x0 = (float)(-width / 2);
+    const float y0 = (float)dy;
+    float re_c = CENTER.re + dre_dx * x0 + dre_dy * y0;
+    float im_c = CENTER.im + dim_dx * x0 + dim_dy * y0;
 
     // Draw one row (left to right).
-    uint8_t* pixels = &((uint8_t*)s_fb->pixels)[y * s_fb->stride];
-    uint8_t pix = 0;
-    for (int x = 0; x < s_fb->width; ++x) {
-      const float re_c = CENTER.re + step * (float)(x - s_fb->width / 2);
-
+    uint8_t* pixels = &((uint8_t*)s_fb->pixels)[(size_t)y * stride];
+    for (int x = 0; x < width; ++x) {
       // Run the Mandelbrot iterations for this C.
-      const int n = iterate(re_c, im_c);
+      iterate1(re_c, im_c, pixels);
+      ++pixels;
 
-      // Convert the iteration count to a color.
-      if (s_fb->mode == CMODE_PAL8) {
-        *pixels = (uint8_t)n;
-        ++pixels;
-      } else if (s_fb->mode == CMODE_PAL4) {
-        const int n2 = n ? ((n % 15) + 1) : 0;
-        pix = pix | ((uint8_t)n2) << ((x & 1) * 4);
-        if ((x & 1) == 1) {
-          *pixels = pix;
-          ++pixels;
-          pix = 0;
-        }
-      } else if (s_fb->mode == CMODE_PAL2) {
-        const int n2 = n ? ((n % 3) + 1) : 0;
-        pix = pix | ((uint8_t)n2) << ((x & 3) * 2);
-        if ((x & 3) == 3) {
-          *pixels = pix;
-          ++pixels;
-          pix = 0;
-        }
-      } else if (s_fb->mode == CMODE_PAL1) {
-        pix = pix | ((uint8_t)n & 1) << (x & 7);
-        if ((x & 7) == 7) {
-          *pixels = pix;
-          ++pixels;
-          pix = 0;
-        }
-      }
+      // Calculate the C for the next pixel.
+      re_c += dre_dx;
+      im_c += dim_dx;
     }
 
     // Check for keyboard ESC press.
