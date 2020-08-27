@@ -25,6 +25,8 @@
 #include <mc1/keyboard.h>
 #include <mc1/leds.h>
 
+#include <mr32intrin.h>
+
 #include <stdint.h>
 
 
@@ -46,15 +48,11 @@ static const vmode_t VMODES[] = {
 };
 #define NUM_VMODES (int)(sizeof(VMODES) / sizeof(VMODES[0]))
 
-typedef struct {
-  float re;
-  float im;
-} cplx_t;
-
 // Mandelbrot viewing area configuration.
-static const cplx_t CENTER = {-1.2537962239935088f, -0.38392281601604755f};
+static const float RE_CENTER = -1.25544977f;
+static const float IM_CENTER = -0.38188094f;
 static const float MAX_SIZE = 6.0f;
-static const int MAX_ITERATIONS = 128;
+static const int MAX_ITERATIONS = 127;
 
 
 //--------------------------------------------------------------------------------------------------
@@ -62,7 +60,7 @@ static const int MAX_ITERATIONS = 128;
 //--------------------------------------------------------------------------------------------------
 
 // This is a fiery palette.
-static const uint8_t PAL_128_RGB[128*3] = {
+static const uint8_t PAL_128_RGB[127*3] = {
   0xed,0xc0,0x87, 0xee,0xc4,0x8d, 0xef,0xc8,0x95, 0xf1,0xcc,0x9d, 0xf1,0xd0,0xa5, 0xf3,0xd5,0xad,
   0xf4,0xd8,0xb5, 0xf5,0xdc,0xbc, 0xf6,0xe1,0xc4, 0xf7,0xe5,0xcc, 0xf8,0xe9,0xd4, 0xfa,0xed,0xdb,
   0xfb,0xf1,0xe3, 0xfc,0xf4,0xeb, 0xfd,0xf9,0xf2, 0xf3,0xf3,0xf3, 0xef,0xef,0xef, 0xe8,0xe9,0xe9,
@@ -84,27 +82,19 @@ static const uint8_t PAL_128_RGB[128*3] = {
   0xc5,0x72,0x01, 0xc1,0x6d,0x00, 0xbe,0x67,0x01, 0xba,0x61,0x01, 0xb6,0x5b,0x01, 0xb2,0x55,0x01,
   0xae,0x4f,0x00, 0xa9,0x4a,0x00, 0xa2,0x45,0x00, 0x9c,0x3f,0x01, 0x95,0x3a,0x01, 0x8e,0x34,0x00,
   0x87,0x2d,0x00, 0x81,0x27,0x01, 0x7a,0x21,0x01, 0x73,0x1c,0x01, 0x6c,0x16,0x01, 0x66,0x10,0x01,
-  0x5f,0x0a,0x01, 0x58,0x05,0x02
+  0x5f,0x0a,0x01
 };
 
 static void set_palette(fb_t* fb) {
-  fb->palette[0] = 0xff000000;
-  for (int k = 1; k < 256; ++k) {
-    const int idx = ((k - 1) & 127) * 3;
-    const uint32_t r = (uint32_t)PAL_128_RGB[idx];
-    const uint32_t g = (uint32_t)PAL_128_RGB[idx + 1];
-    const uint32_t b = (uint32_t)PAL_128_RGB[idx + 2];
-    fb->palette[k] = 0xff000000 | (b << 16) | (g << 8) | r;
+  const uint8_t* pal = &PAL_128_RGB[0];
+  for (int k = 0; k < MAX_ITERATIONS; ++k) {
+    const uint32_t r = (uint32_t)pal[0];
+    const uint32_t g = (uint32_t)pal[1];
+    const uint32_t b = (uint32_t)pal[2];
+    fb->palette[k] = _mr32_pack_h(_mr32_pack(0xff, g), _mr32_pack(b, r));
+    pal += 3;
   }
-}
-
-
-//--------------------------------------------------------------------------------------------------
-// Math helpers.
-//--------------------------------------------------------------------------------------------------
-
-static float sqr(const float x) {
-  return x * x;
+  fb->palette[MAX_ITERATIONS] = 0x00000000;
 }
 
 
@@ -120,32 +110,170 @@ static float get_zoom(int frame_no) {
   return fast_pow(0.90f, (float)frame_no);
 }
 
-static void iterate(const float re_c, const float im_c, uint8_t* pix) {
-  const cplx_t c = {re_c, im_c};
-  int n = 0;
+static void mandel_row(const float re_c,
+                       const float im_c,
+                       const float dre_dx,
+                       const float dim_dx,
+                       const int width,
+                       uint32_t* row_pixels) {
+  const float limit_sqr = 4.0f;
+  const float dre_dx_x4 = dre_dx * 4.0f;
+  const float dim_dx_x4 = dim_dx * 4.0f;
 
-  // Optimization: Skip computations inside M1 and M2. See:
-  // - http://iquilezles.org/www/articles/mset_1bulb/mset1bulb.htm
-  // - http://iquilezles.org/www/articles/mset_2bulb/mset2bulb.htm
-  const float c2 = sqr(c.re) + sqr(c.im);
-  if (((256.0f * c2 * c2 - 96.0f * c2 + 32.0f * c.re - 3.0f) >= 0.0f) &&
-      ((16.0f * (c2 + 2.0f * c.re + 1.0f) - 1.0f) >= 0.0f)) {
-    cplx_t z = {0.0f, 0.0f};
-    float zre_sqr = 0.0f;
-    float zim_sqr = 0.0f;
+  int pixels_left;
+  uint32_t* pix;
+  uint32_t count;
+  uint32_t tmp1;
+  uint32_t tmp2;
+  uint32_t tmp_vec[1];
+  __asm__ volatile(
+      "ldi     vl, #4\n\t"
 
-    do {
-      z.im = sqr(z.re + z.im) - zre_sqr - zim_sqr + c.im;
-      z.re = zre_sqr - zim_sqr + c.re;
-      zre_sqr = sqr(z.re);
-      zim_sqr = sqr(z.im);
-      ++n;
-    } while (n < MAX_ITERATIONS && (zre_sqr + zim_sqr) <= 4.0f);
-  }
+      "mov     %[pix], %[row_pixels]\n\t"
+      "mov     %[pixels_left], %[width]\n\t"
 
-  *pix = (uint8_t)(n >= MAX_ITERATIONS ? 0 : n);
+      // [v1, v2] = C
+      "ldea    v2, z, #1\n\t"
+      "itof    v2, v2, z\n\t"
+      "fmul    v1, v2, %[dre_dx]\n\t"
+      "fadd    v1, v1, %[re_c]\n\t"    // v1 = re_c + dre_dx * [0.0f, 1.0f, 2.0f, 3.0f]
+      "fmul    v2, v2, %[dim_dx]\n\t"
+      "fadd    v2, v2, %[im_c]\n\t"    // v2 = im_c + dim_dx * [0.0f, 1.0f, 2.0f, 3.0f]
+
+      "\n1:\n\t"
+      // v10 = result
+      "mov     v10, vz\n\t"
+
+      // [v3, v4] = z   (z_1 = C)
+      "mov     v3, v1\n\t"
+      "mov     v4, v2\n\t"
+
+      "ldi     %[count], #1\n\t"
+
+      // Check if all vector points are inside M1 or M2, and skip the iterations if so. See:
+      // - http://iquilezles.org/www/articles/mset_1bulb/mset1bulb.htm
+      // - http://iquilezles.org/www/articles/mset_2bulb/mset2bulb.htm
+      "fmul    v5, v1, v1\n\t"
+      "fmul    v6, v2, v2\n\t"
+      "fadd    v5, v5, v6\n\t"  // v5 = |C|^2
+
+      // M1: (16 * |C|^2)^2 - 96 * |C|^2 + 32 * Re(C) - 3 < 0
+      "ldi     %[tmp2], #0x41800000\n\t"  // 16.0f
+      "fmul    v6, v5, %[tmp2]\n\t"
+      "fmul    v6, v6, v6\n\t"
+      "ldi     %[tmp1], #0x42c00000\n\t"  // 96.0f
+      "fmul    v7, v5, %[tmp1]\n\t"
+      "fsub    v6, v6, v7\n\t"
+      "ldi     %[tmp1], #0x42000000\n\t"  // 32.0f
+      "fmul    v7, v1, %[tmp1]\n\t"
+      "fadd    v6, v6, v7\n\t"
+      "ldi     %[tmp1], #0xc0400000\n\t"  // -3.0f
+      "fadd    v6, v6, %[tmp1]\n\t"
+      "fslt    v6, v6, z\n\t"             // v6 = Inside M1?
+
+      // M2: 16 * (|C|^2 + 2 * Re(C)) + 15 < 0
+      "ldi     %[tmp1], #0x40000000\n\t"  // 2.0f
+      "fmul    v7, v1, %[tmp1]\n\t"
+      "fadd    v7, v5, v7\n\t"
+      "fmul    v7, v7, %[tmp2]\n\t"
+      "ldi     %[tmp1], #0x41700000\n\t"  // 15.0f
+      "fadd    v7, v7, %[tmp1]\n\t"
+      "fslt    v7, v7, z\n\t"             // v7 = Inside M2?
+
+      // Inside either M1 or M2?
+      "or      v6, v6, v7\n\t"
+
+      // ...for all four pixels?
+      "ldi     vl, #2\n\t"
+      "and/f   v6, v6, v6\n\t"
+      "ldi     vl, #1\n\t"
+      "and/f   v6, v6, v6\n\t"
+      "stw     v6, %[tmp_vec], #0\n\t"
+      "ldw     %[tmp1], %[tmp_vec], #0\n\t"
+      "ldi     vl, #4\n\t"
+      "bns     %[tmp1], 2f\n\t"
+
+      // Early-out for these four pixels.
+      "ldi     %[tmp1], #0x7f7f7f7f\n\t"
+      "stw     %[tmp1], %[pix], #0\n\t"
+      "b       4f\n\t"
+
+      "\n2:\n\t"
+
+      // [v5, v6] = [z.re^2, z.im^2]
+      "fmul    v5, v3, v3\n\t"
+      "fmul    v6, v4, v4\n\t"
+
+      // v7 = |z|^2
+      "fadd    v7, v5, v6\n\t"
+
+      // |z|^2 < limit_sqr?
+      "fslt    v8, v7, %[limit_sqr]\n\t"
+
+      // Update per-pixel results.
+      "and     v9, v8, %[count]\n\t"
+      "max     v10, v9, v10\n\t"
+
+      // Done?
+      // TODO(m): We need better vector -> scalar instructions (see mrisc32-#38).
+      "ldi     vl, #2\n\t"
+      "or/f    v9, v8, v8\n\t"
+      "ldi     vl, #1\n\t"
+      "or/f    v9, v9, v9\n\t"
+      "stw     v9, %[tmp_vec], #0\n\t"
+      "ldw     %[tmp1], %[tmp_vec], #0\n\t"
+      "ldi     vl, #4\n\t"
+      "bz      %[tmp1], 3f\n\t"
+
+      // z.im = sqr(z.re + z.im) - (z.re^2 + z.im^2) + c.im;
+      "fadd    v4, v3, v4\n\t"
+      "fmul    v4, v4, v4\n\t"
+      "fsub    v4, v4, v7\n\t"
+      "fadd    v4, v4, v2\n\t"
+
+      // z.re = z.re^2 - z.im^2 + c.re;
+      "fsub    v3, v5, v6\n\t"
+      "fadd    v3, v3, v1\n\t"
+
+      "add     %[count], %[count], #1\n\t"
+      "sle     %[tmp1], %[count], #%[MAX_ITERATIONS]\n\t"
+      "bs      %[tmp1], 2b\n\t"
+
+      "\n3:\n\t"
+      "ldi     vl, #2\n\t"
+      "pack/f  v10, v10, v10\n\t"
+      "ldi     vl, #1\n\t"
+      "pack.h/f v10, v10, v10\n\t"
+      "shuf    v10, v10, #0b000001010011\n\t"  // Drop this once mrisc32-#109 is implemented.
+      "stw     v10, %[pix], #0\n\t"
+      "ldi     vl, #4\n\t"
+
+      // Next four pixels...
+      "\n4:\n\t"
+      "fadd    v1, v1, %[dre_dx_x4]\n\t"
+      "fadd    v2, v2, %[dim_dx_x4]\n\t"
+      "add     %[pix], %[pix], #4\n\t"
+      "add     %[pixels_left], %[pixels_left], #-4\n\t"
+      "bgt     %[pixels_left], 1b\n\t"
+
+      : [count] "=&r"(count),
+        [pixels_left] "=&r"(pixels_left),
+        [pix] "=&r"(pix),
+        [tmp1] "=&r"(tmp1),
+        [tmp2] "=&r"(tmp2)
+      : [re_c] "r"(re_c),
+        [im_c] "r"(im_c),
+        [dre_dx] "r"(dre_dx),
+        [dim_dx] "r"(dim_dx),
+        [dre_dx_x4] "r"(dre_dx_x4),
+        [dim_dx_x4] "r"(dim_dx_x4),
+        [limit_sqr] "r"(limit_sqr),
+        [MAX_ITERATIONS] "n"(MAX_ITERATIONS),
+        [width] "r"(width),
+        [row_pixels] "r"(row_pixels),
+        [tmp_vec] "r"(tmp_vec)
+      : "vl", "memory");
 }
-
 
 //--------------------------------------------------------------------------------------------------
 // Public API.
@@ -204,20 +332,12 @@ void mandelbrot(int frame_no) {
     // Calculate the C value for the first pixel of this row.
     const float x0 = (float)(-width / 2);
     const float y0 = (float)dy;
-    float re_c = CENTER.re + dre_dx * x0 + dre_dy * y0;
-    float im_c = CENTER.im + dim_dx * x0 + dim_dy * y0;
+    float re_c = RE_CENTER + dre_dx * x0 + dre_dy * y0;
+    float im_c = IM_CENTER + dim_dx * x0 + dim_dy * y0;
 
     // Draw one row (left to right).
-    uint8_t* pixels = &((uint8_t*)s_fb->pixels)[(size_t)y * stride];
-    for (int x = 0; x < width; ++x) {
-      // Run the Mandelbrot iterations for this C.
-      iterate1(re_c, im_c, pixels);
-      ++pixels;
-
-      // Calculate the C for the next pixel.
-      re_c += dre_dx;
-      im_c += dim_dx;
-    }
+    uint32_t* pixels_row = (uint32_t*)&((uint8_t*)s_fb->pixels)[(size_t)y * stride];
+    mandel_row(re_c, im_c, dre_dx, dim_dx, width, pixels_row);
 
     // Check for keyboard ESC press.
     {
