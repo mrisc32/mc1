@@ -204,6 +204,7 @@ selftest:
 LIBMC1_OBJS = \
     $(OUT)/crt0.o \
     $(OUT)/crc32c.o \
+    $(OUT)/doh.o \
     $(OUT)/fast_math.o \
     $(OUT)/framebuffer.o \
     $(OUT)/glyph_renderer.o \
@@ -228,6 +229,9 @@ $(OUT)/crt0.o: mc1/crt0.s mc1/memory.inc mc1/mmio.inc
 
 $(OUT)/crc32c.o: mc1/crc32c.c
 	$(CC) $(CCFLAGS) -o $@ $<
+
+$(OUT)/doh.o: mc1/doh.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
 
 $(OUT)/fast_math.o: mc1/fast_math.c
 	$(CC) $(CCFLAGS) -o $@ $<
