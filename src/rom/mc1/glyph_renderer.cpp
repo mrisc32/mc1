@@ -20,18 +20,15 @@
 
 #include <mc1/glyph_renderer.h>
 
+#include <algorithm>
+#include <cmath>
+#include <cstring>
+
 #ifdef __MRISC32__
-#include <mc1/mem_fill.h>
 #include <mc1/memory.h>
+#include <mr32intrin.h>
 #else
 #include <cstdlib>
-#include <cstring>
-#endif
-
-#include <cmath>
-#include <algorithm>
-#ifdef __MRISC32__
-#include <mr32intrin.h>
 #endif
 
 namespace mc1 {
@@ -530,11 +527,7 @@ void glyph_renderer_t::draw_char(const char c) {
   }
 
   // Start by clearing the pixel buffer.
-#ifdef __MRISC32__
-  mem_fill(m_pixels, 0, m_width * m_height);
-#else
   memset(m_pixels, 0, m_width * m_height);
-#endif
 
   // Find the glyph corresponding to the char c.
   const uint8_t* ptr = &FONT[0];

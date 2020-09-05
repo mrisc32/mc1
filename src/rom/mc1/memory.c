@@ -20,7 +20,7 @@
 
 #include <mc1/memory.h>
 
-#include <mc1/mem_fill.h>
+#include <string.h>
 
 
 //--------------------------------------------------------------------------------------------------
@@ -184,7 +184,7 @@ void* mem_alloc(size_t num_bytes, unsigned types) {
       if (ptr != NULL) {
         // Optionally zero-fill the newly allocated buffer.
         if ((types & MEM_CLEAR) != 0) {
-          mem_fill(ptr, 0, num_bytes);
+          memset(ptr, 0, num_bytes);
         }
         break;
       }

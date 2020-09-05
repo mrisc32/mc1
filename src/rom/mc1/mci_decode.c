@@ -21,7 +21,8 @@
 #include <mc1/mci_decode.h>
 
 #include <mc1/lzg_mc1.h>
-#include <mc1/mem_copy.h>
+
+#include <string.h>
 
 //--------------------------------------------------------------------------------------------------
 // MCI image file format:
@@ -105,7 +106,7 @@ void mci_decode_palette(const uint8_t* mci_data, uint32_t* palette) {
   }
 
   // Copy the palette data.
-  mem_copy_fwd(palette, get_palette_data(hdr), 4u * (uint32_t)hdr->num_pal_colors);
+  memcpy(palette, get_palette_data(hdr), 4u * (uint32_t)hdr->num_pal_colors);
 }
 
 void mci_decode_pixels(const uint8_t* mci_data, uint32_t* pixels) {
@@ -120,7 +121,7 @@ void mci_decode_pixels(const uint8_t* mci_data, uint32_t* pixels) {
 
   // Uncompress the pixel data.
   if (hdr->compression == MCI_COMP_NONE) {
-    mem_copy_fwd(pixels, pixel_data, unpacked_size);
+    memcpy(pixels, pixel_data, unpacked_size);
   } else if (hdr->compression == MCI_COMP_LZG) {
     LZG_Decode(pixel_data, hdr->pixel_data_size, (uint8_t*)pixels, unpacked_size);
   }

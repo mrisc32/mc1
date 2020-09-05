@@ -214,8 +214,6 @@ LIBMC1_OBJS = \
     $(OUT)/lzg_mc1.o \
     $(OUT)/mc1-font-8x8.o \
     $(OUT)/mci_decode.o \
-    $(OUT)/mem_copy.o \
-    $(OUT)/mem_fill.o \
     $(OUT)/memory.o \
     $(OUT)/time.o \
     $(OUT)/vconsole.o \
@@ -267,12 +265,6 @@ $(OUT)/mc1-font-8x8.s: mc1/mc1-font-8x8.raw
 
 $(OUT)/mci_decode.o: mc1/mci_decode.c
 	$(CC) $(CCFLAGS) -o $@ $<
-
-$(OUT)/mem_copy.o: mc1/mem_copy.s
-	$(AS) $(ASFLAGS) -o $@ $<
-
-$(OUT)/mem_fill.o: mc1/mem_fill.s
-	$(AS) $(ASFLAGS) -o $@ $<
 
 $(OUT)/memory.o: mc1/memory.c
 	$(CC) $(CCFLAGS) -o $@ $<
