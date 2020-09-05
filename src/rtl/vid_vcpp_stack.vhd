@@ -46,6 +46,11 @@ architecture rtl of vid_vcpp_stack is
   type T_STACK is array (C_NUM_ENTIRES-1 downto 0) of std_logic_vector(NUM_DATA_BITS-1 downto 0);
   signal s_stack : T_STACK;
   signal s_pos : unsigned(LOG2_NUM_ENTRIES-1 downto 0);
+
+  -- This RAM is tiny (only 384 bits), so use logic cells instead of block RAM so that we don't
+  -- waste a full BRAM block.
+  attribute RAMSTYLE : string;
+  attribute RAMSTYLE of s_stack : signal is "MLAB";
 begin
   process(i_clk, i_rst)
     variable v_pos : unsigned(LOG2_NUM_ENTRIES-1 downto 0);
