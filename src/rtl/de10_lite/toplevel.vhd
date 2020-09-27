@@ -89,7 +89,7 @@ architecture rtl of toplevel is
 
   signal s_io_switches : std_logic_vector(31 downto 0);
   signal s_io_buttons : std_logic_vector(31 downto 0);
-  signal s_io_kb_s : std_logic_vector(8 downto 0);
+  signal s_io_kb_scancode : std_logic_vector(8 downto 0);
   signal s_io_kb_press : std_logic;
   signal s_io_kb_stb : std_logic;
   signal s_io_mousepos : std_logic_vector(31 downto 0);
@@ -217,7 +217,7 @@ begin
   s_io_switches(31 downto 9) <= (others => '0');
   s_io_switches(8 downto 0) <= SW(8 downto 0);
   s_io_buttons(31 downto 2) <= (others => '0');
-  s_io_buttons(1 downto 0) <= KEY;
+  s_io_buttons(1 downto 0) <= not KEY;
 
   -- I/O: Output.
   HEX0 <= not s_io_regs_w.SEGDISP0(6 downto 0);
