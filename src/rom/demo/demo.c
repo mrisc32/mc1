@@ -18,9 +18,6 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
-// Define this to interactively select which demo to run.
-//#define INTERACTIVE_MODE
-
 #include "demo_select.h"
 
 #include <mc1/keyboard.h>
