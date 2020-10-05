@@ -113,7 +113,7 @@ typedef struct {
   const char* text;
 } demo_part_t;
 
-static demo_part_t DEMO_SEQUENCE[] = {
+static const demo_part_t DEMO_SEQUENCE[] = {
     {DEMO_STARS, 1650, STAR_TEXT_1},
     {DEMO_MANDELBROT, 46, STAR_TEXT_NULL},
     {DEMO_STARS, 380, STAR_TEXT_2},
