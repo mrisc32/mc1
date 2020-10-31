@@ -129,6 +129,21 @@ architecture arch of sdram is
     return natural(ceil(log2(real(n))));
   end ilog2;
 
+  -- Convert a ROW address to a signal suitable for sdram_a.
+  function row2addr(x : unsigned) return unsigned is
+  begin
+    return resize(x, SDRAM_ADDR_WIDTH);
+  end row2addr;
+
+  -- Convert a COL address to a signal suitable for sdram_a.
+  function col2addr(x : unsigned) return unsigned is
+    variable a : unsigned(SDRAM_ADDR_WIDTH-2 downto 0);
+  begin
+    a := resize(x, SDRAM_ADDR_WIDTH-1);
+    -- A10 = '1' -> auto precharge
+    return a(SDRAM_ADDR_WIDTH-2 downto 10) & "1" & a(9 downto 0);
+  end col2addr;
+
   subtype command_t is std_logic_vector(3 downto 0);
 
   -- commands
@@ -148,9 +163,15 @@ architecture arch of sdram is
   -- the write burst mode enables bursting for write operations
   constant WRITE_BURST_MODE : std_logic := '0'; -- 0=burst, 1=single
 
+  -- the value written to the address bus during initialization
+  constant INIT_CMD : unsigned(SDRAM_ADDR_WIDTH-1 downto 0) := (
+    to_unsigned(0, SDRAM_ADDR_WIDTH-11) &
+    "10000000000"
+  );
+
   -- the value written to the mode register to configure the memory
   constant MODE_REG : unsigned(SDRAM_ADDR_WIDTH-1 downto 0) := (
-    "000" &
+    to_unsigned(0, SDRAM_ADDR_WIDTH-10) &
     WRITE_BURST_MODE &
     "00" &
     to_unsigned(CAS_LATENCY, 3) &
@@ -429,11 +450,11 @@ begin
   -- set SDRAM address
   with state select
     sdram_a <=
-      "0010000000000" when INIT,
+      INIT_CMD        when INIT,
       MODE_REG        when MODE,
-      row             when ACTIVE,
-      "0010" & col    when READ,   -- auto precharge
-      "0010" & col    when WRITE,  -- auto precharge
+      row2addr(row)   when ACTIVE,
+      col2addr(col)   when READ,
+      col2addr(col)   when WRITE,
       (others => '0') when others;
 
   -- decode the next 16-bit word from the write buffer
