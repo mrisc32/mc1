@@ -30,8 +30,8 @@ use work.vid_types.all;
 entity mmio is
   generic(
     CPU_CLK_HZ : positive;
-    VRAM_SIZE : integer;
-    XRAM_SIZE : integer;
+    VRAM_SIZE : natural;
+    XRAM_SIZE : natural;
     VID_FPS : positive;
     VIDEO_CONFIG : T_VIDEO_CONFIG
   );

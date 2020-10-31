@@ -36,7 +36,8 @@ entity mc1 is
     COLOR_BITS_R : positive := 8;     -- Set this to < 8 to enable dithering.
     COLOR_BITS_G : positive := 8;     -- Set this to < 8 to enable dithering.
     COLOR_BITS_B : positive := 8;     -- Set this to < 8 to enable dithering.
-    LOG2_VRAM_SIZE : positive := 12;  -- VRAM size (log2 of number of 32-bit words).
+    LOG2_VRAM_SIZE : natural := 14;   -- VRAM size (log2 of number of bytes).
+    XRAM_SIZE : natural := 0;         -- XRAM size (number of bytes).
     NUM_VIDEO_LAYERS : positive := 2; -- Number of video layers (1 or 2).
     VIDEO_CONFIG : T_VIDEO_CONFIG     -- Native video resolution.
   );
@@ -63,6 +64,18 @@ entity mc1 is
     i_io_mousepos : in std_logic_vector(31 downto 0);
     i_io_mousebtns : in std_logic_vector(31 downto 0);
     o_io_regs_w : out T_MMIO_REGS_WO;
+
+    -- External RAM interface.
+    o_xram_cyc : out std_logic;
+    o_xram_stb : out std_logic;
+    o_xram_adr : out std_logic_vector(31 downto 2);
+    o_xram_dat : out std_logic_vector(31 downto 0);
+    o_xram_we : out std_logic;
+    o_xram_sel : out std_logic_vector(3 downto 0);
+    i_xram_dat : in std_logic_vector(31 downto 0);
+    i_xram_ack : in std_logic;
+    i_xram_stall : in std_logic;
+    i_xram_err : in std_logic;
 
     -- Debug trace interface.
     o_debug_trace : out T_DEBUG_TRACE
@@ -104,7 +117,7 @@ architecture rtl of mc1 is
   signal s_vram_err : std_logic;
 
   -- Video logic signals.
-  signal s_video_adr : std_logic_vector(LOG2_VRAM_SIZE-1 downto 0);
+  signal s_video_adr : std_logic_vector(LOG2_VRAM_SIZE-3 downto 0);
   signal s_video_dat : std_logic_vector(31 downto 0);
   signal s_raster_y : std_logic_vector(15 downto 0);
 
@@ -192,11 +205,16 @@ begin
       i_wb_err_1 => s_vram_err,
 
       -- External RAM interface
-      -- TODO(m): Implement me!
-      i_wb_dat_2 => (others => '0'),
-      i_wb_ack_2 => '0',
-      i_wb_stall_2 => '0',
-      i_wb_err_2 => '0',
+      o_wb_cyc_2 => o_xram_cyc,
+      o_wb_stb_2 => o_xram_stb,
+      o_wb_adr_2 => o_xram_adr,
+      o_wb_dat_2 => o_xram_dat,
+      o_wb_we_2 => o_xram_we,
+      o_wb_sel_2 => o_xram_sel,
+      i_wb_dat_2 => i_xram_dat,
+      i_wb_ack_2 => i_xram_ack,
+      i_wb_stall_2 => i_xram_stall,
+      i_wb_err_2 => i_xram_err,
 
       -- Memory mapped I/O interface.
       o_wb_cyc_3 => s_io_cyc,
@@ -228,7 +246,7 @@ begin
   -- Internal VRAM.
   vram_1: entity work.vram
     generic map (
-      ADR_BITS => LOG2_VRAM_SIZE
+      ADR_BITS => LOG2_VRAM_SIZE-2
     )
     port map (
       i_rst => i_cpu_rst,
@@ -237,7 +255,7 @@ begin
       i_wb_clk => i_cpu_clk,
       i_wb_cyc => s_vram_cyc,
       i_wb_stb => s_vram_stb,
-      i_wb_adr => s_vram_adr(LOG2_VRAM_SIZE+1 downto 2),
+      i_wb_adr => s_vram_adr(LOG2_VRAM_SIZE-1 downto 2),
       i_wb_dat => s_vram_dat_w,
       i_wb_we => s_vram_we,
       i_wb_sel => s_vram_sel,
@@ -256,8 +274,8 @@ begin
   mmio_1: entity work.mmio
     generic map (
       CPU_CLK_HZ => CPU_CLK_HZ,
-      VRAM_SIZE => (2**LOG2_VRAM_SIZE)*4,
-      XRAM_SIZE => 0,
+      VRAM_SIZE => 2**LOG2_VRAM_SIZE,
+      XRAM_SIZE => XRAM_SIZE,
       VID_FPS => 60*65536,      -- TODO(m): Implement me!
       VIDEO_CONFIG => VIDEO_CONFIG
     )
@@ -297,7 +315,7 @@ begin
       COLOR_BITS_R => COLOR_BITS_R,
       COLOR_BITS_G => COLOR_BITS_G,
       COLOR_BITS_B => COLOR_BITS_B,
-      ADR_BITS => LOG2_VRAM_SIZE,
+      ADR_BITS => LOG2_VRAM_SIZE-2,
       NUM_LAYERS => NUM_VIDEO_LAYERS,
       VIDEO_CONFIG => VIDEO_CONFIG
     )

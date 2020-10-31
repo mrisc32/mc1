@@ -118,6 +118,17 @@ architecture rtl of toplevel is
   signal s_vga_rst : std_logic;
   signal s_vga_clk : std_logic;
 
+  signal s_xram_cyc : std_logic;
+  signal s_xram_stb : std_logic;
+  signal s_xram_adr : std_logic_vector(31 downto 2);
+  signal s_xram_dat_w : std_logic_vector(31 downto 0);
+  signal s_xram_we : std_logic;
+  signal s_xram_sel : std_logic_vector(3 downto 0);
+  signal s_xram_dat : std_logic_vector(31 downto 0);
+  signal s_xram_ack : std_logic;
+  signal s_xram_stall : std_logic;
+  signal s_xram_err : std_logic;
+
   signal s_io_switches : std_logic_vector(31 downto 0);
   signal s_io_buttons : std_logic_vector(31 downto 0);
   signal s_io_kb_scancode : std_logic_vector(8 downto 0);
@@ -206,7 +217,7 @@ begin
       COLOR_BITS_R => VGA_R'length,
       COLOR_BITS_G => VGA_G'length,
       COLOR_BITS_B => VGA_B'length,
-      LOG2_VRAM_SIZE => 16,          -- 4*2^16 = 256 KiB
+      LOG2_VRAM_SIZE => 18,          -- 2^18 = 256 KiB
       NUM_VIDEO_LAYERS => 2,
       VIDEO_CONFIG => C_1920_1080
     )
@@ -224,6 +235,18 @@ begin
       o_vga_hs => VGA_HS,
       o_vga_vs => VGA_VS,
 
+      -- XRAM interface.
+      o_xram_cyc => s_xram_cyc,
+      o_xram_stb => s_xram_stb,
+      o_xram_adr => s_xram_adr,
+      o_xram_dat => s_xram_dat_w,
+      o_xram_we => s_xram_we,
+      o_xram_sel => s_xram_sel,
+      i_xram_dat => s_xram_dat,
+      i_xram_ack => s_xram_ack,
+      i_xram_stall => s_xram_stall,
+      i_xram_err => s_xram_err,
+
       -- I/O registers.
       i_io_switches => s_io_switches,
       i_io_buttons => s_io_buttons,
@@ -234,6 +257,13 @@ begin
       i_io_mousebtns => s_io_mousebtns,
       o_io_regs_w => s_io_regs_w
     );
+
+  -- XRAM.
+  -- TODO(m): Implement me!
+  s_xram_dat <= (others => '0');
+  s_xram_ack <= '0';
+  s_xram_stall <= '0';
+  s_xram_err <= '0';
 
   -- I/O: PS/2 keyboard input.
   ps2_keyboard_1: entity work.ps2_keyboard
