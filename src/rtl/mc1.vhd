@@ -139,7 +139,10 @@ begin
   --------------------------------------------------------------------------------------------------
   -- CPU core
   --------------------------------------------------------------------------------------------------
-  mrisc32_core_1: entity mrisc32.core
+
+  -- TODO(m): Replace this with the Harvard architecture version (mrisc32.core) and use a full
+  -- 2 x 4 crossbar instead of the 1 x 4 memory mux.
+  mrisc32_core_1: entity mrisc32.core_1mem
     generic map (
       CONFIG => C_CORE_CONFIG_FULL
     )
@@ -148,16 +151,16 @@ begin
       i_rst => i_cpu_rst,
 
       -- Data interface.
-      o_wb_cyc => s_cpu_cyc,
-      o_wb_stb => s_cpu_stb,
-      o_wb_adr => s_cpu_adr,
-      o_wb_dat => s_cpu_dat_w,
-      o_wb_we => s_cpu_we,
-      o_wb_sel => s_cpu_sel,
-      i_wb_dat => s_cpu_dat,
-      i_wb_ack => s_cpu_ack,
-      i_wb_stall => s_cpu_stall,
-      i_wb_err => s_cpu_err,
+      o_mem_cyc => s_cpu_cyc,
+      o_mem_stb => s_cpu_stb,
+      o_mem_adr => s_cpu_adr,
+      o_mem_dat => s_cpu_dat_w,
+      o_mem_we => s_cpu_we,
+      o_mem_sel => s_cpu_sel,
+      i_mem_dat => s_cpu_dat,
+      i_mem_ack => s_cpu_ack,
+      i_mem_stall => s_cpu_stall,
+      i_mem_err => s_cpu_err,
 
       -- Debug trace interface.
       o_debug_trace => o_debug_trace
