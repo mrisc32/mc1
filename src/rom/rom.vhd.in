@@ -34,7 +34,7 @@ entity rom is
     -- See: https://cdn.opencores.org/downloads/wbspec_b4.pdf
     i_wb_cyc : in std_logic;
     i_wb_stb : in std_logic;
-    i_wb_adr : in std_logic_vector(31 downto 2);
+    i_wb_adr : in std_logic_vector(29 downto 0);
     o_wb_dat : out std_logic_vector(31 downto 0);
     o_wb_ack : out std_logic;
     o_wb_stall : out std_logic
@@ -64,7 +64,7 @@ begin
   o_wb_stall <= '0';
 
   -- Actual ROM.
-  s_rom_addr <= unsigned(i_wb_adr(C_ADDR_BITS+1 downto 2));
+  s_rom_addr <= unsigned(i_wb_adr(C_ADDR_BITS-1 downto 0));
   process(i_clk)
   begin
     if rising_edge(i_clk) then

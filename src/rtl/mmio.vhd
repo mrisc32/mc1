@@ -43,7 +43,7 @@ entity mmio is
     i_wb_clk : in std_logic;
     i_wb_cyc : in std_logic;
     i_wb_stb : in std_logic;
-    i_wb_adr : in std_logic_vector(31 downto 2);
+    i_wb_adr : in std_logic_vector(29 downto 0);
     i_wb_dat : in std_logic_vector(31 downto 0);
     i_wb_we : in std_logic;
     i_wb_sel : in std_logic_vector(32/8-1 downto 0);
@@ -195,7 +195,7 @@ begin
   -- Wishbone interface.
   --------------------------------------------------------------------------------------------------
 
-  s_reg_adr <= unsigned(i_wb_adr(6 downto 2));
+  s_reg_adr <= unsigned(i_wb_adr(4 downto 0));
   s_request <= i_wb_cyc and i_wb_stb;
   s_we <= s_request and i_wb_we;
 

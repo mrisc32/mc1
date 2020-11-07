@@ -68,7 +68,7 @@ entity mc1 is
     -- External RAM interface.
     o_xram_cyc : out std_logic;
     o_xram_stb : out std_logic;
-    o_xram_adr : out std_logic_vector(31 downto 2);
+    o_xram_adr : out std_logic_vector(29 downto 0);
     o_xram_dat : out std_logic_vector(31 downto 0);
     o_xram_we : out std_logic;
     o_xram_sel : out std_logic_vector(3 downto 0);
@@ -86,7 +86,7 @@ architecture rtl of mc1 is
   -- CPU memory interface (Wishbone B4 pipelined master).
   signal s_cpu_cyc : std_logic;
   signal s_cpu_stb : std_logic;
-  signal s_cpu_adr : std_logic_vector(31 downto 2);
+  signal s_cpu_adr : std_logic_vector(29 downto 0);
   signal s_cpu_dat_w : std_logic_vector(31 downto 0);
   signal s_cpu_we : std_logic;
   signal s_cpu_sel : std_logic_vector(3 downto 0);
@@ -98,7 +98,7 @@ architecture rtl of mc1 is
   -- ROM memory interface (Wishbone B4 pipelined slave).
   signal s_rom_cyc : std_logic;
   signal s_rom_stb : std_logic;
-  signal s_rom_adr : std_logic_vector(31 downto 2);
+  signal s_rom_adr : std_logic_vector(29 downto 0);
   signal s_rom_dat : std_logic_vector(31 downto 0);
   signal s_rom_ack : std_logic;
   signal s_rom_stall : std_logic;
@@ -107,7 +107,7 @@ architecture rtl of mc1 is
   -- Internal VRAM memory interface (Wishbone B4 pipelined slave).
   signal s_vram_cyc : std_logic;
   signal s_vram_stb : std_logic;
-  signal s_vram_adr : std_logic_vector(31 downto 2);
+  signal s_vram_adr : std_logic_vector(29 downto 0);
   signal s_vram_dat_w : std_logic_vector(31 downto 0);
   signal s_vram_we : std_logic;
   signal s_vram_sel : std_logic_vector(3 downto 0);
@@ -116,18 +116,10 @@ architecture rtl of mc1 is
   signal s_vram_stall : std_logic;
   signal s_vram_err : std_logic;
 
-  -- Video logic signals.
-  signal s_video_adr : std_logic_vector(LOG2_VRAM_SIZE-3 downto 0);
-  signal s_video_dat : std_logic_vector(31 downto 0);
-  signal s_raster_y : std_logic_vector(15 downto 0);
-
-  -- Video logic signals in the CPU clock domain.
-  signal s_raster_y_cpu : std_logic_vector(15 downto 0);
-
   -- Memory mapped I/O interface (Wishbone B4 pipelined slave).
   signal s_io_cyc : std_logic;
   signal s_io_stb : std_logic;
-  signal s_io_adr : std_logic_vector(31 downto 2);
+  signal s_io_adr : std_logic_vector(29 downto 0);
   signal s_io_dat_w : std_logic_vector(31 downto 0);
   signal s_io_we : std_logic;
   signal s_io_sel : std_logic_vector(3 downto 0);
@@ -135,6 +127,14 @@ architecture rtl of mc1 is
   signal s_io_ack : std_logic;
   signal s_io_stall : std_logic;
   signal s_io_err : std_logic;
+
+  -- Video logic signals.
+  signal s_video_adr : std_logic_vector(LOG2_VRAM_SIZE-3 downto 0);
+  signal s_video_dat : std_logic_vector(31 downto 0);
+  signal s_raster_y : std_logic_vector(15 downto 0);
+
+  -- Video logic signals in the CPU clock domain.
+  signal s_raster_y_cpu : std_logic_vector(15 downto 0);
 begin
   --------------------------------------------------------------------------------------------------
   -- CPU core
@@ -258,7 +258,7 @@ begin
       i_wb_clk => i_cpu_clk,
       i_wb_cyc => s_vram_cyc,
       i_wb_stb => s_vram_stb,
-      i_wb_adr => s_vram_adr(LOG2_VRAM_SIZE-1 downto 2),
+      i_wb_adr => s_vram_adr(LOG2_VRAM_SIZE-3 downto 0),
       i_wb_dat => s_vram_dat_w,
       i_wb_we => s_vram_we,
       i_wb_sel => s_vram_sel,

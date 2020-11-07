@@ -120,7 +120,7 @@ architecture rtl of toplevel is
 
   signal s_xram_cyc : std_logic;
   signal s_xram_stb : std_logic;
-  signal s_xram_adr : std_logic_vector(31 downto 2);
+  signal s_xram_adr : std_logic_vector(29 downto 0);
   signal s_xram_dat_w : std_logic_vector(31 downto 0);
   signal s_xram_we : std_logic;
   signal s_xram_sel : std_logic_vector(3 downto 0);

@@ -39,7 +39,7 @@ entity memory_mux is
     -- Wishbone master interface.
     i_wb_cyc : in std_logic;
     i_wb_stb : in std_logic;
-    i_wb_adr : in std_logic_vector(31 downto 2);
+    i_wb_adr : in std_logic_vector(29 downto 0);
     i_wb_dat : in std_logic_vector(31 downto 0);
     i_wb_we : in std_logic;
     i_wb_sel : in std_logic_vector(32/8-1 downto 0);
@@ -51,7 +51,7 @@ entity memory_mux is
     -- Wishbone slave interface 0.
     o_wb_cyc_0 : out std_logic;
     o_wb_stb_0 : out std_logic;
-    o_wb_adr_0 : out std_logic_vector(31 downto 2);
+    o_wb_adr_0 : out std_logic_vector(29 downto 0);
     o_wb_dat_0 : out std_logic_vector(31 downto 0);
     o_wb_we_0 : out std_logic;
     o_wb_sel_0 : out std_logic_vector(32/8-1 downto 0);
@@ -63,7 +63,7 @@ entity memory_mux is
     -- Wishbone slave interface 1.
     o_wb_cyc_1 : out std_logic;
     o_wb_stb_1 : out std_logic;
-    o_wb_adr_1 : out std_logic_vector(31 downto 2);
+    o_wb_adr_1 : out std_logic_vector(29 downto 0);
     o_wb_dat_1 : out std_logic_vector(31 downto 0);
     o_wb_we_1 : out std_logic;
     o_wb_sel_1 : out std_logic_vector(32/8-1 downto 0);
@@ -75,7 +75,7 @@ entity memory_mux is
     -- Wishbone slave interface 2.
     o_wb_cyc_2 : out std_logic;
     o_wb_stb_2 : out std_logic;
-    o_wb_adr_2 : out std_logic_vector(31 downto 2);
+    o_wb_adr_2 : out std_logic_vector(29 downto 0);
     o_wb_dat_2 : out std_logic_vector(31 downto 0);
     o_wb_we_2 : out std_logic;
     o_wb_sel_2 : out std_logic_vector(32/8-1 downto 0);
@@ -87,7 +87,7 @@ entity memory_mux is
     -- Wishbone slave interface 3.
     o_wb_cyc_3 : out std_logic;
     o_wb_stb_3 : out std_logic;
-    o_wb_adr_3 : out std_logic_vector(31 downto 2);
+    o_wb_adr_3 : out std_logic_vector(29 downto 0);
     o_wb_dat_3 : out std_logic_vector(31 downto 0);
     o_wb_we_3 : out std_logic;
     o_wb_sel_3 : out std_logic_vector(32/8-1 downto 0);
@@ -108,10 +108,10 @@ architecture rtl of memory_mux is
   signal s_next_result_port : std_logic_vector(1 downto 0);
 begin
   -- Which interface is activated?
-  s_stb_0 <= i_wb_stb when i_wb_adr(31 downto 30) = "00" else '0';
-  s_stb_1 <= i_wb_stb when i_wb_adr(31 downto 30) = "01" else '0';
-  s_stb_2 <= i_wb_stb when i_wb_adr(31 downto 30) = "10" else '0';
-  s_stb_3 <= i_wb_stb when i_wb_adr(31 downto 30) = "11" else '0';
+  s_stb_0 <= i_wb_stb when i_wb_adr(29 downto 28) = "00" else '0';
+  s_stb_1 <= i_wb_stb when i_wb_adr(29 downto 28) = "01" else '0';
+  s_stb_2 <= i_wb_stb when i_wb_adr(29 downto 28) = "10" else '0';
+  s_stb_3 <= i_wb_stb when i_wb_adr(29 downto 28) = "11" else '0';
 
   -- Select which interface to receive data from, based on the STB
   -- signals of the previous cycle.
