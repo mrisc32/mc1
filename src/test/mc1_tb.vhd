@@ -46,11 +46,9 @@ architecture tb of mc1_tb is
   -- (1920 + hblank) x (1080 + vblank) = 2475000 cycles per frame
   constant C_TEST_CYCLES : integer := 2475000 * C_TEST_FRAMES;
 
-  --  25.175 MHz -> 19.8609732 ns
-  --  40.000 MHz -> 12.5 ns
-  --  74.375 MHz -> 6.72268908 ns
-  -- 148.500 MHz -> 3.36700337 ns
-  constant C_CLK_HALF_PERIOD : time := 3.36700337 ns;
+  -- 1920x1080: 148.500 MHz
+  constant C_CPU_CLK_HZ : positive := 148_500_000;
+  constant C_CLK_HALF_PERIOD : time := 1000 ms / (2 * C_CPU_CLK_HZ);
 
   signal s_rst : std_logic;
   signal s_clk : std_logic;
@@ -66,10 +64,11 @@ begin
   -- Instantiate the MC1 machine.
   mc1_1: entity work.mc1
     generic map (
+      CPU_CLK_HZ => C_CPU_CLK_HZ,
       COLOR_BITS_R => s_r'length,
       COLOR_BITS_G => s_g'length,
       COLOR_BITS_B => s_b'length,
-      LOG2_VRAM_SIZE => 15,          -- 4*2^15 = 128 KiB
+      LOG2_VRAM_SIZE => 17,          -- 2^17 = 128 KiB
       VIDEO_CONFIG => C_1920_1080
     )
     port map (
@@ -87,8 +86,19 @@ begin
       o_vga_vs => s_vsync,
 
       -- I/O interfaces.
-      i_io_switches => 32x"4",
+      i_io_switches => 32x"0",
       i_io_buttons => (others => '0'),
+      i_io_kb_scancode => (others => '0'),
+      i_io_kb_press => '0',
+      i_io_kb_stb => '0',
+      i_io_mousepos => (others => '0'),
+      i_io_mousebtns => (others => '0'),
+
+      -- XRAM (none).
+      i_xram_dat => (others => '0'),
+      i_xram_ack => '0',
+      i_xram_stall => '0',
+      i_xram_err => '0',
 
       -- Debug trace interface.
       o_debug_trace => s_debug_trace
