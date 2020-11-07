@@ -28,7 +28,6 @@ def main():
     # Add the MC1 design.
     lib.add_source_files("rtl/dither.vhd")
     lib.add_source_files("rtl/mc1.vhd")
-    lib.add_source_files("rtl/memory_mux.vhd")
     lib.add_source_files("rtl/mmio_types.vhd")
     lib.add_source_files("rtl/mmio.vhd")
     lib.add_source_files("rtl/prng.vhd")
@@ -48,6 +47,7 @@ def main():
     lib.add_source_files("rtl/vid_vcpp_stack.vhd")
     lib.add_source_files("rtl/vid_vcpp.vhd")
     lib.add_source_files("rtl/vram.vhd")
+    lib.add_source_files("rtl/wb_crossbar_2x4.vhd")
 
     # Add the MC1 boot ROM (must be generated with "make").
     lib.add_source_files("rom/out/rom.vhd")
