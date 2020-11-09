@@ -90,19 +90,18 @@ end toplevel;
 architecture rtl of toplevel is
   -- Clock configuration.
   constant C_USE_GPIO_CLK : boolean := false;
-  constant C_SYSTEM_CLK_MHZ : string := "50 MHz";
+  constant C_SYSTEM_CLK_HZ : integer := 50_000_000;
 
   -- 70 MHz seems to be a good safe bet, but going higher is certainly possible.
-  constant C_CPU_CLK_MHZ : string := "70 MHz";
-  constant C_CPU_CLK_HZ_INT : integer := 70_000_000;
+  constant C_CPU_CLK_HZ : integer := 70_000_000;
 
   -- Pixel frequencies for supported video modes:
   --  1920x1080 @ 60 Hz: 148.500 MHz
   --   1280x720 @ 60 Hz:  74.250 MHz
   --    800x600 @ 60 Hz:  40.000 MHz
   --    640x480 @ 60 Hz:  25.175 MHz
-  constant C_VGA_REF_CLK_MHZ : string := "24 MHz";  -- A good reference frequency for video clocks.
-  constant C_VGA_CLK_MHZ : string := "148.500 MHz";
+  constant C_VGA_REF_CLK_HZ : integer := 24_000_000;  -- Good reference freq. for video clocks
+  constant C_VGA_CLK_HZ : integer := 148_500_000;
 
   signal s_system_clk : std_logic;
   signal s_system_rst : std_logic;
@@ -160,14 +159,13 @@ begin
       o_rst => s_system_rst
     );
 
-  -- Generate the CPU clock signal.
-  -- We also generate a reference clock to be used by the VGA PLL.
+  -- Generate the CPU clock signal and a reference clock to be used by the VGA PLL.
   pll_cpu: entity work.pll
     generic map (
-      REFERENCE_CLOCK_FREQUENCY => C_SYSTEM_CLK_MHZ,
+      REFERENCE_CLOCK_FREQUENCY => C_SYSTEM_CLK_HZ,
       NUMBER_OF_CLOCKS => 2,
-      OUTPUT_CLOCK_FREQUENCY0 => C_CPU_CLK_MHZ,
-      OUTPUT_CLOCK_FREQUENCY1 => C_VGA_REF_CLK_MHZ
+      OUTPUT_CLOCK_FREQUENCY0 => C_CPU_CLK_HZ,
+      OUTPUT_CLOCK_FREQUENCY1 => C_VGA_REF_CLK_HZ
     )
     port map
     (
@@ -181,9 +179,9 @@ begin
   -- Generate the VGA clock signal.
   pll_vga: entity work.pll
     generic map (
-      REFERENCE_CLOCK_FREQUENCY => C_VGA_REF_CLK_MHZ,
+      REFERENCE_CLOCK_FREQUENCY => C_VGA_REF_CLK_HZ,
       NUMBER_OF_CLOCKS => 1,
-      OUTPUT_CLOCK_FREQUENCY0 => C_VGA_CLK_MHZ
+      OUTPUT_CLOCK_FREQUENCY0 => C_VGA_CLK_HZ
     )
     port map
     (
@@ -213,7 +211,7 @@ begin
   -- Instantiate the MC1 machine.
   mc1_1: entity work.mc1
     generic map (
-      CPU_CLK_HZ => C_CPU_CLK_HZ_INT,
+      CPU_CLK_HZ => C_CPU_CLK_HZ,
       COLOR_BITS_R => VGA_R'length,
       COLOR_BITS_G => VGA_G'length,
       COLOR_BITS_B => VGA_B'length,
@@ -268,7 +266,7 @@ begin
   -- I/O: PS/2 keyboard input.
   ps2_keyboard_1: entity work.ps2_keyboard
     generic map (
-      clk_freq => C_CPU_CLK_HZ_INT
+      clk_freq => C_CPU_CLK_HZ
     )
     port map (
       i_rst => s_cpu_rst,
