@@ -70,6 +70,7 @@ ENABLE_DEMO = yes
 DEMO_INTERACTIVE_MODE = yes
 DEMO_ENABLE_SELFTEST = no
 DEMO_ENABLE_DHRYSTONE = no
+DEMO_ENABLE_RAM_TEST = no
 
 DEMO_OBJS =
 ifeq ($(ENABLE_DEMO),yes)
@@ -95,6 +96,9 @@ ifeq ($(ENABLE_DEMO),yes)
         $(OUT)/dhry_1.o \
         $(OUT)/dhry_2.o
   endif
+endif
+ifeq ($(DEMO_ENABLE_RAM_TEST),yes)
+  DEMO_FLAGS += -DENABLE_RAM_TEST
 endif
 
 $(OUT)/console.o: demo/console.cpp

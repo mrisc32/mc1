@@ -28,6 +28,7 @@
 #include <mc1/vconsole.h>
 
 #include <cstring>
+#include <random>
 #include <mr32intrin.h>
 
 #ifdef ENABLE_SELFTEST
@@ -121,6 +122,119 @@ void print_addr_and_size(const char* str, const uint32_t addr, const uint32_t si
   print_size(size);
   vcon_print("\n");
 }
+
+#ifdef ENABLE_RAM_TEST
+void run_ram_test(volatile uint32_t* mem_start,
+                  volatile uint32_t* mem_end,
+                  const int inner_passes,
+                  const int outer_passes) {
+  {
+    vcon_print("  Word test: [");
+    static const uint32_t TEST_DATA[] = {0x12345678, 0x11223344, 0xdeadbeef};
+    volatile auto* ptr = reinterpret_cast<volatile uint32_t*>(mem_start);
+    for (unsigned i = 0; i < sizeof(TEST_DATA) / sizeof(TEST_DATA[0]); ++i) {
+      ptr[i] = TEST_DATA[i];
+    }
+    for (unsigned i = 0; i < sizeof(TEST_DATA) / sizeof(TEST_DATA[0]); ++i) {
+      const auto x = ptr[i];
+      if (i > 0)
+        vcon_print(", ");
+      vcon_print("0x");
+      vcon_print_hex(x);
+    }
+    vcon_print("]\n");
+  }
+
+  {
+    vcon_print("  Byte test: [");
+    static const char TEST_DATA[] = "0123456789abcdef This is a test string!";
+    volatile auto* ptr = reinterpret_cast<volatile char*>(mem_start);
+    for (unsigned i = 0; i < sizeof(TEST_DATA); ++i) {
+      ptr[i] = TEST_DATA[i];
+    }
+    for (unsigned i = 0; i < sizeof(TEST_DATA); ++i) {
+      char str[2];
+      str[0] = ptr[i];
+      str[1] = 0;
+      vcon_print(str);
+    }
+    vcon_print("]\n");
+  }
+
+  vcon_print("  Random test: [");
+  int total_fails = 0;
+  for (int pass = 0; pass < outer_passes; ++pass) {
+    auto seed = pass * 12345;
+    int num_fails = 0;
+
+    for (int i = 0; i < inner_passes; ++i) {
+      // Write...
+      {
+        std::mt19937 prng(seed);
+        for (auto ptr = mem_start; ptr < mem_end; ++ptr)
+          *ptr = static_cast<uint32_t>(prng());
+      }
+
+      // Read and check...
+      {
+        std::mt19937 prng(seed);
+        for (auto ptr = mem_start; ptr < mem_end; ++ptr) {
+          const auto x = *ptr;
+          const auto expected = static_cast<uint32_t>(prng());
+          if (x != expected)
+            ++num_fails;
+        }
+      }
+    }
+
+    if (pass > 0)
+      vcon_print(", ");
+    vcon_print_dec(num_fails);
+    total_fails += num_fails;
+  }
+  vcon_print("]: ");
+  vcon_print_dec(total_fails);
+  vcon_print(" / ");
+  vcon_print_dec(inner_passes * outer_passes * static_cast<int>(mem_end - mem_start));
+  vcon_print(" errors\n\n");
+}
+
+void run_xram_test() {
+  const auto xram_size = MMIO(XRAMSIZE);
+  if (xram_size == 0u)
+    return;
+
+  vcon_print("XRAM test:\n");
+
+  // Pick an area of the XRAM that is likely to be unpopulated by data (e.g. data structures from
+  // the memory allocator).
+  volatile auto* mem_start = reinterpret_cast<uint32_t*>(XRAM_START + 2 * xram_size / 4);
+  volatile auto* mem_end = reinterpret_cast<uint32_t*>(XRAM_START + 3 * xram_size / 4);
+
+  run_ram_test(mem_start, mem_end, 2, 5);
+}
+
+void run_vram_test() {
+  vcon_print("VRAM test:\n");
+  // Allocate a reasonable size of VRAM for testing.
+  auto vram_size = mem_query_free(MEM_TYPE_VIDEO);
+  while (vram_size > 0u) {
+    // Try to allocate a continous block of the given size.
+    volatile auto* mem_start = reinterpret_cast<uint32_t*>(mem_alloc(vram_size, MEM_TYPE_VIDEO));
+    if (mem_start != nullptr) {
+      // Run the memory test.
+      volatile auto* mem_end = &mem_start[vram_size/4];
+      run_ram_test(mem_start, mem_end, 50, 5);
+
+      // Done!
+      break;
+    }
+
+    // Try a smaller block size (75% of the previous size).
+    vram_size = (3 * vram_size) >> 2;
+  }
+}
+#endif  // ENABLE_RAM_TEST
 
 class console_t {
 public:
@@ -221,6 +335,11 @@ void console_t::init() {
   } else {
     vcon_print("No card found.\n");
   }
+
+#ifdef ENABLE_RAM_TEST
+  run_xram_test();
+  run_vram_test();
+#endif
 
   // Give instructions.
   vcon_print("\nUse switches to select demo...\n\n\n");
