@@ -84,6 +84,39 @@ float elapsed_seconds(const clkticks_t start, const clkticks_t end) {
 }
 #endif
 
+#ifdef ENABLE_SELFTEST
+void selftest_callback(const int ok) {
+  vcon_print(ok ? "*" : "!");
+}
+#endif
+
+template <int N>
+void print_dec_times_N(const int x_times_N) {
+  vcon_print_dec(x_times_N / N);
+  vcon_print(".");
+  vcon_print_dec(x_times_N % N);
+}
+
+void print_size(uint32_t size) {
+  static const char* SIZE_SUFFIX[] = {" bytes", " KB", " MB", " GB"};
+  int size_div = 0;
+  while (size >= 1024u && (size & 1023u) == 0u) {
+    size = size >> 10;
+    ++size_div;
+  }
+  vcon_print_dec(static_cast<int>(size));
+  vcon_print(SIZE_SUFFIX[size_div]);
+}
+
+void print_addr_and_size(const char* str, const uint32_t addr, const uint32_t size) {
+  vcon_print(str);
+  vcon_print("0x");
+  vcon_print_hex(addr);
+  vcon_print(", ");
+  print_size(size);
+  vcon_print("\n");
+}
+
 class console_t {
 public:
   void init();
@@ -91,27 +124,6 @@ public:
   void draw(const int frame_no);
 
 private:
-#ifdef ENABLE_SELFTEST
-  static void selftest_callback(const int ok) {
-    vcon_print(ok ? "*" : "!");
-  }
-#endif
-
-  static void print_dec_times_10(const int x_times_10) {
-    vcon_print_dec(x_times_10 / 10);
-    vcon_print(".");
-    vcon_print_dec(x_times_10 % 10);
-  }
-
-  static void print_addr_and_size(const char* str, const uint32_t addr, const uint32_t size) {
-    vcon_print(str);
-    vcon_print("0x");
-    vcon_print_hex(addr);
-    vcon_print(", ");
-    vcon_print_dec(static_cast<int>(size));
-    vcon_print(" bytes\n");
-  }
-
   static const int MAX_COMMAND_LEN = 127;
 
   void* m_vcon_mem;
@@ -144,7 +156,7 @@ void console_t::init() {
 
   // Print CPU info.
   vcon_print("\n\nCPU Freq: ");
-  print_dec_times_10((static_cast<int>(MMIO(CPUCLK)) + 50000) / 100000);
+  print_dec_times_N<10>((static_cast<int>(MMIO(CPUCLK)) + 50000) / 100000);
   vcon_print(" MHz\n\n");
 
 #ifdef ENABLE_SELFTEST
@@ -176,11 +188,11 @@ void console_t::init() {
     const auto dmips_per_mhz = (dmips * 1000000.0f) / static_cast<float>(MMIO(CPUCLK));
 
     // Print results.
-    print_dec_times_10(_mr32_ftoir(dhrystones_per_second * 10.0f, 0));
+    print_dec_times_N<10>(_mr32_ftoir(dhrystones_per_second * 10.0f, 0));
     vcon_print(" Dhrystones/s, ");
-    print_dec_times_10(_mr32_ftoir(dmips * 10.0f, 0));
+    print_dec_times_N<10>(_mr32_ftoir(dmips * 10.0f, 0));
     vcon_print(" DMIPS, ");
-    print_dec_times_10(_mr32_ftoir(dmips_per_mhz * 10.0f, 0));
+    print_dec_times_N<100>(_mr32_ftoir(dmips_per_mhz * 100.0f, 0));
     vcon_print(" DMIPS/MHz\n\n");
   }
 #endif
