@@ -126,7 +126,7 @@ sevseg_print:
 
 7$:
     ; Get glyph.
-    ldw     s5, s2, s4
+    ldub    s5, s2, s4
 
     ; Print glyph.
 2$:

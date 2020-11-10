@@ -26,39 +26,39 @@ use ieee.std_logic_1164.all;
 
 entity pll is
   generic(
-    REFERENCE_CLOCK_FREQUENCY : string := "100.0 MHz";
+    REFERENCE_CLOCK_FREQUENCY : integer := 100_000_000;
     NUMBER_OF_CLOCKS : positive := 1;
 
-    OUTPUT_CLOCK_FREQUENCY0 : string := "100.0 MHz";
-    PHASE_SHIFT0 : string := "0 ps";
+    OUTPUT_CLOCK_FREQUENCY0 : integer := 100_000_000;
+    PHASE_SHIFT0 : time := 0 ps;
     DUTY_CYCLE0 : positive := 50;
 
-    OUTPUT_CLOCK_FREQUENCY1 : string := "0 MHz";
-    PHASE_SHIFT1 : string := "0 ps";
+    OUTPUT_CLOCK_FREQUENCY1 : integer := 0;
+    PHASE_SHIFT1 : time := 0 ps;
     DUTY_CYCLE1 : positive := 50;
 
-    OUTPUT_CLOCK_FREQUENCY2 : string := "0 MHz";
-    PHASE_SHIFT2 : string := "0 ps";
+    OUTPUT_CLOCK_FREQUENCY2 : integer := 0;
+    PHASE_SHIFT2 : time := 0 ps;
     DUTY_CYCLE2 : positive := 50;
 
-    OUTPUT_CLOCK_FREQUENCY3 : string := "0 MHz";
-    PHASE_SHIFT3 : string := "0 ps";
+    OUTPUT_CLOCK_FREQUENCY3 : integer := 0;
+    PHASE_SHIFT3 : time := 0 ps;
     DUTY_CYCLE3 : positive := 50;
 
-    OUTPUT_CLOCK_FREQUENCY4 : string := "0 MHz";
-    PHASE_SHIFT4 : string := "0 ps";
+    OUTPUT_CLOCK_FREQUENCY4 : integer := 0;
+    PHASE_SHIFT4 : time := 0 ps;
     DUTY_CYCLE4 : positive := 50;
 
-    OUTPUT_CLOCK_FREQUENCY5 : string := "0 MHz";
-    PHASE_SHIFT5 : string := "0 ps";
+    OUTPUT_CLOCK_FREQUENCY5 : integer := 0;
+    PHASE_SHIFT5 : time := 0 ps;
     DUTY_CYCLE5 : positive := 50;
 
-    OUTPUT_CLOCK_FREQUENCY6 : string := "0 MHz";
-    PHASE_SHIFT6 : string := "0 ps";
+    OUTPUT_CLOCK_FREQUENCY6 : integer := 0;
+    PHASE_SHIFT6 : time := 0 ps;
     DUTY_CYCLE6 : positive := 50;
 
-    OUTPUT_CLOCK_FREQUENCY7 : string := "0 MHz";
-    PHASE_SHIFT7 : string := "0 ps";
+    OUTPUT_CLOCK_FREQUENCY7 : integer := 0;
+    PHASE_SHIFT7 : time := 0 ps;
     DUTY_CYCLE7 : positive := 50
   );
   port(
@@ -131,42 +131,57 @@ architecture rtl of pll is
       o_clk7 : out std_logic
     );
   end component;
+
+  function to_mhz_string(hz : integer) return string is
+    variable v_mhz : real;
+  begin
+    v_mhz := real(hz) / 1000000.0;
+    return real'image(v_mhz) & " MHz";
+  end function;
+
+  function to_string(t : time) return string is
+  begin
+    if t = 0 ps then
+      return "0 ps";
+    end if;
+    return time'image(t);
+  end function;
 begin
   pll_1: pll_intel
     generic map (
-      REFERENCE_CLOCK_FREQUENCY => REFERENCE_CLOCK_FREQUENCY,
+      REFERENCE_CLOCK_FREQUENCY => to_mhz_string(REFERENCE_CLOCK_FREQUENCY),
       NUMBER_OF_CLOCKS => NUMBER_OF_CLOCKS,
 
-      OUTPUT_CLOCK_FREQUENCY0 => OUTPUT_CLOCK_FREQUENCY0,
-      PHASE_SHIFT0 => PHASE_SHIFT0,
+      OUTPUT_CLOCK_FREQUENCY0 => to_mhz_string(OUTPUT_CLOCK_FREQUENCY0),
+      PHASE_SHIFT0 => to_string(PHASE_SHIFT0),
       DUTY_CYCLE0 => DUTY_CYCLE0,
 
-      OUTPUT_CLOCK_FREQUENCY1 => OUTPUT_CLOCK_FREQUENCY1,
-      PHASE_SHIFT1 => PHASE_SHIFT1,
+      OUTPUT_CLOCK_FREQUENCY1 => to_mhz_string(OUTPUT_CLOCK_FREQUENCY1),
+      PHASE_SHIFT1 => to_string(PHASE_SHIFT1),
       DUTY_CYCLE1 => DUTY_CYCLE1,
 
-      OUTPUT_CLOCK_FREQUENCY2 => OUTPUT_CLOCK_FREQUENCY2,
-      PHASE_SHIFT2 => PHASE_SHIFT2,
+      OUTPUT_CLOCK_FREQUENCY2 => to_mhz_string(OUTPUT_CLOCK_FREQUENCY2),
+      PHASE_SHIFT2 => to_string(PHASE_SHIFT2),
       DUTY_CYCLE2 => DUTY_CYCLE2,
 
-      OUTPUT_CLOCK_FREQUENCY3 => OUTPUT_CLOCK_FREQUENCY3,
-      PHASE_SHIFT3 => PHASE_SHIFT3,
+      OUTPUT_CLOCK_FREQUENCY3 => to_mhz_string(OUTPUT_CLOCK_FREQUENCY3),
+      PHASE_SHIFT3 => to_string(PHASE_SHIFT3),
       DUTY_CYCLE3 => DUTY_CYCLE3,
 
-      OUTPUT_CLOCK_FREQUENCY4 => OUTPUT_CLOCK_FREQUENCY4,
-      PHASE_SHIFT4 => PHASE_SHIFT4,
+      OUTPUT_CLOCK_FREQUENCY4 => to_mhz_string(OUTPUT_CLOCK_FREQUENCY4),
+      PHASE_SHIFT4 => to_string(PHASE_SHIFT4),
       DUTY_CYCLE4 => DUTY_CYCLE4,
 
-      OUTPUT_CLOCK_FREQUENCY5 => OUTPUT_CLOCK_FREQUENCY5,
-      PHASE_SHIFT5 => PHASE_SHIFT5,
+      OUTPUT_CLOCK_FREQUENCY5 => to_mhz_string(OUTPUT_CLOCK_FREQUENCY5),
+      PHASE_SHIFT5 => to_string(PHASE_SHIFT5),
       DUTY_CYCLE5 => DUTY_CYCLE5,
 
-      OUTPUT_CLOCK_FREQUENCY6 => OUTPUT_CLOCK_FREQUENCY6,
-      PHASE_SHIFT6 => PHASE_SHIFT6,
+      OUTPUT_CLOCK_FREQUENCY6 => to_mhz_string(OUTPUT_CLOCK_FREQUENCY6),
+      PHASE_SHIFT6 => to_string(PHASE_SHIFT6),
       DUTY_CYCLE6 => DUTY_CYCLE6,
 
-      OUTPUT_CLOCK_FREQUENCY7 => OUTPUT_CLOCK_FREQUENCY7,
-      PHASE_SHIFT7 => PHASE_SHIFT7,
+      OUTPUT_CLOCK_FREQUENCY7 => to_mhz_string(OUTPUT_CLOCK_FREQUENCY7),
+      PHASE_SHIFT7 => to_string(PHASE_SHIFT7),
       DUTY_CYCLE7 => DUTY_CYCLE7
     )
     port map (

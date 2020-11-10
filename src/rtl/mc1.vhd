@@ -83,17 +83,28 @@ entity mc1 is
 end mc1;
 
 architecture rtl of mc1 is
-  -- CPU memory interface (Wishbone B4 pipelined master).
-  signal s_cpu_cyc : std_logic;
-  signal s_cpu_stb : std_logic;
-  signal s_cpu_adr : std_logic_vector(29 downto 0);
-  signal s_cpu_dat_w : std_logic_vector(31 downto 0);
-  signal s_cpu_we : std_logic;
-  signal s_cpu_sel : std_logic_vector(3 downto 0);
-  signal s_cpu_dat : std_logic_vector(31 downto 0);
-  signal s_cpu_ack : std_logic;
-  signal s_cpu_stall : std_logic;
-  signal s_cpu_err : std_logic;
+  -- CPU instruction memory interface (Wishbone B4 pipelined master).
+  signal s_cpui_cyc : std_logic;
+  signal s_cpui_stb : std_logic;
+  signal s_cpui_adr_cpu : std_logic_vector(31 downto 2);
+  signal s_cpui_adr : std_logic_vector(29 downto 0);
+  signal s_cpui_dat : std_logic_vector(31 downto 0);
+  signal s_cpui_ack : std_logic;
+  signal s_cpui_stall : std_logic;
+  signal s_cpui_err : std_logic;
+
+  -- CPU data memory interface (Wishbone B4 pipelined master).
+  signal s_cpud_cyc : std_logic;
+  signal s_cpud_stb : std_logic;
+  signal s_cpud_adr_cpu : std_logic_vector(31 downto 2);
+  signal s_cpud_adr : std_logic_vector(29 downto 0);
+  signal s_cpud_dat_w : std_logic_vector(31 downto 0);
+  signal s_cpud_we : std_logic;
+  signal s_cpud_sel : std_logic_vector(3 downto 0);
+  signal s_cpud_dat : std_logic_vector(31 downto 0);
+  signal s_cpud_ack : std_logic;
+  signal s_cpud_stall : std_logic;
+  signal s_cpud_err : std_logic;
 
   -- ROM memory interface (Wishbone B4 pipelined slave).
   signal s_rom_cyc : std_logic;
@@ -140,9 +151,7 @@ begin
   -- CPU core
   --------------------------------------------------------------------------------------------------
 
-  -- TODO(m): Replace this with the Harvard architecture version (mrisc32.core) and use a full
-  -- 2 x 4 crossbar instead of the 1 x 4 memory mux.
-  mrisc32_core_1: entity mrisc32.core_1mem
+  mrisc32_core_1: entity mrisc32.core
     generic map (
       CONFIG => C_CORE_CONFIG_FULL
     )
@@ -150,86 +159,125 @@ begin
       i_clk => i_cpu_clk,
       i_rst => i_cpu_rst,
 
+      -- Instruction interface.
+      o_imem_cyc => s_cpui_cyc,
+      o_imem_stb => s_cpui_stb,
+      o_imem_adr => s_cpui_adr_cpu,
+      i_imem_dat => s_cpui_dat,
+      i_imem_ack => s_cpui_ack,
+      i_imem_stall => s_cpui_stall,
+      i_imem_err => s_cpui_err,
+
       -- Data interface.
-      o_mem_cyc => s_cpu_cyc,
-      o_mem_stb => s_cpu_stb,
-      o_mem_adr => s_cpu_adr,
-      o_mem_dat => s_cpu_dat_w,
-      o_mem_we => s_cpu_we,
-      o_mem_sel => s_cpu_sel,
-      i_mem_dat => s_cpu_dat,
-      i_mem_ack => s_cpu_ack,
-      i_mem_stall => s_cpu_stall,
-      i_mem_err => s_cpu_err,
+      o_dmem_cyc => s_cpud_cyc,
+      o_dmem_stb => s_cpud_stb,
+      o_dmem_adr => s_cpud_adr_cpu,
+      o_dmem_dat => s_cpud_dat_w,
+      o_dmem_we => s_cpud_we,
+      o_dmem_sel => s_cpud_sel,
+      i_dmem_dat => s_cpud_dat,
+      i_dmem_ack => s_cpud_ack,
+      i_dmem_stall => s_cpud_stall,
+      i_dmem_err => s_cpud_err,
 
       -- Debug trace interface.
       o_debug_trace => o_debug_trace
     );
 
+  s_cpui_adr(29 downto 0) <= s_cpui_adr_cpu(31 downto 2);
+  s_cpud_adr(29 downto 0) <= s_cpud_adr_cpu(31 downto 2);
+
+
   --------------------------------------------------------------------------------------------------
   -- Wishbone memory subsystem
   --------------------------------------------------------------------------------------------------
-  memory_mux_1: entity work.memory_mux
+
+  -- This 2 x 4 crossbar connects the CPU instruction and data ports to the four Wishbone slaves
+  -- (ROM, VRAM, XRAM, MMIO).
+  memory_crossbar_1: entity work.wb_crossbar_2x4
+    generic map (
+      ADR_WIDTH => 30,
+      DAT_WIDTH => 32,
+      GRANULARITY => 8
+    )
     port map (
       i_rst => i_cpu_rst,
       i_clk => i_cpu_clk,
 
-      -- Wishbone master interface from the CPU.
-      i_wb_cyc => s_cpu_cyc,
-      i_wb_stb => s_cpu_stb,
-      i_wb_adr => s_cpu_adr,
-      i_wb_dat => s_cpu_dat_w,
-      i_wb_we => s_cpu_we,
-      i_wb_sel => s_cpu_sel,
-      o_wb_dat => s_cpu_dat,
-      o_wb_ack => s_cpu_ack,
-      o_wb_stall => s_cpu_stall,
-      o_wb_err => s_cpu_err,
+      -- Master interface A: CPU data.
+      -- This interface has precedence over interface B, and we want the data port to have
+      -- precedence.
+      i_cyc_a => s_cpud_cyc,
+      i_stb_a => s_cpud_stb,
+      i_adr_a => s_cpud_adr,
+      i_dat_a => s_cpud_dat_w,
+      i_we_a => s_cpud_we,
+      i_sel_a => s_cpud_sel,
+      o_dat_a => s_cpud_dat,
+      o_ack_a => s_cpud_ack,
+      o_stall_a => s_cpud_stall,
+      o_err_a => s_cpud_err,
 
-      -- Wishbone slave interface 0: ROM.
-      o_wb_cyc_0 => s_rom_cyc,
-      o_wb_stb_0 => s_rom_stb,
-      o_wb_adr_0 => s_rom_adr,
-      i_wb_dat_0 => s_rom_dat,
-      i_wb_ack_0 => s_rom_ack,
-      i_wb_stall_0 => s_rom_stall,
-      i_wb_err_0 => s_rom_err,
+      -- Master interface B: CPU instruction.
+      i_cyc_b => s_cpui_cyc,
+      i_stb_b => s_cpui_stb,
+      i_adr_b => s_cpui_adr,
+      i_dat_b => (others => '0'),
+      i_we_b => '0',
+      i_sel_b => (others => '1'),
+      o_dat_b => s_cpui_dat,
+      o_ack_b => s_cpui_ack,
+      o_stall_b => s_cpui_stall,
+      o_err_b => s_cpui_err,
 
-      -- Wishbone slave interface 1: Internal VRAM.
-      o_wb_cyc_1 => s_vram_cyc,
-      o_wb_stb_1 => s_vram_stb,
-      o_wb_adr_1 => s_vram_adr,
-      o_wb_dat_1 => s_vram_dat_w,
-      o_wb_we_1 => s_vram_we,
-      o_wb_sel_1 => s_vram_sel,
-      i_wb_dat_1 => s_vram_dat,
-      i_wb_ack_1 => s_vram_ack,
-      i_wb_stall_1 => s_vram_stall,
-      i_wb_err_1 => s_vram_err,
+      -- Slave interface 0 (0x00000000-0x3fffffff): ROM.
+      o_cyc_0 => s_rom_cyc,
+      o_stb_0 => s_rom_stb,
+      o_adr_0 => s_rom_adr,
+      i_dat_0 => s_rom_dat,
+      i_ack_0 => s_rom_ack,
+      i_stall_0 => s_rom_stall,
+      i_rty_0 => '0',
+      i_err_0 => s_rom_err,
 
-      -- External RAM interface
-      o_wb_cyc_2 => o_xram_cyc,
-      o_wb_stb_2 => o_xram_stb,
-      o_wb_adr_2 => o_xram_adr,
-      o_wb_dat_2 => o_xram_dat,
-      o_wb_we_2 => o_xram_we,
-      o_wb_sel_2 => o_xram_sel,
-      i_wb_dat_2 => i_xram_dat,
-      i_wb_ack_2 => i_xram_ack,
-      i_wb_stall_2 => i_xram_stall,
-      i_wb_err_2 => i_xram_err,
+      -- Slave interface 1 (0x40000000-0x7fffffff): Internal VRAM.
+      o_cyc_1 => s_vram_cyc,
+      o_stb_1 => s_vram_stb,
+      o_adr_1 => s_vram_adr,
+      o_dat_1 => s_vram_dat_w,
+      o_we_1 => s_vram_we,
+      o_sel_1 => s_vram_sel,
+      i_dat_1 => s_vram_dat,
+      i_ack_1 => s_vram_ack,
+      i_stall_1 => s_vram_stall,
+      i_rty_1 => '0',
+      i_err_1 => s_vram_err,
 
-      -- Memory mapped I/O interface.
-      o_wb_cyc_3 => s_io_cyc,
-      o_wb_stb_3 => s_io_stb,
-      o_wb_adr_3 => s_io_adr,
-      o_wb_dat_3 => s_io_dat_w,
-      o_wb_we_3 => s_io_we,
-      o_wb_sel_3 => s_io_sel,
-      i_wb_dat_3 => s_io_dat,
-      i_wb_ack_3 => s_io_ack,
-      i_wb_stall_3 => s_io_stall,
-      i_wb_err_3 => s_io_err
+      -- Slave interface 2 (0x80000000-0xbfffffff): External RAM interface
+      o_cyc_2 => o_xram_cyc,
+      o_stb_2 => o_xram_stb,
+      o_adr_2 => o_xram_adr,
+      o_dat_2 => o_xram_dat,
+      o_we_2 => o_xram_we,
+      o_sel_2 => o_xram_sel,
+      i_dat_2 => i_xram_dat,
+      i_ack_2 => i_xram_ack,
+      i_stall_2 => i_xram_stall,
+      i_rty_2 => '0',
+      i_err_2 => i_xram_err,
+
+      -- Slave interface 3 (0xc0000000-0xffffffff): Memory mapped I/O interface.
+      o_cyc_3 => s_io_cyc,
+      o_stb_3 => s_io_stb,
+      o_adr_3 => s_io_adr,
+      o_dat_3 => s_io_dat_w,
+      o_we_3 => s_io_we,
+      o_sel_3 => s_io_sel,
+      i_dat_3 => s_io_dat,
+      i_ack_3 => s_io_ack,
+      i_stall_3 => s_io_stall,
+      i_rty_3 => '0',
+      i_err_3 => s_io_err
     );
 
   -- Internal ROM.
