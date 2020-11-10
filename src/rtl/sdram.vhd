@@ -230,7 +230,6 @@ architecture arch of sdram is
   signal load_mode_done : std_logic;
   signal active_done    : std_logic;
   signal refresh_done   : std_logic;
-  signal first_word     : std_logic;
   signal read_done      : std_logic;
   signal write_done     : std_logic;
   signal should_refresh : std_logic;
@@ -418,30 +417,10 @@ begin
     end if;
   end process;
 
-  -- latch the output data as it's bursted from the SDRAM
-  latch_sdram_data : process (clk)
-  begin
-    if rising_edge(clk) then
-      valid <= '0';
-
-      if state = READ then
-        -- TODO(m): Add support for more BURST_LENGTH & SDRAM_DATA_WIDTH
-        -- combinations.
-        if first_word = '1' then
-          q_reg(31 downto 16) <= sdram_dq;
-        elsif read_done = '1' then
-          q_reg(15 downto 0) <= sdram_dq;
-          valid <= '1';
-        end if;
-      end if;
-    end if;
-  end process;
-
   -- set wait signals
   load_mode_done <= '1' when wait_counter = LOAD_MODE_WAIT-1 else '0';
   active_done    <= '1' when wait_counter = ACTIVE_WAIT-1    else '0';
   refresh_done   <= '1' when wait_counter = REFRESH_WAIT-1   else '0';
-  first_word     <= '1' when wait_counter = CAS_LATENCY      else '0';
   read_done      <= '1' when wait_counter = READ_WAIT-1      else '0';
   write_done     <= '1' when wait_counter = WRITE_WAIT-1     else '0';
 
@@ -486,7 +465,23 @@ begin
       col2addr(col)   when WRITE,
       (others => '0') when others;
 
-  -- decode the next sub-word from the write buffer
+  -- read the next sub-word as it's bursted from the SDRAM
+  process (clk)
+  begin
+    if rising_edge(clk) then
+      -- TODO(m): Add support for more BURST_LENGTH & SDRAM_DATA_WIDTH
+      -- combinations.
+      valid <= '0';
+      if state = READ and wait_counter = CAS_LATENCY then
+        q_reg(15 downto 0) <= sdram_dq;
+      elsif state = READ and wait_counter = CAS_LATENCY + 1 then
+        q_reg(31 downto 16) <= sdram_dq;
+        valid <= '1';
+      end if;
+    end if;
+  end process;
+
+  -- write the next sub-word from the write buffer
   process (data_reg, state, wait_counter)
   begin
     -- TODO(m): Add support for more BURST_LENGTH & SDRAM_DATA_WIDTH
