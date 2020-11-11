@@ -101,6 +101,10 @@ entity sdram is
     -- When the request signal is asserted, an operation will be performed.
     req : in std_logic;
 
+    -- The ready signal is asserted when the controller is ready to accept a
+    -- new request.
+    ready : out std_logic;
+
     -- The acknowledge signal is asserted by the SDRAM controller when
     -- a request has been accepted.
     ack : out std_logic;
@@ -441,6 +445,9 @@ begin
                     (state = READ and read_done = '1') or
                     (state = WRITE and write_done = '1') or
                     (state = REFRESH and refresh_done = '1') else '0';
+
+  -- assert the ready signal when we're ready to accept a new request
+  ready <= start;
 
   -- assert the acknowledge signal at the beginning of the ACTIVE state
   ack <= '1' when state = ACTIVE and wait_counter = 0 else '0';
