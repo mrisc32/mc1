@@ -95,6 +95,9 @@ entity sdram is
     -- When the write enable signal is asserted, a write operation will be performed.
     we : in std_logic;
 
+    -- Byte select for write operations ('1' = enable byte)
+    sel : in std_logic_vector(DATA_WIDTH/8-1 downto 0);
+
     -- When the request signal is asserted, an operation will be performed.
     req : in std_logic;
 
@@ -118,8 +121,7 @@ entity sdram is
     sdram_ras_n : out std_logic;
     sdram_cas_n : out std_logic;
     sdram_we_n  : out std_logic;
-    sdram_dqml  : out std_logic;
-    sdram_dqmh  : out std_logic
+    sdram_dqm   : out std_logic_vector(SDRAM_DATA_WIDTH/8-1 downto 0)
   );
 end sdram;
 
@@ -236,10 +238,11 @@ architecture arch of sdram is
   signal refresh_counter : natural range 0 to MAX_REFRESH_COUNT;
 
   -- registers
-  signal addr_reg : unsigned(SDRAM_COL_WIDTH+SDRAM_ROW_WIDTH+SDRAM_BANK_WIDTH-1 downto 0);
-  signal data_reg : std_logic_vector(DATA_WIDTH-1 downto 0);
-  signal we_reg   : std_logic;
-  signal q_reg    : std_logic_vector(DATA_WIDTH-1 downto 0);
+  signal addr_reg  : unsigned(SDRAM_COL_WIDTH+SDRAM_ROW_WIDTH+SDRAM_BANK_WIDTH-1 downto 0);
+  signal data_reg  : std_logic_vector(DATA_WIDTH-1 downto 0);
+  signal we_reg    : std_logic;
+  signal sel_n_reg : std_logic_vector(DATA_WIDTH/8-1 downto 0);
+  signal q_reg     : std_logic_vector(DATA_WIDTH-1 downto 0);
 
   -- aliases to decode the address register
   alias col  : unsigned(SDRAM_COL_WIDTH-1 downto 0) is addr_reg(SDRAM_COL_WIDTH-1 downto 0);
@@ -247,7 +250,7 @@ architecture arch of sdram is
   alias bank : unsigned(SDRAM_BANK_WIDTH-1 downto 0) is addr_reg(SDRAM_COL_WIDTH+SDRAM_ROW_WIDTH+SDRAM_BANK_WIDTH-1 downto SDRAM_COL_WIDTH+SDRAM_ROW_WIDTH);
 begin
   -- state machine
-  fsm : process (state, wait_counter, req, we_reg, load_mode_done, active_done, refresh_done, read_done, write_done, should_refresh)
+  fsm : process (state, wait_counter, req, we_reg, sel_n_reg, load_mode_done, active_done, refresh_done, read_done, write_done, should_refresh)
   begin
     next_state <= state;
 
@@ -383,15 +386,21 @@ begin
   end process;
 
   -- latch the rquest
-  latch_request : process (clk)
+  latch_request : process (reset, clk)
   begin
-    if rising_edge(clk) then
+    if reset = '1' then
+      addr_reg <= (others => '0');
+      data_reg <= (others => '0');
+      we_reg <= '0';
+      sel_n_reg <= (others => '0');
+    elsif rising_edge(clk) then
       if start = '1' then
         -- we need to multiply the address by two, because we are converting
         -- from a 32-bit controller address to a 16-bit SDRAM address
-        addr_reg <= shift_left(resize(addr, addr_reg'length), 1);
-        data_reg <= data;
-        we_reg   <= we;
+        addr_reg  <= shift_left(resize(addr, addr_reg'length), 1);
+        data_reg  <= data;
+        we_reg    <= we;
+        sel_n_reg <= not sel;
       end if;
     end if;
   end process;
@@ -470,14 +479,16 @@ begin
     -- combinations.
     if state = WRITE and wait_counter = 0 then
       sdram_dq <= data_reg(15 downto 0);
+      sdram_dqm(1) <= sel_n_reg(1);
+      sdram_dqm(0) <= sel_n_reg(0);
     elsif state = WRITE and wait_counter = 1 then
       sdram_dq <= data_reg(31 downto 16);
+      sdram_dqm(1) <= sel_n_reg(3);
+      sdram_dqm(0) <= sel_n_reg(2);
     else
       sdram_dq <= (others => 'Z');
+      sdram_dqm(1) <= '0';
+      sdram_dqm(0) <= '0';
     end if;
   end process;
-
-  -- set SDRAM data mask
-  sdram_dqmh <= '0';
-  sdram_dqml <= '0';
 end architecture arch;
