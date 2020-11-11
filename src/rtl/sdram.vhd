@@ -230,8 +230,10 @@ architecture arch of sdram is
   signal should_refresh : std_logic;
 
   -- counters
-  signal wait_counter    : natural range 0 to 16383;
-  signal refresh_counter : natural range 0 to 1023;
+  constant MAX_WAIT_COUNT    : natural := INIT_WAIT+PRECHARGE_WAIT+REFRESH_WAIT+REFRESH_WAIT+1;
+  constant MAX_REFRESH_COUNT : natural := REFRESH_INTERVAL;
+  signal wait_counter    : natural range 0 to MAX_WAIT_COUNT;
+  signal refresh_counter : natural range 0 to MAX_REFRESH_COUNT;
 
   -- registers
   signal addr_reg : unsigned(SDRAM_COL_WIDTH+SDRAM_ROW_WIDTH+SDRAM_BANK_WIDTH-1 downto 0);
@@ -358,6 +360,8 @@ begin
     elsif rising_edge(clk) then
       if state /= next_state then -- state changing
         wait_counter <= 0;
+      elsif state = IDLE then    -- counter would overflow when IDLE
+        wait_counter <= 0;
       else
         wait_counter <= wait_counter + 1;
       end if;
@@ -372,7 +376,7 @@ begin
     elsif rising_edge(clk) then
       if state = REFRESH and wait_counter = 0 then
         refresh_counter <= 0;
-      else
+      elsif refresh_counter /= MAX_REFRESH_COUNT then
         refresh_counter <= refresh_counter + 1;
       end if;
     end if;
@@ -399,6 +403,8 @@ begin
       valid <= '0';
 
       if state = READ then
+        -- TODO(m): Add support for more BURST_LENGTH & SDRAM_DATA_WIDTH
+        -- combinations.
         if first_word = '1' then
           q_reg(31 downto 16) <= sdram_dq;
         elsif read_done = '1' then
@@ -457,8 +463,19 @@ begin
       col2addr(col)   when WRITE,
       (others => '0') when others;
 
-  -- decode the next 16-bit word from the write buffer
-  sdram_dq <= data_reg((BURST_LENGTH-wait_counter)*SDRAM_DATA_WIDTH-1 downto (BURST_LENGTH-wait_counter-1)*SDRAM_DATA_WIDTH) when state = WRITE else (others => 'Z');
+  -- decode the next sub-word from the write buffer
+  process (data_reg, state, wait_counter)
+  begin
+    -- TODO(m): Add support for more BURST_LENGTH & SDRAM_DATA_WIDTH
+    -- combinations.
+    if state = WRITE and wait_counter = 0 then
+      sdram_dq <= data_reg(15 downto 0);
+    elsif state = WRITE and wait_counter = 1 then
+      sdram_dq <= data_reg(31 downto 16);
+    else
+      sdram_dq <= (others => 'Z');
+    end if;
+  end process;
 
   -- set SDRAM data mask
   sdram_dqmh <= '0';
