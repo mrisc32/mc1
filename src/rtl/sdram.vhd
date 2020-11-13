@@ -466,32 +466,43 @@ begin
       (others => '0') when others;
 
   -- read the next sub-word as it's bursted from the SDRAM
-  process (clk)
+  process (reset, clk)
+    variable v_burst_cnt : natural range 0 to BURST_LENGTH := BURST_LENGTH;
   begin
-    if rising_edge(clk) then
-      -- TODO(m): Add support for more BURST_LENGTH & SDRAM_DATA_WIDTH
-      -- combinations.
+    if reset = '1' then
+      q_reg <= (others => '0');
       valid <= '0';
+    elsif rising_edge(clk) then
+      -- Which sub-word are we currently reading?
       if state = READ and wait_counter = CAS_LATENCY then
-        q_reg(15 downto 0) <= sdram_dq;
-      elsif state = READ and wait_counter = CAS_LATENCY + 1 then
-        q_reg(31 downto 16) <= sdram_dq;
+        v_burst_cnt := 0;
+      elsif v_burst_cnt < BURST_LENGTH then
+        v_burst_cnt := v_burst_cnt + 1;
+      end if;
+
+      if v_burst_cnt < BURST_LENGTH then
+        q_reg(SDRAM_DATA_WIDTH*(v_burst_cnt+1)-1 downto SDRAM_DATA_WIDTH*v_burst_cnt) <= sdram_dq;
+      end if;
+
+      -- Was this the final sub-word?
+      if v_burst_cnt = (BURST_LENGTH - 1) then
         valid <= '1';
+      else
+        valid <= '0';
       end if;
     end if;
   end process;
 
   -- write the next sub-word from the write buffer
-  process (data_reg, state, wait_counter)
+  process (data_reg, sel_n_reg, state, wait_counter)
   begin
-    -- TODO(m): Add support for more BURST_LENGTH & SDRAM_DATA_WIDTH
-    -- combinations.
+    -- TODO(m): Add support for other DATA_WIDTH/BURST_LENGTH/etc settings.
     if state = WRITE and wait_counter = 0 then
-      sdram_dq <= data_reg(15 downto 0);
+      sdram_dq <= data_reg(SDRAM_DATA_WIDTH-1 downto 0);
       sdram_dqm(1) <= sel_n_reg(1);
       sdram_dqm(0) <= sel_n_reg(0);
     elsif state = WRITE and wait_counter = 1 then
-      sdram_dq <= data_reg(31 downto 16);
+      sdram_dq <= data_reg(SDRAM_DATA_WIDTH*2-1 downto SDRAM_DATA_WIDTH);
       sdram_dqm(1) <= sel_n_reg(3);
       sdram_dqm(0) <= sel_n_reg(2);
     else
