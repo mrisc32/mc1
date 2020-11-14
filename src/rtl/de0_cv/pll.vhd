@@ -144,7 +144,7 @@ architecture rtl of pll is
     if t = 0 ps then
       return "0 ps";
     end if;
-    return time'image(t);
+    return real'image(real(t / 1 ps)) & " ps";
   end function;
 begin
   pll_1: pll_intel
