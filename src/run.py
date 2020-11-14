@@ -25,6 +25,9 @@ def main():
     lib = vu.add_library("lib")
     lib.add_source_files("test/*_tb.vhd")
 
+    # Add simulation models.
+    lib.add_source_files("test/sdram_model.vhd")
+
     # Add the MC1 design.
     lib.add_source_files("rtl/bit_synchronizer.vhd")
     lib.add_source_files("rtl/dither.vhd")
@@ -37,6 +40,7 @@ def main():
     lib.add_source_files("rtl/ram_true_dual_port.vhd")
     lib.add_source_files("rtl/reset_conditioner.vhd")
     lib.add_source_files("rtl/reset_stabilizer.vhd")
+    lib.add_source_files("rtl/sdram.vhd")
     lib.add_source_files("rtl/synchronizer.vhd")
     lib.add_source_files("rtl/vid_blend.vhd")
     lib.add_source_files("rtl/video_layer.vhd")
@@ -51,6 +55,7 @@ def main():
     lib.add_source_files("rtl/vid_vcpp.vhd")
     lib.add_source_files("rtl/vram.vhd")
     lib.add_source_files("rtl/wb_crossbar_2x4.vhd")
+    lib.add_source_files("rtl/xram_sdram.vhd")
 
     # Add the MC1 boot ROM (must be generated with "make").
     lib.add_source_files("rom/out/rom.vhd")
