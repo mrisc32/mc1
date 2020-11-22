@@ -150,6 +150,14 @@ architecture arch of sdram is
     return a(SDRAM_ADDR_WIDTH-2 downto 10) & "1" & a(9 downto 0);
   end col2addr;
 
+  -- Adjust the incoming address to the SDRAM address space (e.g.
+  -- from 32-bit word addressing to 16-bit word addressing).
+  function adjust_addr(x : unsigned) return unsigned is
+    constant C_SHIFT : natural := ilog2(DATA_WIDTH / SDRAM_DATA_WIDTH);
+  begin
+    return x & to_unsigned(0, C_SHIFT);
+  end adjust_addr;
+
   subtype command_t is std_logic_vector(3 downto 0);
 
   -- commands
@@ -241,16 +249,17 @@ architecture arch of sdram is
   signal refresh_counter : natural range 0 to MAX_REFRESH_COUNT;
 
   -- registers
-  signal addr_reg  : unsigned(SDRAM_COL_WIDTH+SDRAM_ROW_WIDTH+SDRAM_BANK_WIDTH-1 downto 0);
+  signal addr_reg  : unsigned(ADDR_WIDTH-1 downto 0);
   signal data_reg  : std_logic_vector(DATA_WIDTH-1 downto 0);
   signal we_reg    : std_logic;
   signal sel_n_reg : std_logic_vector(DATA_WIDTH/8-1 downto 0);
   signal q_reg     : std_logic_vector(DATA_WIDTH-1 downto 0);
 
-  -- aliases to decode the address register
-  alias col  : unsigned(SDRAM_COL_WIDTH-1 downto 0) is addr_reg(SDRAM_COL_WIDTH-1 downto 0);
-  alias row  : unsigned(SDRAM_ROW_WIDTH-1 downto 0) is addr_reg(SDRAM_COL_WIDTH+SDRAM_ROW_WIDTH-1 downto SDRAM_COL_WIDTH);
-  alias bank : unsigned(SDRAM_BANK_WIDTH-1 downto 0) is addr_reg(SDRAM_COL_WIDTH+SDRAM_ROW_WIDTH+SDRAM_BANK_WIDTH-1 downto SDRAM_COL_WIDTH+SDRAM_ROW_WIDTH);
+  -- aliases to decode the address
+  signal addr_current : unsigned(SDRAM_COL_WIDTH+SDRAM_ROW_WIDTH+SDRAM_BANK_WIDTH-1 downto 0);
+  alias col  : unsigned(SDRAM_COL_WIDTH-1 downto 0) is addr_current(SDRAM_COL_WIDTH-1 downto 0);
+  alias row  : unsigned(SDRAM_ROW_WIDTH-1 downto 0) is addr_current(SDRAM_COL_WIDTH+SDRAM_ROW_WIDTH-1 downto SDRAM_COL_WIDTH);
+  alias bank : unsigned(SDRAM_BANK_WIDTH-1 downto 0) is addr_current(SDRAM_COL_WIDTH+SDRAM_ROW_WIDTH+SDRAM_BANK_WIDTH-1 downto SDRAM_COL_WIDTH+SDRAM_ROW_WIDTH);
 begin
   -- state machine
   fsm : process (state, wait_counter, req, we_reg, sel_n_reg, load_mode_done, active_done, refresh_done, read_done, write_done, should_refresh)
@@ -407,9 +416,7 @@ begin
       sel_n_reg <= (others => '0');
     elsif rising_edge(clk) then
       if start = '1' then
-        -- we need to multiply the address by two, because we are converting
-        -- from a 32-bit controller address to a 16-bit SDRAM address
-        addr_reg  <= shift_left(resize(addr, addr_reg'length), 1);
+        addr_reg  <= addr;
         data_reg  <= data;
         we_reg    <= we;
         sel_n_reg <= not sel;
@@ -447,23 +454,35 @@ begin
   -- set SDRAM control signals
   (sdram_cs_n, sdram_ras_n, sdram_cas_n, sdram_we_n) <= cmd;
 
-  -- set SDRAM bank
-  with state select
-    sdram_ba <=
-      bank            when ACTIVE,
-      bank            when READ,
-      bank            when WRITE,
-      (others => '0') when others;
+  -- set SDRAM bank and address
+  addr_current <= adjust_addr(addr) when start = '1' else adjust_addr(addr_reg);
+  process (reset, clk)
+  begin
+    if reset = '1' then
+      sdram_ba <= (others => '0');
+      sdram_a <= (others => '0');
+    elsif rising_edge(clk) then
+      case next_state is
+        when ACTIVE | READ | WRITE =>
+          sdram_ba <= bank;
+        when others =>
+          sdram_ba <= (others => '0');
+      end case;
 
-  -- set SDRAM address
-  with state select
-    sdram_a <=
-      INIT_CMD        when INIT,
-      MODE_REG        when MODE,
-      row2addr(row)   when ACTIVE,
-      col2addr(col)   when READ,
-      col2addr(col)   when WRITE,
-      (others => '0') when others;
+      case next_state is
+        when INIT =>
+          sdram_a <= INIT_CMD;
+        when MODE =>
+          sdram_a <= MODE_REG;
+        when ACTIVE =>
+          sdram_a <= row2addr(row);
+        when READ | WRITE =>
+          sdram_a <= col2addr(col);
+        when others =>
+          sdram_a <= (others => '0');
+      end case;
+    end if;
+  end process;
 
   -- read the next sub-word as it's bursted from the SDRAM
   process (reset, clk)
