@@ -443,7 +443,18 @@ begin
   ready <= start;
 
   -- assert the acknowledge signal at the beginning of the ACTIVE state
-  ack <= '1' when state = ACTIVE and wait_counter = 0 else '0';
+  process (reset, clk)
+  begin
+    if reset = '1' then
+      ack <= '0';
+    elsif rising_edge(clk) then
+      if next_state = ACTIVE and next_state /= state then
+        ack <= '1';
+      else
+        ack <= '0';
+      end if;
+    end if;
+  end process;
 
   -- set output data
   q <= q_reg;
