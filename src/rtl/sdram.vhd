@@ -448,8 +448,17 @@ begin
   -- set output data
   q <= q_reg;
 
-  -- deassert the clock enable at the beginning of the INIT state
-  sdram_cke <= '0' when state = INIT and wait_counter = 0 else '1';
+  -- assert the clock enable signal once we have entered the INIT state
+  process (reset, clk)
+  begin
+    if reset = '1' then
+      sdram_cke <= '0';
+    elsif rising_edge(clk) then
+      if state = INIT then
+        sdram_cke <= '1';
+      end if;
+    end if;
+  end process;
 
   -- set SDRAM control signals
   (sdram_cs_n, sdram_ras_n, sdram_cas_n, sdram_we_n) <= cmd;
