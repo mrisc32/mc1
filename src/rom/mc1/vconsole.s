@@ -254,7 +254,7 @@ vcon_print:
     seq     s6, s5, #9
     bns     s6, 5$
     add     s3, s3, #8
-    bic     s3, s3, #7
+    and     s3, s3, #~7
     slt     s6, s3, #VCON_COLS
     bs      s6, 1$
     b       3$
