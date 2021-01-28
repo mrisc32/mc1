@@ -184,10 +184,10 @@ static void mandel_row(const float re_c,
       "or      v6, v6, v7\n\t"
 
       // ...for all four pixels?
+      "and/f   v6, v6, v6\n\t"
       "ldi     vl, #2\n\t"
       "and/f   v6, v6, v6\n\t"
       "ldi     vl, #1\n\t"
-      "and/f   v6, v6, v6\n\t"
       "stw     v6, %[tmp_vec], #0\n\t"
       "ldw     %[tmp1], %[tmp_vec], #0\n\t"
       "ldi     vl, #4\n\t"
@@ -216,10 +216,10 @@ static void mandel_row(const float re_c,
 
       // Done?
       // TODO(m): We need better vector -> scalar instructions (see mrisc32-#38).
-      "ldi     vl, #2\n\t"
       "or/f    v9, v8, v8\n\t"
-      "ldi     vl, #1\n\t"
+      "ldi     vl, #2\n\t"
       "or/f    v9, v9, v9\n\t"
+      "ldi     vl, #1\n\t"
       "stw     v9, %[tmp_vec], #0\n\t"
       "ldw     %[tmp1], %[tmp_vec], #0\n\t"
       "ldi     vl, #4\n\t"
@@ -240,11 +240,10 @@ static void mandel_row(const float re_c,
       "bs      %[tmp1], 2b\n\t"
 
       "\n3:\n\t"
-      "ldi     vl, #2\n\t"
       "pack/f  v10, v10, v10\n\t"
-      "ldi     vl, #1\n\t"
+      "ldi     vl, #2\n\t"
       "pack.h/f v10, v10, v10\n\t"
-      "shuf    v10, v10, #0b000001010011\n\t"  // Drop this once mrisc32-#109 is implemented.
+      "ldi     vl, #1\n\t"
       "stw     v10, %[pix], #0\n\t"
       "ldi     vl, #4\n\t"
 

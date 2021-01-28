@@ -42,7 +42,7 @@ ARFLAGS  = rcs
 OBJCOPY  = mrisc32-elf-objcopy
 CP       = cp -a
 
-DHRYSTONE_FLAGS = -c -w -fno-inline -O3
+DHRYSTONE_FLAGS = -S -w -fno-inline -O3
 
 .PHONY: clean all selftest
 
@@ -150,11 +150,17 @@ $(OUT)/console.o: demo/console.cpp
 $(OUT)/demo.o: demo/demo.c
 	$(CC) $(CCFLAGS) $(DEMO_FLAGS) -o $@ $<
 
-$(OUT)/dhry_1.o: demo/dhry_1.c
+$(OUT)/dhry_1.s: demo/dhry_1.c
 	$(CC) $(DHRYSTONE_FLAGS) -o $@ $<
 
-$(OUT)/dhry_2.o: demo/dhry_2.c
+$(OUT)/dhry_1.o: $(OUT)/dhry_1.s
+	$(CC) -c -o $@ $<
+
+$(OUT)/dhry_2.s: demo/dhry_2.c
 	$(CC) $(DHRYSTONE_FLAGS) -o $@ $<
+
+$(OUT)/dhry_2.o: $(OUT)/dhry_2.s
+	$(CC) -c -o $@ $<
 
 $(OUT)/mandelbrot.o: demo/mandelbrot.c
 	$(CC) $(CCFLAGS) $(DEMO_FLAGS) -o $@ $<
