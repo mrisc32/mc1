@@ -40,7 +40,7 @@ extern "C" {
 #define VIDY       36
 #define SWITCHES   40
 #define BUTTONS    44
-#define KEYCODE    48
+#define KEYPTR     48
 #define MOUSEPOS   52
 #define MOUSEBTNS  56
 #define SEGDISP0   64
@@ -60,6 +60,19 @@ extern "C" {
 #else
 #define MMIO(reg) *(volatile uint32_t*)(&((volatile uint8_t*)0xc0000000)[reg])
 #endif
+
+// Macro for reading the key event buffer.
+// The key event buffer is a 16-entry circular buffer (each entry is a 32-bit word), starting at
+// 0xc00080.
+#ifdef __cplusplus
+#define KEYBUF(ptr) \
+  (reinterpret_cast<volatile uint32_t*>(reinterpret_cast<volatile uint8_t*>(0xc0000080)))[ptr]
+#else
+#define KEYBUF(ptr) ((volatile uint32_t*)(((volatile uint8_t*)0xc0000080)))[ptr]
+#endif
+
+// Number of entires in the key event buffer.
+#define KEYBUF_SIZE 16
 
 #ifdef __cplusplus
 }

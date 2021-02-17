@@ -68,7 +68,8 @@ entity mmio is
 end mmio;
 
 architecture rtl of mmio is
-  subtype T_REG_ADR is unsigned(4 downto 0);
+  constant C_REG_ADR_BITS : integer := 6;
+  subtype T_REG_ADR is unsigned(C_REG_ADR_BITS-1 downto 0);
 
   function reg_adr(x : integer) return T_REG_ADR is
   begin
@@ -88,7 +89,7 @@ architecture rtl of mmio is
   constant C_ADR_VIDY       : T_REG_ADR := reg_adr(9);
   constant C_ADR_SWITCHES   : T_REG_ADR := reg_adr(10);
   constant C_ADR_BUTTONS    : T_REG_ADR := reg_adr(11);
-  constant C_ADR_KEYCODE    : T_REG_ADR := reg_adr(12);
+  constant C_ADR_KEYPTR     : T_REG_ADR := reg_adr(12);
   constant C_ADR_MOUSEPOS   : T_REG_ADR := reg_adr(13);
   constant C_ADR_MOUSEBTNS  : T_REG_ADR := reg_adr(14);
 
@@ -102,11 +103,19 @@ architecture rtl of mmio is
   constant C_ADR_SEGDISP7   : T_REG_ADR := reg_adr(23);
   constant C_ADR_LEDS       : T_REG_ADR := reg_adr(24);
 
+  constant C_ADR_KEYBUF     : T_REG_ADR := reg_adr(32);
+
+  -- Keyboard events are stored in a circular buffer.
+  constant C_LOG2_KEY_BUF_SIZE : integer := 4;
+  constant C_KEY_BUF_SIZE : integer := 2**C_LOG2_KEY_BUF_SIZE;
+  subtype T_KEY_EVENT is std_logic_vector(9 downto 0);
+  type T_KEY_BUF is array (0 to C_KEY_BUF_SIZE-1) of T_KEY_EVENT;
+  subtype T_KEY_BUF_ADR is integer range 0 to C_KEY_BUF_SIZE-1;
+
   -- Clock and counter signals.
   signal s_vidy_msb : std_logic;
   signal s_prev_vidy_msb : std_logic;
   signal s_inc_vidframeno : std_logic;
-  signal s_next_clkcnt : unsigned(63 downto 0);
   signal s_next_vidframeno : unsigned(31 downto 0);
 
   -- Wishbone signals.
@@ -118,6 +127,9 @@ architecture rtl of mmio is
   signal s_regs_r : T_MMIO_REGS_RO;
   signal s_regs_w : T_MMIO_REGS_WO;
 
+  -- Keyboard input circular buffer.
+  signal s_key_buf : T_KEY_BUF;
+
   function sign_ext_raster(x : std_logic_vector) return std_logic_vector is
     variable v_ext : std_logic_vector(31 downto 0);
   begin
@@ -128,6 +140,13 @@ architecture rtl of mmio is
       v_ext(k) := x(x'left);
     end loop;
     return v_ext;
+  end function;
+
+  function reg_adr_to_key_buf_adr(x : T_REG_ADR) return T_KEY_BUF_ADR is
+  begin
+    -- NOTE: This is a simplification that works since C_ADR_KEYBUF is
+    -- a power of two that is larger than C_KEY_BUF_SIZE.
+    return to_integer(x(C_LOG2_KEY_BUF_SIZE-1 downto 0));
   end function;
 begin
   --------------------------------------------------------------------------------------------------
@@ -142,9 +161,6 @@ begin
   s_regs_r.VIDHEIGHT <= std_logic_vector(to_unsigned(VIDEO_CONFIG.height, 32));
   s_regs_r.VIDFPS <= std_logic_vector(to_unsigned(VID_FPS, 32));
 
-  -- Increment the 64-bit clock counter.
-  s_next_clkcnt <= unsigned(s_regs_r.CLKCNTHI & s_regs_r.CLKCNTLO) + to_unsigned(1, 64);
-
   -- Increment the frame count for each new frame.
   s_vidy_msb <= s_regs_r.VIDY(31);
   s_inc_vidframeno <= '1' when s_prev_vidy_msb = '0' and s_vidy_msb = '1' else '0';
@@ -152,34 +168,26 @@ begin
 
   -- Dynamic read-only registers.
   process(i_rst, i_wb_clk)
+    variable v_clkcnt : std_logic_vector(63 downto 0);
+    variable v_clkcnt_plus_1 : unsigned(63 downto 0);
   begin
     if i_rst = '1' then
       s_regs_r.CLKCNTLO <= (others => '0');
       s_regs_r.CLKCNTHI <= (others => '0');
       s_regs_r.VIDFRAMENO <= (others => '0');
-      s_regs_r.KEYCODE <= (others => '0');
       s_prev_vidy_msb <= '0';
     elsif rising_edge(i_wb_clk) then
-      -- Update the clock count.
-      s_regs_r.CLKCNTLO <= std_logic_vector(s_next_clkcnt(31 downto 0));
-      s_regs_r.CLKCNTHI <= std_logic_vector(s_next_clkcnt(63 downto 32));
+      -- Update the 64-bit clock counter.
+      v_clkcnt := s_regs_r.CLKCNTHI & s_regs_r.CLKCNTLO;
+      v_clkcnt_plus_1 := unsigned(v_clkcnt) + 1;
+      s_regs_r.CLKCNTLO <= std_logic_vector(v_clkcnt_plus_1(31 downto 0));
+      s_regs_r.CLKCNTHI <= std_logic_vector(v_clkcnt_plus_1(63 downto 32));
 
       -- Increment the frame count for each new frame.
       s_regs_r.VIDFRAMENO <= std_logic_vector(s_next_vidframeno);
 
       -- Remember last MSB from the raster Y coordinate (used for detecting end-of-frame).
       s_prev_vidy_msb <= s_vidy_msb;
-
-      -- Update the keyboard key code when we have a keycode strobe signal.
-      if i_kb_stb = '1' then
-        -- The KEYCODE register is encoded as follows:
-        --       31 - Press (0) / Release (1)
-        --    30-25 - Unused (zero)
-        --    24-16 - Scancode
-        --     15-0 - Event counter
-        s_regs_r.KEYCODE <= (not i_kb_press) & "000000" & i_kb_scancode &
-                            std_logic_vector(unsigned(s_regs_r.KEYCODE(15 downto 0)) + 1);
-      end if;
     end if;
   end process;
 
@@ -190,12 +198,37 @@ begin
   s_regs_r.MOUSEPOS <= i_mousepos;
   s_regs_r.MOUSEBTNS <= i_mousebtns;
 
+  -- Key event circular buffer.
+  process(i_rst, i_wb_clk)
+    variable v_new_keyptr : unsigned(31 downto 0);
+    variable v_write_addr : integer range 0 to C_KEY_BUF_SIZE-1;
+    variable v_key_event : T_KEY_EVENT;
+  begin
+    if i_rst = '1' then
+      -- Reset buffer pointer.
+      s_regs_r.KEYPTR <= (others => '0');
+      s_key_buf(0) <= (others => '0');
+    elsif rising_edge(i_wb_clk) then
+      -- Calculate the new key buffer pointer.
+      v_new_keyptr := unsigned(s_regs_r.KEYPTR) + 1;
+
+      if i_kb_stb = '1' then
+        -- Write the new keycode to the key event buffer.
+        v_key_event := i_kb_press & i_kb_scancode;
+        v_write_addr := to_integer(v_new_keyptr(C_LOG2_KEY_BUF_SIZE-1 downto 0));
+        s_key_buf(v_write_addr) <= v_key_event;
+
+        -- Update the key buffer pointer.
+        s_regs_r.KEYPTR <= std_logic_vector(v_new_keyptr);
+      end if;
+    end if;
+  end process;
 
   --------------------------------------------------------------------------------------------------
   -- Wishbone interface.
   --------------------------------------------------------------------------------------------------
 
-  s_reg_adr <= unsigned(i_wb_adr(4 downto 0));
+  s_reg_adr <= unsigned(i_wb_adr(C_REG_ADR_BITS-1 downto 0));
   s_request <= i_wb_cyc and i_wb_stb;
   s_we <= s_request and i_wb_we;
 
@@ -203,6 +236,7 @@ begin
   o_wb_stall <= '0';
 
   process(i_rst, i_wb_clk)
+    variable v_key_event : T_KEY_EVENT;
   begin
     if i_rst = '1' then
       -- Clear all output registers.
@@ -241,8 +275,8 @@ begin
         o_wb_dat <= s_regs_r.SWITCHES;
       elsif s_reg_adr = C_ADR_BUTTONS then
         o_wb_dat <= s_regs_r.BUTTONS;
-      elsif s_reg_adr = C_ADR_KEYCODE then
-        o_wb_dat <= s_regs_r.KEYCODE;
+      elsif s_reg_adr = C_ADR_KEYPTR then
+        o_wb_dat <= s_regs_r.KEYPTR;
       elsif s_reg_adr = C_ADR_MOUSEPOS then
         o_wb_dat <= s_regs_r.MOUSEPOS;
       elsif s_reg_adr = C_ADR_MOUSEBTNS then
@@ -265,6 +299,9 @@ begin
         o_wb_dat <= s_regs_w.SEGDISP7;
       elsif s_reg_adr = C_ADR_LEDS then
         o_wb_dat <= s_regs_w.LEDS;
+      elsif s_reg_adr >= C_ADR_KEYBUF then
+        v_key_event := s_key_buf(reg_adr_to_key_buf_adr(s_reg_adr));
+        o_wb_dat <= v_key_event(9) & "0000000000000000000000" & v_key_event(8 downto 0);
       else
         o_wb_dat <= (others => '0');
       end if;

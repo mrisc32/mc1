@@ -54,7 +54,7 @@ private:
     return m_fifo_size == FIFO_CAPACITY;
   }
 
-  uint32_t m_last_keycode;
+  uint32_t m_keyptr;
   unsigned m_fifo_read_pos;
   unsigned m_fifo_size;
   uint16_t m_fifo[FIFO_CAPACITY];
@@ -63,7 +63,7 @@ private:
 };
 
 void keyboard_t::init() {
-  m_last_keycode = 0u;
+  m_keyptr = MMIO(KEYPTR);
   m_fifo_read_pos = 0u;
   m_fifo_size = 0u;
   for (unsigned i = 0u; i < FIFO_CAPACITY; ++i) {
@@ -79,9 +79,9 @@ void keyboard_t::init() {
 
 void keyboard_t::poll() {
   // Check if we have any new keycode from the keyboard.
-  const auto keycode = MMIO(KEYCODE);
-  if (keycode != m_last_keycode) {
-    m_last_keycode = keycode;
+  const auto keyptr = MMIO(KEYPTR);
+  while (m_keyptr != keyptr) {
+    ++m_keyptr;
     if (!fifo_is_full()) {
       // Determine which modifiers are currently active.
       const auto has_shift = is_pressed(KB_LSHIFT) || is_pressed(KB_RSHIFT);
@@ -89,6 +89,7 @@ void keyboard_t::poll() {
       const auto has_ctrl = is_pressed(KB_LCTRL) || is_pressed(KB_RCTRL);
 
       // Encode the keyboard event.
+      const auto keycode = KEYBUF(m_keyptr % KEYBUF_SIZE);
       const auto event = encode_event(keycode, has_shift, has_alt, has_ctrl);
 
       // Insert the new key event into the FIFO.
@@ -142,7 +143,7 @@ uint16_t keyboard_t::encode_event(const uint32_t keycode,
                                   const bool has_alt,
                                   const bool has_ctrl) {
   // Determine the scan code.
-  auto scancode = (keycode >> 16) & 0x1ffu;
+  auto scancode = keycode & 0x1ffu;
 
   // Special cases: Map some high PS/2 scancodes to a lower 7-bit representation (to enable more
   // compact keyboard layout tables).
@@ -157,7 +158,7 @@ uint16_t keyboard_t::encode_event(const uint32_t keycode,
   }
 
   // Determine event attributes.
-  const auto release = (keycode >> 22) & 0x200u;
+  const auto release = (static_cast<int32_t>(keycode) > 0) ? 0x200u : 0u;
   const auto shift_mod = has_shift ? 0x400u : 0u;
   const auto alt_mod = has_alt ? 0x800u : 0u;
   const auto ctrl_mod = has_ctrl ? 0x1000u : 0u;
