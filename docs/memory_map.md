@@ -76,7 +76,7 @@ The registers are all 32 bits wide, and are located in the I/O memory area start
 | C0000024 | VIDY |  R  | Video raster Y position (signed) |
 | C0000028 | SWITCHES |  R  | Switches (one bit per switch, active high) |
 | C000002C | BUTTONS |  R  | Buttons (one bit per switch, active high) |
-| C0000030 | KEYCODE |  R  | Keycode (keycode in bits 16..24, event count in bits 0..16, bit 31 is 1 for key release) |
+| C0000030 | KEYPTR |  R  | Key event buffer pointer (index in bits 0..3, wrap count in bits 4..31) |
 | C0000034 | MOUSEPOS |  R  | Mouse pos (x in bits 0..15, y in bits 16..31) |
 | C0000038 | MOUSEBTNS |  R  | Mouse buttons (bit 0 = left, bit 1 = middle, bit 2 = right, ...) |
 | C000003C | - |  -  | (reserved) |
@@ -89,4 +89,21 @@ The registers are all 32 bits wide, and are located in the I/O memory area start
 | C0000058 | SEGDISP6 | R/W  | Segmented display 6 (one bit per segment, active high) |
 | C000005C | SEGDISP7 | R/W  | Segmented display 7 (one bit per segment, active high) |
 | C0000060 | LEDS | R/W | LED:s (one bit per LED, active high) |
+| C0000064 | - |  -  | (reserved) |
+| C0000068 | - |  -  | (reserved) |
+| C000006C | - |  -  | (reserved) |
+| C0000070 | - |  -  | (reserved) |
+| C0000074 | - |  -  | (reserved) |
+| C0000078 | - |  -  | (reserved) |
+| C000007C | - |  -  | (reserved) |
+| C0000080 | KEYBUF |  R  | Key event buffer (16 32-bit words) |
+
+### Key event buffer
+
+The key event buffer is a circualt FIFO buffer. Each entry is encoded as follows:
+
+* Bits 0..9: Key code
+* Bit 31: 1=press, 0=release
+
+The `KEYPTR` is incremented by 1 every time a key event is added to the buffer, and the four least significant bits give the index of the latest event in the `KEYBUF` array, which is 16 entries long.
 
