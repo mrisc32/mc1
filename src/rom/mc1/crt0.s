@@ -86,7 +86,7 @@ bss_cleared:
     ; Clear all CPU registers.
     ; ------------------------------------------------------------------------
 
-    ; Set all the scalar registers (except Z, SP and PC) to a known state.
+    ; Set all the scalar registers (except Z, SP and VL) to a known state.
     ldi     s1, #0
     ldi     s2, #0
     ldi     s3, #0
@@ -112,9 +112,9 @@ bss_cleared:
     ldi     s23, #0
     ldi     s24, #0
     ldi     s25, #0
-    ldi     fp, #0
+    ldi     s26, #0
     ldi     tp, #0
-    ldi     vl, #0
+    ldi     fp, #0
     ldi     lr, #0
 
     ; Set all the vector registers to a known state: clear all elements.
