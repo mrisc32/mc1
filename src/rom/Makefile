@@ -213,6 +213,8 @@ selftest:
 
 LIBMC1_OBJS = \
     $(OUT)/crt0.o \
+    $(OUT)/crc7.o \
+    $(OUT)/crc16.o \
     $(OUT)/crc32c.o \
     $(OUT)/doh.o \
     $(OUT)/fast_math.o \
@@ -225,6 +227,7 @@ LIBMC1_OBJS = \
     $(OUT)/mc1-font-8x8.o \
     $(OUT)/mci_decode.o \
     $(OUT)/memory.o \
+    $(OUT)/sdcard.o \
     $(OUT)/time.o \
     $(OUT)/vconsole.o \
     $(OUT)/vcp.o
@@ -234,6 +237,12 @@ $(OUT)/libmc1.a: $(LIBMC1_OBJS)
 
 $(OUT)/crt0.o: mc1/crt0.s mc1/memory.inc mc1/mmio.inc
 	$(AS) $(ASFLAGS) -o $@ mc1/crt0.s
+
+$(OUT)/crc7.o: mc1/crc7.c
+	$(CC) $(CCFLAGS) -o $@ $<
+
+$(OUT)/crc16.o: mc1/crc16.c
+	$(CC) $(CCFLAGS) -o $@ $<
 
 $(OUT)/crc32c.o: mc1/crc32c.c
 	$(CC) $(CCFLAGS) -o $@ $<
@@ -277,6 +286,9 @@ $(OUT)/mci_decode.o: mc1/mci_decode.c
 	$(CC) $(CCFLAGS) -o $@ $<
 
 $(OUT)/memory.o: mc1/memory.c
+	$(CC) $(CCFLAGS) -o $@ $<
+
+$(OUT)/sdcard.o: mc1/sdcard.c mc1/crc7.h mc1/crc16.h mc1/mmio.h
 	$(CC) $(CCFLAGS) -o $@ $<
 
 $(OUT)/time.o: mc1/time.s mc1/mmio.inc

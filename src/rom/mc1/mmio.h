@@ -77,6 +77,20 @@ extern "C" {
 // Number of entires in the key event buffer.
 #define KEYBUF_SIZE 16
 
+// SPI SD card I/O bits (SDIN, SDOUT, SDWE).
+#define SDBIT_MISO 0
+#define SDBIT_CS_  3
+#define SDBIT_MOSI 4
+#define SDBIT_SCK  5
+
+// SD mode SD card I/O bits (SDIN, SDOUT, SDWE).
+#define SDBIT_DAT0 0
+#define SDBIT_DAT1 1
+#define SDBIT_DAT2 2
+#define SDBIT_DAT3 3
+#define SDBIT_CMD  4
+#define SDBIT_CLK  5
+
 #ifdef __cplusplus
 }
 #endif

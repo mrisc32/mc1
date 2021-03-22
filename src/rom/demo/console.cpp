@@ -24,6 +24,7 @@
 #include <mc1/leds.h>
 #include <mc1/memory.h>
 #include <mc1/mmio.h>
+#include <mc1/sdcard.h>
 #include <mc1/vconsole.h>
 
 #include <cstring>
@@ -89,6 +90,10 @@ void selftest_callback(const int ok) {
   vcon_print(ok ? "*" : "!");
 }
 #endif
+
+void sdcard_log_func(const char* msg) {
+  vcon_print(msg);
+}
 
 template <int N>
 void print_dec_times_N(const int x_times_N) {
@@ -197,8 +202,11 @@ void console_t::init() {
   }
 #endif
 
+  vcon_print("Initializing SD-card...\n");
+  sdcard_init(sdcard_log_func);
+
   // Give instructions.
-  vcon_print("Use switches to select demo...\n\n\n");
+  vcon_print("\nUse switches to select demo...\n\n\n");
 
   m_command_pos = 0;
 }
