@@ -89,11 +89,11 @@ end toplevel;
 
 architecture rtl of toplevel is
   -- Clock configuration.
-  constant C_USE_GPIO_CLK : boolean := false;
+  constant C_USE_GPIO_CLK : boolean := true;
   constant C_SYSTEM_CLK_HZ : integer := 50_000_000;
 
   -- 70 MHz seems to be a good safe bet, but going higher is certainly possible.
-  constant C_CPU_CLK_HZ : integer := 70_000_000;
+  constant C_CPU_CLK_HZ : integer := 120_000_000;
 
   -- Pixel frequencies for supported video modes:
   --  1920x1080 @ 60 Hz: 148.500 MHz
@@ -135,6 +135,7 @@ architecture rtl of toplevel is
   signal s_io_kb_stb : std_logic;
   signal s_io_mousepos : std_logic_vector(31 downto 0);
   signal s_io_mousebtns : std_logic_vector(31 downto 0);
+  signal s_io_sdin : std_logic_vector(31 downto 0);
   signal s_io_regs_w : T_MMIO_REGS_WO;
 begin
   -- Select the system clock.
@@ -253,6 +254,7 @@ begin
       i_io_kb_stb => s_io_kb_stb,
       i_io_mousepos => s_io_mousepos,
       i_io_mousebtns => s_io_mousebtns,
+      i_io_sdin => s_io_sdin,
       o_io_regs_w => s_io_regs_w
     );
 
@@ -282,6 +284,33 @@ begin
   -- TODO(m): Implement me!
   s_io_mousepos <= (others => '0');
   s_io_mousebtns <= (others => '0');
+
+  -- I/O: SD card interface.
+  process(s_cpu_rst, s_cpu_clk)
+  begin
+    if s_cpu_rst = '1' then
+      SD_CLK <= '0';
+      SD_CMD <= 'Z';
+      SD_DATA <= (others => 'Z');
+      s_io_sdin <= (others => '0');
+    elsif rising_edge(s_cpu_clk) then
+      for k in 0 to 3 loop
+        if s_io_regs_w.SDWE(k) = '1' then
+          SD_DATA(k) <= s_io_regs_w.SDOUT(k);
+        else
+          SD_DATA(k) <= 'Z';
+          s_io_sdin(k) <= SD_DATA(k);
+        end if;
+      end loop;
+      if s_io_regs_w.SDWE(4) = '1' then
+        SD_CMD <= s_io_regs_w.SDOUT(4);
+      else
+        SD_CMD <= 'Z';
+        s_io_sdin(4) <= SD_CMD;
+      end if;
+      SD_CLK <= s_io_regs_w.SDOUT(5);
+    end if;
+  end process;
 
   -- I/O: Input.
   s_io_switches(31 downto 10) <= (others => '0');

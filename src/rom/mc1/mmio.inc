@@ -22,6 +22,7 @@ BUTTONS    = 44
 KEYCODE    = 48
 MOUSEPOS   = 52
 MOUSEBTNS  = 56
+SDIN       = 60
 SEGDISP0   = 64
 SEGDISP1   = 68
 SEGDISP2   = 72
@@ -31,4 +32,6 @@ SEGDISP5   = 84
 SEGDISP6   = 88
 SEGDISP7   = 92
 LEDS       = 96
+SDOUT      = 100
+SDWE       = 104
 

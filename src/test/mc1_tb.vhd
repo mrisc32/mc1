@@ -93,6 +93,7 @@ begin
       i_io_kb_stb => '0',
       i_io_mousepos => (others => '0'),
       i_io_mousebtns => (others => '0'),
+      i_io_sdin => (others => '0'),
 
       -- XRAM (none).
       i_xram_dat => (others => '0'),

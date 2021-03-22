@@ -50,6 +50,12 @@ package mmio_types is
     KEYPTR : T_MMIO_REG_WORD;      -- Keyboard event buffer pointer.
     MOUSEPOS : T_MMIO_REG_WORD;    -- Mouse position (x & y coord in upper & lower 16 bits)
     MOUSEBTNS : T_MMIO_REG_WORD;   -- Mouse buttons (left, middle, right in bits 0, 1, 2)
+    SDIN : T_MMIO_REG_WORD;        -- SD card input:
+                                   --   0: DAT0/MISO
+                                   --   1: DAT1
+                                   --   2: DAT2
+                                   --   3: DAT3/SS*
+                                   --   4: CMD/MOSI
   end record T_MMIO_REGS_RO;
 
   --------------------------------------------------------------------------------------------------
@@ -70,5 +76,14 @@ package mmio_types is
     SEGDISP6 : T_MMIO_REG_WORD;    -- Segmented display 6 (one bit per segment, active high).
     SEGDISP7 : T_MMIO_REG_WORD;    -- Segmented display 7 (one bit per segment, active high).
     LEDS : T_MMIO_REG_WORD;        -- LED:s (one bit per LED, active high).
+    SDOUT : T_MMIO_REG_WORD;       -- SD card output:
+                                   --   0: DAT0/MISO
+                                   --   1: DAT1
+                                   --   2: DAT2
+                                   --   3: DAT3/SS*
+                                   --   4: CMD/MOSI
+                                   --   5: CLK/SCK   (always unmasked)
+    SDWE : T_MMIO_REG_WORD;        -- SD card write enable bit mask (bits 0-4).
+
   end record T_MMIO_REGS_WO;
 end package;

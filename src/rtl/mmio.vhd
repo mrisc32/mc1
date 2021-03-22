@@ -61,6 +61,7 @@ entity mmio is
     i_kb_stb : in std_logic;
     i_mousepos : in std_logic_vector(31 downto 0);
     i_mousebtns : in std_logic_vector(31 downto 0);
+    i_sdin : in std_logic_vector(31 downto 0);
 
     -- All output registers are exported externally.
     o_regs_w: out T_MMIO_REGS_WO
@@ -92,6 +93,7 @@ architecture rtl of mmio is
   constant C_ADR_KEYPTR     : T_REG_ADR := reg_adr(12);
   constant C_ADR_MOUSEPOS   : T_REG_ADR := reg_adr(13);
   constant C_ADR_MOUSEBTNS  : T_REG_ADR := reg_adr(14);
+  constant C_ADR_SDIN       : T_REG_ADR := reg_adr(15);
 
   constant C_ADR_SEGDISP0   : T_REG_ADR := reg_adr(16);
   constant C_ADR_SEGDISP1   : T_REG_ADR := reg_adr(17);
@@ -102,6 +104,8 @@ architecture rtl of mmio is
   constant C_ADR_SEGDISP6   : T_REG_ADR := reg_adr(22);
   constant C_ADR_SEGDISP7   : T_REG_ADR := reg_adr(23);
   constant C_ADR_LEDS       : T_REG_ADR := reg_adr(24);
+  constant C_ADR_SDOUT      : T_REG_ADR := reg_adr(25);
+  constant C_ADR_SDWE       : T_REG_ADR := reg_adr(26);
 
   constant C_ADR_KEYBUF     : T_REG_ADR := reg_adr(32);
 
@@ -197,6 +201,7 @@ begin
   s_regs_r.BUTTONS <= i_buttons;
   s_regs_r.MOUSEPOS <= i_mousepos;
   s_regs_r.MOUSEBTNS <= i_mousebtns;
+  s_regs_r.SDIN <= i_sdin;
 
   -- Key event circular buffer.
   process(i_rst, i_wb_clk)
@@ -249,6 +254,8 @@ begin
       s_regs_w.SEGDISP6 <= (others => '0');
       s_regs_w.SEGDISP7 <= (others => '0');
       s_regs_w.LEDS <= (others => '0');
+      s_regs_w.SDOUT <= (others => '0');
+      s_regs_w.SDWE <= (others => '0');
     elsif rising_edge(i_wb_clk) then
       -- All registers are readable.
       if s_reg_adr = C_ADR_CLKCNTLO then
@@ -281,6 +288,8 @@ begin
         o_wb_dat <= s_regs_r.MOUSEPOS;
       elsif s_reg_adr = C_ADR_MOUSEBTNS then
         o_wb_dat <= s_regs_r.MOUSEBTNS;
+      elsif s_reg_adr = C_ADR_SDIN then
+        o_wb_dat <= s_regs_r.SDIN;
       elsif s_reg_adr = C_ADR_SEGDISP0 then
         o_wb_dat <= s_regs_w.SEGDISP0;
       elsif s_reg_adr = C_ADR_SEGDISP1 then
@@ -299,6 +308,10 @@ begin
         o_wb_dat <= s_regs_w.SEGDISP7;
       elsif s_reg_adr = C_ADR_LEDS then
         o_wb_dat <= s_regs_w.LEDS;
+      elsif s_reg_adr = C_ADR_SDOUT then
+        o_wb_dat <= s_regs_w.SDOUT;
+      elsif s_reg_adr = C_ADR_SDWE then
+        o_wb_dat <= s_regs_w.SDWE;
       elsif s_reg_adr >= C_ADR_KEYBUF then
         v_key_event := s_key_buf(reg_adr_to_key_buf_adr(s_reg_adr));
         o_wb_dat <= v_key_event(9) & "0000000000000000000000" & v_key_event(8 downto 0);
@@ -326,6 +339,10 @@ begin
           s_regs_w.SEGDISP7 <= i_wb_dat;
         elsif s_reg_adr = C_ADR_LEDS then
           s_regs_w.LEDS <= i_wb_dat;
+        elsif s_reg_adr = C_ADR_SDOUT then
+          s_regs_w.SDOUT <= i_wb_dat;
+        elsif s_reg_adr = C_ADR_SDWE then
+          s_regs_w.SDWE <= i_wb_dat;
         end if;
       end if;
 

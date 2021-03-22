@@ -105,6 +105,7 @@ architecture rtl of toplevel is
   signal s_io_kb_stb : std_logic;
   signal s_io_mousepos : std_logic_vector(31 downto 0);
   signal s_io_mousebtns : std_logic_vector(31 downto 0);
+  signal s_io_sdin : std_logic_vector(31 downto 0);
   signal s_io_regs_w : T_MMIO_REGS_WO;
 begin
   -- We use SW(9) as reset.
@@ -225,6 +226,7 @@ begin
       i_io_kb_stb => s_io_kb_stb,
       i_io_mousepos => s_io_mousepos,
       i_io_mousebtns => s_io_mousebtns,
+      i_io_sdin => s_io_sdin,
       o_io_regs_w => s_io_regs_w
     );
 
@@ -242,6 +244,10 @@ begin
   s_io_kb_stb <= '0';
   s_io_mousepos <= (others => '0');
   s_io_mousebtns <= (others => '0');
+
+  -- I/O: SD card interface.
+  -- TODO(m): Support via GPIO?
+  s_io_sdin <= (others => '0');
 
   -- I/O: Input.
   s_io_switches(31 downto 9) <= (others => '0');

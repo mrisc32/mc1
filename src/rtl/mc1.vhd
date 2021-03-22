@@ -63,6 +63,7 @@ entity mc1 is
     i_io_kb_stb : in std_logic;
     i_io_mousepos : in std_logic_vector(31 downto 0);
     i_io_mousebtns : in std_logic_vector(31 downto 0);
+    i_io_sdin : in std_logic_vector(31 downto 0);
     o_io_regs_w : out T_MMIO_REGS_WO;
 
     -- External RAM interface.
@@ -353,6 +354,7 @@ begin
       i_kb_stb => i_io_kb_stb,
       i_mousepos => i_io_mousepos,
       i_mousebtns => i_io_mousebtns,
+      i_sdin => i_io_sdin,
 
       o_regs_w => o_io_regs_w
     );

@@ -43,6 +43,7 @@ extern "C" {
 #define KEYPTR     48
 #define MOUSEPOS   52
 #define MOUSEBTNS  56
+#define SDIN       60
 #define SEGDISP0   64
 #define SEGDISP1   68
 #define SEGDISP2   72
@@ -52,6 +53,8 @@ extern "C" {
 #define SEGDISP6   88
 #define SEGDISP7   92
 #define LEDS       96
+#define SDOUT      100
+#define SDWE       104
 
 // Macro for accessing MMIO registers.
 #ifdef __cplusplus

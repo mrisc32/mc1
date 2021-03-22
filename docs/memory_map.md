@@ -79,7 +79,7 @@ The registers are all 32 bits wide, and are located in the I/O memory area start
 | C0000030 | KEYPTR |  R  | Key event buffer pointer (index in bits 0..3, wrap count in bits 4..31) |
 | C0000034 | MOUSEPOS |  R  | Mouse pos (x in bits 0..15, y in bits 16..31) |
 | C0000038 | MOUSEBTNS |  R  | Mouse buttons (bit 0 = left, bit 1 = middle, bit 2 = right, ...) |
-| C000003C | - |  -  | (reserved) |
+| C000003C | SDIN |  R  | SD card input (bit 0 = DAT0/MISO, bit 1 = DAT1, bit 2 = DAT2, bit 3 = DAT3/SS*, bit 4 = CMD/MOSI) |
 | C0000040 | SEGDISP0 |  R/W  | Segmented display 0 (one bit per segment, active high) |
 | C0000044 | SEGDISP1 |  R/W  | Segmented display 1 (one bit per segment, active high) |
 | C0000048 | SEGDISP2 |  R/W  | Segmented display 2 (one bit per segment, active high) |
@@ -89,8 +89,8 @@ The registers are all 32 bits wide, and are located in the I/O memory area start
 | C0000058 | SEGDISP6 | R/W  | Segmented display 6 (one bit per segment, active high) |
 | C000005C | SEGDISP7 | R/W  | Segmented display 7 (one bit per segment, active high) |
 | C0000060 | LEDS | R/W | LED:s (one bit per LED, active high) |
-| C0000064 | - |  -  | (reserved) |
-| C0000068 | - |  -  | (reserved) |
+| C0000064 | SDOUT | R/W | SD card output (bit 0 = DAT0/MISO, bit 1 = DAT1, bit 2 = DAT2, bit 3 = DAT3/SS*, bit 4 = CMD/MOSI, bit 5 = CLK/SCK) |
+| C0000068 | SDWE | R/W | SD card write enable bit mask for bits 0-4 of SDOUT |
 | C000006C | - |  -  | (reserved) |
 | C0000070 | - |  -  | (reserved) |
 | C0000074 | - |  -  | (reserved) |
