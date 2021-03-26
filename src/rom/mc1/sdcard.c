@@ -127,7 +127,7 @@ static void _sdcard_send_byte(const uint32_t byte) {
 }
 
 static uint32_t _sdcard_receive_byte(void) {
-  uint32_t byte;
+  uint32_t byte = 0;
   for (int shift = 7; shift >= 0; --shift) {
     _sdcard_set_sck(0);
     byte = (byte << 1) | _sdcard_get_miso();
@@ -142,7 +142,7 @@ static bool _sdcard_send_cmd(const uint8_t* cmd, const int len) {
 
   // Wait for the card to be ready to receive data (time out after a while).
   bool success = false;
-  for (int i = 0; i < 1000; ++i) {
+  for (int i = 0; i < 10000; ++i) {
     const uint32_t bit = _sdcard_get_miso();
     if (bit == 1) {
       success = true;
@@ -188,17 +188,25 @@ static bool _sdcard_get_response(uint8_t* response, const int len) {
     return false;
   }
 
-  // Read response (skip first zero-bit, because we already got it).
+  // Read the first byte (skip first zero-bit, because we already got it).
   uint32_t value = 0;
-  for (int i = 1; i < len * 8; ++i) {
+  for (int i = 1; i < 8; ++i) {
     _sdcard_sck_cycles(1);
     const int bit = 7 - (i & 7);
     value |= _sdcard_get_miso() << bit;
-    if (bit == 0) {
-      response[i >> 3] = value;
-      value = 0;
-    }
   }
+  response[0] = value;
+
+  // Read the rest response bytes.
+  for (int i = 1; i < len; ++i) {
+    value = _sdcard_receive_byte();
+    response[i] = value;
+  }
+
+	// Receive response tail (until we get a 0 MSB, or timeout).
+	for (int i = 0; i < 10 && (value & 0x80) != 0; ++i) {
+    value = _sdcard_receive_byte();
+	}
 
   return true;
 }
@@ -304,10 +312,19 @@ static bool _sdcard_write_data(const uint8_t* buf, const int len) {
 }
 
 //--------------------------------------------------------------------------------------------------
+// Internal state.
+//--------------------------------------------------------------------------------------------------
+
+static int s_protocol_version;  // Set by CMD8.
+static bool s_use_cmd1;         // Set by CMD55 or ACMD41.
+
+//--------------------------------------------------------------------------------------------------
 // Implementation of specific SD card commands.
 //--------------------------------------------------------------------------------------------------
 
 bool _sdcard_cmd0(const int retries) {
+  SDCARD_LOG("SD: Send CMD0\n");
+
   for (int i = 0; i < retries; ++i) {
     // Send command.
     uint8_t cmd[5] = {0x40, 0x00, 0x00, 0x00, 0x00};
@@ -315,7 +332,7 @@ bool _sdcard_cmd0(const int retries) {
       return false;
     }
 
-    // Get response.
+    // Get response (R1).
     uint8_t resp[1];
     if (!_sdcard_get_response(resp, sizeof(resp))) {
       return false;
@@ -331,21 +348,91 @@ bool _sdcard_cmd0(const int retries) {
 }
 
 bool _sdcard_cmd8() {
+  SDCARD_LOG("SD: Send CMD8\n");
+
   // Send command.
   uint8_t cmd[5] = {0x48, 0x00, 0x00, 0x01, 0xaa};
   if (!_sdcard_send_cmd(cmd, sizeof(cmd))) {
     return false;
   }
 
-  // Get response.
+  // Get response (R7).
   uint8_t resp[5];
   if (!_sdcard_get_response(resp, sizeof(resp))) {
     return false;
   }
 
-  // TODO(m): Implement me!
-  _sdcard_dump_r1(resp[0]);
+  if (resp[0] == 0x01) {
+    // Version 2+.
+    s_protocol_version = 2;
+    SDCARD_LOG("CMD8: Version 2.0+\n");
+    if (resp[1] != cmd[1] || resp[2] != cmd[2] || resp[3] != cmd[3] || resp[4] != cmd[4]) {
+      SDCARD_LOG("CMD8: Invalid response\n");
+      return false;
+    }
+  } else {
+    // Version 1.
+    s_protocol_version = 1;
+    SDCARD_LOG("CMD8: Version 1\n");
+    _sdcard_dump_r1(resp[0]);
+  }
+
   return true;
+}
+
+bool _sdcard_cmd55() {
+  SDCARD_LOG("SD: Send CMD55\n");
+
+  // Send command.
+  uint8_t cmd[5] = {0x77, 0x00, 0x00, 0x00, 0x00};
+  if (!_sdcard_send_cmd(cmd, sizeof(cmd))) {
+    return false;
+  }
+
+  // Get response (R1).
+  uint8_t resp[1];
+  if (!_sdcard_get_response(resp, sizeof(resp))) {
+    return false;
+  }
+
+  if (resp[0] == 0x05) {
+    // We must use CMD1 instead.
+    s_use_cmd1 = true;
+  } else if (resp[0] != 0x01) {
+    SDCARD_LOG("CMD55: Unexpected response\n");
+    return false;
+  }
+
+  return true;
+}
+
+bool _sdcard_acmd41() {
+  SDCARD_LOG("SD: Send ACMD41\n");
+
+  // Send command.
+  uint8_t cmd[5] = {0x69, 0x40, 0x00, 0x00, 0x00};
+  if (!_sdcard_send_cmd(cmd, sizeof(cmd))) {
+    return false;
+  }
+
+  // Get response (R3).
+  uint8_t resp[1];
+  if (!_sdcard_get_response(resp, sizeof(resp))) {
+    return false;
+  }
+
+  if (resp[0] == 0x00) {
+    return true;
+  } else if (resp[0] == 0x01) {
+    return false;
+  } else if (resp[0] == 0x05) {
+    // We must use CMD1 instead.
+    s_use_cmd1 = true;
+    return false;
+  } else {
+    SDCARD_LOG("ACMD41: Unexpected response\n");
+    return false;
+  }
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -373,44 +460,45 @@ int sdcard_init(sdcard_log_func_t log_func) {
   _sdcard_set_cs_(0);
 
   // 2) Send CMD0.
-  SDCARD_LOG("init: Send CMD0\n");
   if (!_sdcard_cmd0(100)) {
     return 0;
   }
 
   // 3) Send CMD8 (configure voltage mode).
-  SDCARD_LOG("init: Send CMD8\n");
   if (!_sdcard_cmd8()) {
     return 0;
   }
 
-  // 3) Send ACMD41 (set HCS=1 for high capacity).
-  //    Repeat until card not busy or timeout (i.e. unusable card).
-  //    If CCS=1 in response => HC/XC.
-  SDCARD_LOG("init: Send ACMD41\n");
-  // TODO(m): Implemenmt me!
+  s_use_cmd1 = false;
+  bool success = false;
+  for (int i = 0; i < 100; ++i) {
+    // 4a) Send CMD55 (prefix for ACMD).
+    if (!_sdcard_cmd55()) {
+      return 0;
+    }
+    if (s_use_cmd1) {
+      // TODO(m): Implement me! (use CMD1 instead of CMD55+ACMD41)
+      SDCARD_LOG("SD: Old SD card - not supported\n");
+      return 0;
+    }
 
-  // 4) Send CMD11 if S18R=1 && S18A=1 (voltage switch mode?).
-  // TODO(m): Implemenmt me!
+    // 4b) Send ACMD41.
+    if (_sdcard_acmd41()) {
+      success = true;
+      break;
+    }
 
-  // 5) Send CMD2.
-  // TODO(m): Implemenmt me!
+    // Delay a bit before the next try.
+    _sdcard_sleep(PERIOD_MICROS(1000));
+  }
+  if (!success) {
+    SDCARD_LOG("SD: Initialization failed\n");
+    return 0;
+  }
 
-  // 6) Send CMD3.
-  // TODO(m): Implemenmt me!
+  SDCARD_LOG("SD: Initialization succeeded!\n");
 
-  // ...
-
-  // 7) Send CMD7.
-  // TODO(m): Implemenmt me!
-
-  // 8) Send CMD42.
-  // TODO(m): Implemenmt me!
-
-  // 9) Send ACMD6.
-  // TODO(m): Implemenmt me!
-
-  return 0;
+  return 1;
 }
 
 int sdcard_read(void* ptr, size_t first_block, size_t num_blocks) {
