@@ -72,6 +72,8 @@ static inline void _sdcard_sleep(int period) {
 // Low level I/O bit manipulation helpers.
 //--------------------------------------------------------------------------------------------------
 
+#define SD_BLOCK_SIZE 512
+
 #define DIR_IN 0
 #define DIR_OUT 1
 
@@ -203,10 +205,9 @@ static bool _sdcard_get_response(uint8_t* response, const int len) {
     response[i] = value;
   }
 
-	// Receive response tail (until we get a 0 MSB, or timeout).
-	for (int i = 0; i < 10 && (value & 0x80) != 0; ++i) {
-    value = _sdcard_receive_byte();
-	}
+  // Run 8 dummy cycles to let the operation terminate.
+  _sdcard_set_mosi(1);
+  _sdcard_sck_cycles(8);
 
   return true;
 }
@@ -239,84 +240,13 @@ static void _sdcard_dump_r1(const uint8_t r) {
 #endif
 }
 
-static bool _sdcard_read_data(uint8_t* buf, const int len) {
-  // Wait for start bit (time out after too many cycles).
-  bool success = false;
-  for (int i = 1000; i > 0; --i) {
-    _sdcard_sck_cycles(1);
-    if (_sdcard_get_miso() == 0) {
-      success = true;
-      break;
-    }
-  }
-  if (!success) {
-    SDCARD_LOG("read_data: Start bits timeout\n");
-    return false;
-  }
-
-  // Read data.
-  for (int i = 0; i < len; ++i) {
-    buf[i] = _sdcard_receive_byte();
-  }
-
-  // Check CRC (16 bits).
-  // TODO(m): Implement me!
-  _sdcard_sck_cycles(16);
-
-  // Check end-bit (one bit == 1).
-  // TODO(m): Implement me!
-  _sdcard_sck_cycles(1);
-
-  return true;
-}
-
-static bool _sdcard_write_data(const uint8_t* buf, const int len) {
-  // Calculate the CRC for the data buffer.
-  uint32_t crc = crc16(buf, len);
-
-  // Send start bits.
-  _sdcard_set_sck(0);
-  _sdcard_set_mosi(0);
-  _sdcard_set_sck(1);
-
-  // Write data.
-  for (int i = 0; i < len; ++i) {
-    _sdcard_send_byte(buf[i]);
-  }
-
-  // Send CRC.
-  _sdcard_send_byte(crc >> 8);
-  _sdcard_send_byte(crc & 0xff);
-
-  // Send stop bits.
-  _sdcard_set_sck(0);
-  _sdcard_set_mosi(15);
-  _sdcard_set_sck(1);
-
-  // Check busy bits (time out after too many cycles).
-  bool success = false;
-  for (int i = 32; i > 0; --i) {
-    _sdcard_sck_cycles(1);
-    // MISO is zero as long as the card is busy.
-    if ((_sdcard_get_miso() & 1) == 1) {
-      success = true;
-      break;
-    }
-  }
-  if (!success) {
-    SDCARD_LOG("read_data: Busy bits timeout\n");
-    return false;
-  }
-
-  return true;
-}
-
 //--------------------------------------------------------------------------------------------------
 // Internal state.
 //--------------------------------------------------------------------------------------------------
 
 static int s_protocol_version;  // Set by CMD8.
 static bool s_use_cmd1;         // Set by CMD55 or ACMD41.
+static bool s_is_sdhc;          // Set by CMD58.
 
 //--------------------------------------------------------------------------------------------------
 // Implementation of specific SD card commands.
@@ -415,7 +345,7 @@ bool _sdcard_acmd41() {
     return false;
   }
 
-  // Get response (R3).
+  // Get response (R1).
   uint8_t resp[1];
   if (!_sdcard_get_response(resp, sizeof(resp))) {
     return false;
@@ -435,22 +365,92 @@ bool _sdcard_acmd41() {
   }
 }
 
+bool _sdcard_cmd58(void) {
+  SDCARD_LOG("SD: Send CMD58\n");
+
+  // Send command.
+  uint8_t cmd[5] = {0x7a, 0x00, 0x00, 0x00, 0x00};
+  if (!_sdcard_send_cmd(cmd, sizeof(cmd))) {
+    return false;
+  }
+
+  // Get response (R3).
+  uint8_t resp[5];
+  if (!_sdcard_get_response(resp, sizeof(resp))) {
+    return false;
+  }
+
+  if (resp[0] != 0x00) {
+    SDCARD_LOG("CMD58: Unexpected response\n");
+    return false;
+  }
+
+  // Check if the card is using high capacity addressing.
+  if ((resp[1] & 0x40) != 0) {
+    SDCARD_LOG("SD: The card type is SDHC\n");
+    s_is_sdhc = true;
+  } else {
+    s_is_sdhc = false;
+  }
+
+  return true;
+}
+
+
+bool _sdcard_cmd16(const uint32_t block_size) {
+  SDCARD_LOG("SD: Send CMD16\n");
+
+  // Send command.
+  uint8_t cmd[5] = {0x50, block_size >> 24, block_size >> 16, block_size >> 8, block_size};
+  if (!_sdcard_send_cmd(cmd, sizeof(cmd))) {
+    return false;
+  }
+
+  // Get response (R1).
+  uint8_t resp[1];
+  if (!_sdcard_get_response(resp, sizeof(resp))) {
+    return false;
+  }
+
+  if (resp[0] != 0x00) {
+    SDCARD_LOG("CMD16: Unexpected response\n");
+    return false;
+  }
+
+  return true;
+}
+
+bool _sdcard_cmd17(const uint32_t block_addr) {
+  SDCARD_LOG("SD: Send CMD17\n");
+
+  // Send command.
+  uint8_t cmd[5] = {0x51, block_addr >> 24, block_addr >> 16, block_addr >> 8, block_addr};
+  if (!_sdcard_send_cmd(cmd, sizeof(cmd))) {
+    return false;
+  }
+
+  // Get response (R1).
+  uint8_t resp[1];
+  if (!_sdcard_get_response(resp, sizeof(resp))) {
+    return false;
+  }
+
+  if (resp[0] != 0x00) {
+    SDCARD_LOG("CMD17: Unexpected response\n");
+    return false;
+  }
+
+  return true;
+}
+
 //--------------------------------------------------------------------------------------------------
-// Public API.
+// Reset/initialization routine.
 //--------------------------------------------------------------------------------------------------
 
-int sdcard_init(sdcard_log_func_t log_func) {
-  s_log_func = log_func;
+static bool _sdcard_reset(void) {
+  bool success = false;
 
-  // See "Part 1 Physical Layer Specification", Figure 4-2.
-
-  // Set up port directions for SPI mode (as seen from the host/master).
-  // Note: SCK is always in output mode.
-  _sdcard_dir(SDBIT_MISO, 1, DIR_IN);
-  _sdcard_dir(SDBIT_CS_, 1, DIR_OUT);
-  _sdcard_dir(SDBIT_MOSI, 1, DIR_OUT);
-
-  // TODO(m): Should we do the init phase in 400kHz?
+  s_is_sdhc = false;
 
   // 1) Hold MOSI and CS* high for more than 74 cycles of "dummy-clock",
   //    and then pull CS* low.
@@ -461,20 +461,19 @@ int sdcard_init(sdcard_log_func_t log_func) {
 
   // 2) Send CMD0.
   if (!_sdcard_cmd0(100)) {
-    return 0;
+    goto done;
   }
 
   // 3) Send CMD8 (configure voltage mode).
   if (!_sdcard_cmd8()) {
-    return 0;
+    goto done;
   }
 
   s_use_cmd1 = false;
-  bool success = false;
-  for (int i = 0; i < 100; ++i) {
+  for (int i = 0; i < 10000; ++i) {
     // 4a) Send CMD55 (prefix for ACMD).
     if (!_sdcard_cmd55()) {
-      return 0;
+      goto done;
     }
     if (s_use_cmd1) {
       // TODO(m): Implement me! (use CMD1 instead of CMD55+ACMD41)
@@ -491,23 +490,99 @@ int sdcard_init(sdcard_log_func_t log_func) {
     // Delay a bit before the next try.
     _sdcard_sleep(PERIOD_MICROS(1000));
   }
-  if (!success) {
-    SDCARD_LOG("SD: Initialization failed\n");
-    return 0;
+
+  if (success) {
+    // 5) Check the card type (read the OCR).
+    success = _sdcard_cmd58();
   }
 
-  SDCARD_LOG("SD: Initialization succeeded!\n");
+done:
+  // Pull CS* high again.
+  _sdcard_set_cs_(1);
 
-  return 1;
+  if (success) {
+    SDCARD_LOG("SD: Initialization succeeded!\n");
+  } else {
+    SDCARD_LOG("SD: Initialization failed\n");
+  }
+
+  return success;
+}
+
+//--------------------------------------------------------------------------------------------------
+// Public API.
+//--------------------------------------------------------------------------------------------------
+
+int sdcard_init(sdcard_log_func_t log_func) {
+  s_log_func = log_func;
+
+  // Set up port directions for SPI mode (as seen from the host/master).
+  // Note: SCK is always in output mode.
+  _sdcard_dir(SDBIT_MISO, 1, DIR_IN);
+  _sdcard_dir(SDBIT_CS_, 1, DIR_OUT);
+  _sdcard_dir(SDBIT_MOSI, 1, DIR_OUT);
+
+  // Try to reset the card (if any is connected).
+  return _sdcard_reset() ? 1 : 0;
 }
 
 int sdcard_read(void* ptr, size_t first_block, size_t num_blocks) {
-  // TODO(m): Implement me!
-  (void)ptr;
-  (void)first_block;
-  (void)num_blocks;
-  _sdcard_read_data((uint8_t*)ptr, 0);
-  return 0;
+  int success = 0;
+
+  // Pull CS* low.
+  _sdcard_set_cs_(0);
+
+  // Set block size.
+  if (!_sdcard_cmd16(SD_BLOCK_SIZE)) {
+    // TODO(m): We should probably try _sdcard_reset() here and retry.
+    goto done;
+  }
+
+  uint8_t* buf = (uint8_t*)ptr;
+
+  const size_t block_end = first_block + num_blocks;
+  for (size_t block_no = first_block; block_no < block_end; ++block_no) {
+    // Set the block address, depending on if we're using HC or standard capacity.
+    const uint32_t block_addr = s_is_sdhc ? block_no : block_no * SD_BLOCK_SIZE;
+    if (!_sdcard_cmd17(block_addr)) {
+      goto done;
+    }
+
+    // Wait for the response token.
+    uint32_t token = 0xff;
+    for (int i = 0; i < 1000; ++i) {
+      token = _sdcard_receive_byte();
+      if (token != 0xff) {
+        break;
+      }
+    }
+    if (token != 0xfe) {
+      // The card returned an error response.
+      SDCARD_LOG("SD: Read error\n");
+      _sdcard_send_byte(0xff);
+      goto done;
+    }
+
+    // Read one block.
+    for (int i = 0; i < SD_BLOCK_SIZE; ++i) {
+      buf[i] = _sdcard_receive_byte();
+    }
+
+    // Send a couple of dummy bytes to terminate the transfer.
+    for (int i = 0; i < 2; ++i) {
+      _sdcard_send_byte(0xff);
+    }
+
+    buf += SD_BLOCK_SIZE;
+  }
+
+  success = 1;
+
+done:
+  // Pull CS* high again.
+  _sdcard_set_cs_(1);
+
+  return success;
 }
 
 int sdcard_write(const void* ptr, size_t first_block, size_t num_blocks) {
@@ -515,6 +590,5 @@ int sdcard_write(const void* ptr, size_t first_block, size_t num_blocks) {
   (void)ptr;
   (void)first_block;
   (void)num_blocks;
-  _sdcard_write_data((const uint8_t*)ptr, 0);
   return 0;
 }

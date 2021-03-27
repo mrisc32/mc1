@@ -203,7 +203,15 @@ void console_t::init() {
 #endif
 
   vcon_print("Initializing SD-card...\n");
-  sdcard_init(sdcard_log_func);
+  if (sdcard_init(sdcard_log_func)) {
+    // Test: Read and print the first block of the SD card.
+    char buf[512];
+    if (sdcard_read(buf, 0, 1)) {
+      buf[510] = '\n';
+      buf[511] = 0;
+      vcon_print(buf);
+    }
+  }
 
   // Give instructions.
   vcon_print("\nUse switches to select demo...\n\n\n");
