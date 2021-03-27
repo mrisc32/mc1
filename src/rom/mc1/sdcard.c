@@ -31,6 +31,7 @@
 //--------------------------------------------------------------------------------------------------
 
 #define SDCARD_ENABLE_LOGGING
+//#define SDCARD_ENABLE_DEBUGGING
 
 #ifdef SDCARD_ENABLE_LOGGING
 // This logger function is defined by sdcard_init().
@@ -44,8 +45,14 @@ static inline void _sdcard_log(const char* msg) {
 }
 
 #define SDCARD_LOG(msg) _sdcard_log(msg)
+#ifdef SDCARD_ENABLE_DEBUGGING
+#define SDCARD_DEBUG(msg) _sdcard_log(msg)
+#else
+#define SDCARD_DEBUG(msg)
+#endif
 #else
 #define SDCARD_LOG(msg)
+#define SDCARD_DEBUG(msg)
 #endif
 
 //--------------------------------------------------------------------------------------------------
@@ -153,7 +160,7 @@ static bool _sdcard_send_cmd(const uint8_t* cmd, const int len) {
     _sdcard_sleep(PERIOD_MICROS(100));
   }
   if (!success) {
-    SDCARD_LOG("send_cmd: Timeout\n");
+    SDCARD_LOG("SD: Send command timeout\n");
     return false;
   }
 
@@ -186,7 +193,7 @@ static bool _sdcard_get_response(uint8_t* response, const int len) {
     _sdcard_sck_cycles(1);
   }
   if (!success) {
-    SDCARD_LOG("get_response: Timeout\n");
+    SDCARD_LOG("SD: Get response timeout\n");
     return false;
   }
 
@@ -213,27 +220,27 @@ static bool _sdcard_get_response(uint8_t* response, const int len) {
 }
 
 static void _sdcard_dump_r1(const uint8_t r) {
-#ifdef SDCARD_ENABLE_LOGGING
+#ifdef SDCARD_ENABLE_DEBUGGING
   if ((r & 0x01) != 0) {
-    SDCARD_LOG("response: Idle\n");
+    SDCARD_DEBUG("response: Idle\n");
   }
   if ((r & 0x02) != 0) {
-    SDCARD_LOG("response: Erase reset\n");
+    SDCARD_DEBUG("response: Erase reset\n");
   }
   if ((r & 0x04) != 0) {
-    SDCARD_LOG("response: Illegal command\n");
+    SDCARD_DEBUG("response: Illegal command\n");
   }
   if ((r & 0x08) != 0) {
-    SDCARD_LOG("response: CRC error\n");
+    SDCARD_DEBUG("response: CRC error\n");
   }
   if ((r & 0x10) != 0) {
-    SDCARD_LOG("response: Erase sequence error\n");
+    SDCARD_DEBUG("response: Erase sequence error\n");
   }
   if ((r & 0x20) != 0) {
-    SDCARD_LOG("response: Address error\n");
+    SDCARD_DEBUG("response: Address error\n");
   }
   if ((r & 0x40) != 0) {
-    SDCARD_LOG("response: Permanent error\n");
+    SDCARD_DEBUG("response: Permanent error\n");
   }
 #else
   (void)r;
@@ -253,7 +260,7 @@ static bool s_is_sdhc;          // Set by CMD58.
 //--------------------------------------------------------------------------------------------------
 
 bool _sdcard_cmd0(const int retries) {
-  SDCARD_LOG("SD: Send CMD0\n");
+  SDCARD_DEBUG("SD: Send CMD0\n");
 
   for (int i = 0; i < retries; ++i) {
     // Send command.
@@ -278,7 +285,7 @@ bool _sdcard_cmd0(const int retries) {
 }
 
 bool _sdcard_cmd8() {
-  SDCARD_LOG("SD: Send CMD8\n");
+  SDCARD_DEBUG("SD: Send CMD8\n");
 
   // Send command.
   uint8_t cmd[5] = {0x48, 0x00, 0x00, 0x01, 0xaa};
@@ -295,7 +302,7 @@ bool _sdcard_cmd8() {
   if (resp[0] == 0x01) {
     // Version 2+.
     s_protocol_version = 2;
-    SDCARD_LOG("CMD8: Version 2.0+\n");
+    SDCARD_DEBUG("CMD8: Version 2.0+\n");
     if (resp[1] != cmd[1] || resp[2] != cmd[2] || resp[3] != cmd[3] || resp[4] != cmd[4]) {
       SDCARD_LOG("CMD8: Invalid response\n");
       return false;
@@ -303,7 +310,7 @@ bool _sdcard_cmd8() {
   } else {
     // Version 1.
     s_protocol_version = 1;
-    SDCARD_LOG("CMD8: Version 1\n");
+    SDCARD_DEBUG("CMD8: Version 1\n");
     _sdcard_dump_r1(resp[0]);
   }
 
@@ -311,7 +318,7 @@ bool _sdcard_cmd8() {
 }
 
 bool _sdcard_cmd55() {
-  SDCARD_LOG("SD: Send CMD55\n");
+  SDCARD_DEBUG("SD: Send CMD55\n");
 
   // Send command.
   uint8_t cmd[5] = {0x77, 0x00, 0x00, 0x00, 0x00};
@@ -337,7 +344,7 @@ bool _sdcard_cmd55() {
 }
 
 bool _sdcard_acmd41() {
-  SDCARD_LOG("SD: Send ACMD41\n");
+  SDCARD_DEBUG("SD: Send ACMD41\n");
 
   // Send command.
   uint8_t cmd[5] = {0x69, 0x40, 0x00, 0x00, 0x00};
@@ -366,7 +373,7 @@ bool _sdcard_acmd41() {
 }
 
 bool _sdcard_cmd58(void) {
-  SDCARD_LOG("SD: Send CMD58\n");
+  SDCARD_DEBUG("SD: Send CMD58\n");
 
   // Send command.
   uint8_t cmd[5] = {0x7a, 0x00, 0x00, 0x00, 0x00};
@@ -387,7 +394,7 @@ bool _sdcard_cmd58(void) {
 
   // Check if the card is using high capacity addressing.
   if ((resp[1] & 0x40) != 0) {
-    SDCARD_LOG("SD: The card type is SDHC\n");
+    SDCARD_DEBUG("SD: The card type is SDHC\n");
     s_is_sdhc = true;
   } else {
     s_is_sdhc = false;
@@ -398,7 +405,7 @@ bool _sdcard_cmd58(void) {
 
 
 bool _sdcard_cmd16(const uint32_t block_size) {
-  SDCARD_LOG("SD: Send CMD16\n");
+  SDCARD_DEBUG("SD: Send CMD16\n");
 
   // Send command.
   uint8_t cmd[5] = {0x50, block_size >> 24, block_size >> 16, block_size >> 8, block_size};
@@ -421,7 +428,7 @@ bool _sdcard_cmd16(const uint32_t block_size) {
 }
 
 bool _sdcard_cmd17(const uint32_t block_addr) {
-  SDCARD_LOG("SD: Send CMD17\n");
+  SDCARD_DEBUG("SD: Send CMD17\n");
 
   // Send command.
   uint8_t cmd[5] = {0x51, block_addr >> 24, block_addr >> 16, block_addr >> 8, block_addr};
@@ -501,9 +508,9 @@ done:
   _sdcard_set_cs_(1);
 
   if (success) {
-    SDCARD_LOG("SD: Initialization succeeded!\n");
+    SDCARD_DEBUG("SD: Initialization succeeded!\n");
   } else {
-    SDCARD_LOG("SD: Initialization failed\n");
+    SDCARD_DEBUG("SD: Initialization failed\n");
   }
 
   return success;

@@ -204,11 +204,11 @@ void console_t::init() {
 
   vcon_print("Initializing SD-card...\n");
   if (sdcard_init(sdcard_log_func)) {
-    // Test: Read and print the first block of the SD card.
-    char buf[512];
-    if (sdcard_read(buf, 0, 1)) {
-      buf[510] = '\n';
-      buf[511] = 0;
+    // Test: Read and print the first blocks of the SD card.
+    char buf[1026];
+    if (sdcard_read(buf, 0, 2)) {
+      buf[1024] = '\n';
+      buf[1025] = 0;
       vcon_print(buf);
     }
   }
