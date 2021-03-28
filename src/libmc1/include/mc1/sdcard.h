@@ -21,6 +21,7 @@
 #ifndef MC1_SDCARD_H_
 #define MC1_SDCARD_H_
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -28,24 +29,33 @@
 extern "C" {
 #endif
 
+/// @brief Logging callback function for SD card functions.
 typedef void (*sdcard_log_func_t)(const char* msg);
+
+// The contents of this struct is private and subject to change. Do not access members directly!
+typedef struct {
+  sdcard_log_func_t log_func;
+  int protocol_version;
+  bool use_cmd1;
+  bool is_sdhc;
+} sdctx_t;
 
 /// @brief Initialize the SD card driver.
 /// @param log_fun An optional log printer function (pass NULL to disable).
 /// @returns a non-zero value if the initialization was successful.
-int sdcard_init(sdcard_log_func_t log_fun);
+bool sdcard_init(sdctx_t* ctx, sdcard_log_func_t log_fun);
 
 /// @brief Read one or more 512 byte blocks.
 /// @param first_block The first block to read.
 /// @param num_blocks The number of block to read.
 /// @returns a non-zero value if the initialization was successful.
-int sdcard_read(void* ptr, size_t first_block, size_t num_blocks);
+bool sdcard_read(sdctx_t* ctx, void* ptr, size_t first_block, size_t num_blocks);
 
 /// @brief Write one or more 512 byte blocks.
 /// @param first_block The first block to write.
 /// @param num_blocks The number of block to write.
 /// @returns a non-zero value if the initialization was successful.
-int sdcard_write(const void* ptr, size_t first_block, size_t num_blocks);
+bool sdcard_write(sdctx_t* ctx, const void* ptr, size_t first_block, size_t num_blocks);
 
 #ifdef __cplusplus
 }

@@ -134,6 +134,7 @@ private:
   void* m_vcon_mem;
   char m_command[MAX_COMMAND_LEN + 1];
   int m_command_pos;
+  sdctx_t m_sdctx;
 };
 
 void console_t::init() {
@@ -203,10 +204,10 @@ void console_t::init() {
 #endif
 
   vcon_print("Initializing SD-card...\n");
-  if (sdcard_init(sdcard_log_func)) {
+  if (sdcard_init(&m_sdctx, sdcard_log_func)) {
     // Test: Read and print the first blocks of the SD card.
     char buf[1026];
-    if (sdcard_read(buf, 0, 2)) {
+    if (sdcard_read(&m_sdctx, buf, 0, 2)) {
       buf[1024] = '\n';
       buf[1025] = 0;
       vcon_print(buf);
