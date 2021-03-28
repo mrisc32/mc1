@@ -22,7 +22,8 @@ OUT = out
 LIBMC1DIR   = ../libmc1
 LIBMC1INC   = $(LIBMC1DIR)/include
 LIBMC1OUT   = $(LIBMC1DIR)/out
-SELFTESTOUT = selftest/out
+SELFTESTDIR = ../selftest
+SELFTESTOUT = $(SELFTESTDIR)/out
 
 HOST_OUT      = $(OUT)/host
 HOST_CC       = gcc
@@ -65,7 +66,7 @@ clean:
 	      $(HOST_OUT)/*.d \
 	      $(HOST_OUT)/png2mci
 	$(MAKE) -C $(LIBMC1DIR) clean
-	$(MAKE) -C selftest clean
+	$(MAKE) -C $(SELFTESTDIR) clean
 
 
 #-----------------------------------------------------------------------------
@@ -215,7 +216,7 @@ $(OUT)/libselftest.a: selftest
 	@$(CP) $(SELFTESTOUT)/libselftest.a $(OUT)/libselftest.a
 
 selftest:
-	$(MAKE) -C selftest
+	$(MAKE) -C $(SELFTESTDIR)
 
 
 # Include dependency files (generated when building the object files).
