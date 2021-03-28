@@ -19,6 +19,9 @@
 #--------------------------------------------------------------------------------------------------
 
 OUT = out
+LIBMC1DIR   = ../libmc1
+LIBMC1INC   = $(LIBMC1DIR)/include
+LIBMC1OUT   = $(LIBMC1DIR)/out
 SELFTESTOUT = selftest/out
 
 HOST_OUT      = $(OUT)/host
@@ -27,14 +30,14 @@ HOST_CXX      = g++
 HOST_CCFLAGS  = -c -O2 -I tools/liblzg/include -Wall -Wextra -Werror -MMD -MP
 HOST_CXXFLAGS = $(HOST_CCFLAGS)
 
-CFLAGS_COMMON = -c -I . -Os -ffast-math -Wall -Wextra -Wshadow -pedantic -Werror -MMD -MP
+CFLAGS_COMMON = -c -I $(LIBMC1INC) -Os -ffast-math -Wall -Wextra -Wshadow -pedantic -Werror -MMD -MP
 
 CC       = mrisc32-elf-gcc
 CCFLAGS  = $(CFLAGS_COMMON) -std=c11
 CXX      = mrisc32-elf-g++
 CXXFLAGS = $(CFLAGS_COMMON) -std=c++17 -Wold-style-cast -fno-exceptions
 AS       = mrisc32-elf-gcc
-ASFLAGS  = -c -I .
+ASFLAGS  = -c -I $(LIBMC1INC)
 LD       = mrisc32-elf-gcc
 LDFLAGS  = -L$(OUT) -L$(SELFTESTOUT) -T link.ld -mno-crt0
 AR       = mrisc32-elf-ar
@@ -44,9 +47,9 @@ CP       = cp -a
 
 DHRYSTONE_FLAGS = -S -w -fno-inline -O3
 
-.PHONY: clean all selftest
+.PHONY: clean all libmc1 selftest
 
-all: $(OUT)/rom.vhd $(HOST_OUT)/png2mci $(HOST_OUT)/font_test
+all: $(OUT)/rom.vhd $(HOST_OUT)/png2mci
 
 clean:
 	rm -f $(OUT)/*.a \
@@ -60,8 +63,8 @@ clean:
 	      $(OUT)/*.vhd \
 	      $(HOST_OUT)/*.o \
 	      $(HOST_OUT)/*.d \
-	      $(HOST_OUT)/png2mci \
-	      $(HOST_OUT)/font_test
+	      $(HOST_OUT)/png2mci
+	$(MAKE) -C $(LIBMC1DIR) clean
 	$(MAKE) -C selftest clean
 
 
@@ -97,19 +100,6 @@ $(HOST_OUT)/encode.o: tools/liblzg/lib/encode.c
 
 $(HOST_OUT)/version.o: tools/liblzg/lib/version.c
 	$(HOST_CC) $(HOST_CCFLAGS) -w -o $@ $<
-
-FONT_TEST_OBJS = \
-    $(HOST_OUT)/font_test.o \
-    $(HOST_OUT)/glyph_renderer.o
-
-$(HOST_OUT)/font_test: $(FONT_TEST_OBJS)
-	$(HOST_CXX) -o $@ $(FONT_TEST_OBJS)
-
-$(HOST_OUT)/font_test.o: tools/font_test.cpp
-	$(HOST_CXX) $(HOST_CXXFLAGS) -I . -o $@ $<
-
-$(HOST_OUT)/glyph_renderer.o: mc1/glyph_renderer.cpp
-	$(HOST_CXX) $(HOST_CXXFLAGS) -I . -o $@ $<
 
 
 #-----------------------------------------------------------------------------
@@ -186,14 +176,35 @@ $(OUT)/mrisc32_logo.c: demo/mrisc32-logo-512x97.png $(HOST_OUT)/png2mci
 # ROM image
 #-----------------------------------------------------------------------------
 
+ROM_OBJS = \
+    $(OUT)/crt0.o \
+    $(OUT)/doh.o
+
+$(OUT)/crt0.o: crt0.s $(LIBMC1INC)/mc1/memory.inc $(LIBMC1INC)/mc1/mmio.inc
+	$(AS) $(ASFLAGS) -o $@ crt0.s
+
+$(OUT)/doh.o: doh.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
 $(OUT)/rom.vhd: $(OUT)/rom.raw rom.vhd.in
 	tools/raw2vhd.py $(OUT)/rom.raw rom.vhd.in > $@
 
 $(OUT)/rom.raw: $(OUT)/rom.elf
 	$(OBJCOPY) -O binary $< $@
 
-$(OUT)/rom.elf: $(DEMO_OBJS) $(OUT)/libmc1.a $(OUT)/libselftest.a link.ld
-	$(LD) $(LDFLAGS) -o $@ $(DEMO_OBJS) -lmc1 -lselftest -lm
+$(OUT)/rom.elf: $(DEMO_OBJS) $(ROM_OBJS) $(OUT)/libmc1.a $(OUT)/libselftest.a link.ld
+	$(LD) $(LDFLAGS) -o $@ $(DEMO_OBJS) $(OUT)/crt0.o -lmc1 -lselftest -lm
+
+
+#-----------------------------------------------------------------------------
+# libmc1.a
+#-----------------------------------------------------------------------------
+
+$(OUT)/libmc1.a: libmc1
+	@$(CP) $(LIBMC1OUT)/libmc1.a $(OUT)/libmc1.a
+
+libmc1:
+	$(MAKE) -C $(LIBMC1DIR)
 
 
 #-----------------------------------------------------------------------------
@@ -207,102 +218,7 @@ selftest:
 	$(MAKE) -C selftest
 
 
-#-----------------------------------------------------------------------------
-# libmc1.a - MC1 system library
-#-----------------------------------------------------------------------------
-
-LIBMC1_OBJS = \
-    $(OUT)/crt0.o \
-    $(OUT)/crc7.o \
-    $(OUT)/crc16.o \
-    $(OUT)/crc32c.o \
-    $(OUT)/doh.o \
-    $(OUT)/fast_math.o \
-    $(OUT)/framebuffer.o \
-    $(OUT)/glyph_renderer.o \
-    $(OUT)/keyboard.o \
-    $(OUT)/keyboard_layout_en_us.o \
-    $(OUT)/leds.o \
-    $(OUT)/lzg_mc1.o \
-    $(OUT)/mc1-font-8x8.o \
-    $(OUT)/mci_decode.o \
-    $(OUT)/memory.o \
-    $(OUT)/sdcard.o \
-    $(OUT)/time.o \
-    $(OUT)/vconsole.o \
-    $(OUT)/vcp.o
-
-$(OUT)/libmc1.a: $(LIBMC1_OBJS)
-	$(AR) $(ARFLAGS) $@ $(LIBMC1_OBJS)
-
-$(OUT)/crt0.o: mc1/crt0.s mc1/memory.inc mc1/mmio.inc
-	$(AS) $(ASFLAGS) -o $@ mc1/crt0.s
-
-$(OUT)/crc7.o: mc1/crc7.c
-	$(CC) $(CCFLAGS) -o $@ $<
-
-$(OUT)/crc16.o: mc1/crc16.c
-	$(CC) $(CCFLAGS) -o $@ $<
-
-$(OUT)/crc32c.o: mc1/crc32c.c
-	$(CC) $(CCFLAGS) -o $@ $<
-
-$(OUT)/doh.o: mc1/doh.cpp
-	$(CXX) $(CXXFLAGS) -o $@ $<
-
-$(OUT)/fast_math.o: mc1/fast_math.c
-	$(CC) $(CCFLAGS) -o $@ $<
-
-$(OUT)/framebuffer.o: mc1/framebuffer.c
-	$(CC) $(CCFLAGS) -o $@ $<
-
-$(OUT)/glyph_renderer.o: mc1/glyph_renderer.cpp
-	$(CXX) $(CXXFLAGS) -o $@ $<
-
-$(OUT)/keyboard.o: mc1/keyboard.cpp
-	$(CXX) $(CXXFLAGS) -o $@ $<
-
-$(OUT)/keyboard_layout_en_us.o: mc1/keyboard_layout_en_us.cpp
-	$(CXX) $(CXXFLAGS) -o $@ $<
-
-$(OUT)/leds.o: mc1/leds.s mc1/mmio.inc
-	$(AS) $(ASFLAGS) -o $@ mc1/leds.s
-
-$(OUT)/lzg_mc1.o: mc1/lzg_mc1.c
-	$(CC) $(CCFLAGS) -o $@ $<
-
-$(OUT)/mc1-font-8x8.o: $(OUT)/mc1-font-8x8.s
-	$(AS) $(ASFLAGS) -o $@ $<
-
-$(OUT)/mc1-font-8x8.s: mc1/mc1-font-8x8.raw
-	# Trim out ASCII code points 32..127 (the printable ASCII chars).
-	cat mc1/mc1-font-8x8.raw | \
-	    tail -c +257  | \
-	    head -c -1024 \
-	    > $(OUT)/mc1-font-8x8-part.raw
-	tools/raw2asm.py --rev $(OUT)/mc1-font-8x8-part.raw mc1_font_8x8 > $@
-
-$(OUT)/mci_decode.o: mc1/mci_decode.c
-	$(CC) $(CCFLAGS) -o $@ $<
-
-$(OUT)/memory.o: mc1/memory.c
-	$(CC) $(CCFLAGS) -o $@ $<
-
-$(OUT)/sdcard.o: mc1/sdcard.c mc1/crc7.h mc1/crc16.h mc1/mmio.h
-	$(CC) $(CCFLAGS) -o $@ $<
-
-$(OUT)/time.o: mc1/time.s mc1/mmio.inc
-	$(AS) $(ASFLAGS) -o $@ $<
-
-$(OUT)/vconsole.o: mc1/vconsole.s mc1/mmio.inc mc1/memory.inc
-	$(AS) $(ASFLAGS) -o $@ $<
-
-$(OUT)/vcp.o: mc1/vcp.c
-	$(CC) $(CCFLAGS) -o $@ $<
-
-
 # Include dependency files (generated when building the object files).
 -include $(PNG2MCI_OBJS:.o=.d)
 -include $(DEMO_OBJS:.o=.d)
--include $(LIBMC1_OBJS:.o=.d)
 

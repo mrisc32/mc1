@@ -22,7 +22,7 @@
 // This is a stripped down and adapted version of lzgmini.c from the liblzg project.
 //--------------------------------------------------------------------------------------------------
 
-#include "lzg_mc1.h"
+#include <mc1/lzg_mc1.h>
 
 #include <mr32intrin.h>
 
