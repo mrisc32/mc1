@@ -107,32 +107,36 @@ $(HOST_OUT)/version.o: tools/liblzg/lib/version.c
 # Demo application
 #-----------------------------------------------------------------------------
 
-DEMO_OBJS = \
-    $(OUT)/console.o \
-    $(OUT)/demo.o \
-    $(OUT)/mandelbrot.o \
-    $(OUT)/mrisc32_logo.o \
-    $(OUT)/raytrace.o \
-    $(OUT)/retro.o \
-    $(OUT)/stars.o
-
-# Optional features of the demo.
+# Demo configuration.
+ENABLE_DEMO = yes
 DEMO_INTERACTIVE_MODE = no
 DEMO_ENABLE_SELFTEST = no
 DEMO_ENABLE_DHRYSTONE = no
 
-DEMO_FLAGS =
-ifeq ($(DEMO_INTERACTIVE_MODE),yes)
-  DEMO_FLAGS += -DINTERACTIVE_MODE
-endif
-ifeq ($(DEMO_ENABLE_SELFTEST),yes)
-  DEMO_FLAGS += -DENABLE_SELFTEST
-endif
-ifeq ($(DEMO_ENABLE_DHRYSTONE),yes)
-  DEMO_FLAGS += -DENABLE_DHRYSTONE
+DEMO_OBJS =
+ifeq ($(ENABLE_DEMO),yes)
   DEMO_OBJS += \
-      $(OUT)/dhry_1.o \
-      $(OUT)/dhry_2.o
+      $(OUT)/console.o \
+      $(OUT)/demo.o \
+      $(OUT)/mandelbrot.o \
+      $(OUT)/mrisc32_logo.o \
+      $(OUT)/raytrace.o \
+      $(OUT)/retro.o \
+      $(OUT)/stars.o
+
+  DEMO_FLAGS =
+  ifeq ($(DEMO_INTERACTIVE_MODE),yes)
+    DEMO_FLAGS += -DINTERACTIVE_MODE
+  endif
+  ifeq ($(DEMO_ENABLE_SELFTEST),yes)
+    DEMO_FLAGS += -DENABLE_SELFTEST
+  endif
+  ifeq ($(DEMO_ENABLE_DHRYSTONE),yes)
+    DEMO_FLAGS += -DENABLE_DHRYSTONE
+    DEMO_OBJS += \
+        $(OUT)/dhry_1.o \
+        $(OUT)/dhry_2.o
+  endif
 endif
 
 $(OUT)/console.o: demo/console.cpp
@@ -181,11 +185,16 @@ ROM_OBJS = \
     $(OUT)/crt0.o \
     $(OUT)/doh.o
 
+ROM_FLAGS =
+ifeq ($(ENABLE_DEMO),yes)
+  ROM_FLAGS += -DENABLE_DEMO -Wa,--defsym,ENABLE_DEMO=1
+endif
+
 $(OUT)/crt0.o: crt0.s $(LIBMC1INC)/mc1/memory.inc $(LIBMC1INC)/mc1/mmio.inc
-	$(AS) $(ASFLAGS) -o $@ crt0.s
+	$(AS) $(ASFLAGS) $(ROM_FLAGS) -o $@ crt0.s
 
 $(OUT)/doh.o: doh.cpp
-	$(CXX) $(CXXFLAGS) -o $@ $<
+	$(CXX) $(CXXFLAGS) $(ROM_FLAGS) -o $@ $<
 
 $(OUT)/rom.vhd: $(OUT)/rom.raw rom.vhd.in
 	tools/raw2vhd.py $(OUT)/rom.raw rom.vhd.in > $@
@@ -194,7 +203,7 @@ $(OUT)/rom.raw: $(OUT)/rom.elf
 	$(OBJCOPY) -O binary $< $@
 
 $(OUT)/rom.elf: $(DEMO_OBJS) $(ROM_OBJS) $(OUT)/libmc1.a $(OUT)/libselftest.a link.ld
-	$(LD) $(LDFLAGS) -o $@ $(DEMO_OBJS) $(OUT)/crt0.o -lmc1 -lselftest -lm
+	$(LD) $(LDFLAGS) -o $@ $(DEMO_OBJS) $(ROM_OBJS) -lmc1 -lselftest -lm
 
 
 #-----------------------------------------------------------------------------

@@ -40,13 +40,15 @@ For more details, see the [video logic documentation](docs/video_logic.md).
 
 Primitive I/O, such as reading buttons and switches and writing to leds and seven-segment displays, is provided as memory mapped I/O (see the [MC1 memory map](docs/memory_map.md)), directly accessible for the CPU.
 
-Keyboard input is provided for boards that have a PS/2 connector.
+Keyboard input is provided for boards that have a PS/2 connector, and SD card I/O is provided for boards with an SD card port.
 
 ## Operating system
 
 No operating system is planned at this point. There will be libraries of helper routined (e.g. for I/O and timing) that can be statically linked to MC1 binaries.
 
-Once file loading capabilities are implemented, the ROM code will be able to load a program binary into RAM, and all system control is transfered to the loaded program (so it's essentially a two-stage boot).
+The ROM can load a program binary into RAM, and all system control is transfered to the loaded program (so it's essentially a two-stage boot).
+
+See: [MC1 boot sequence](docs/mc1-boot-sequence.md).
 
 ## Planned features
 
@@ -60,5 +62,4 @@ The following things are not yet implemented, but planned:
 * Memory:
   * Support for off-chip RAM (e.g. DRAM or SRAM) - probably with an on-chip L2 cache.
 * I/O:
-  * A Micro SD interface to read programs and data.
   * Mouse input.

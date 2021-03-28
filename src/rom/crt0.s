@@ -7,8 +7,15 @@
 .include "mc1/memory.inc"
 .include "mc1/mmio.inc"
 
-STACK_SIZE = 4*1024
+; Size of the boot code block (including header).
+BOOT_CODE_SIZE = 512
 
+; Heap layout.
+HEAP_SDCTX = 0      ; sdctx_t
+HEAP_SIZE = 64
+
+; Size of stack (only relevant for the memory allocator).
+STACK_SIZE = 448
 
     .section .text.start, "ax"
 
@@ -16,72 +23,6 @@ STACK_SIZE = 4*1024
     .p2align 2
 
 _start:
-    ; ------------------------------------------------------------------------
-    ; Clear the BSS data.
-    ; ------------------------------------------------------------------------
-
-    ldi     s2, #__bss_size
-    bz      s2, bss_cleared
-    lsr     s2, s2, #2      ; BSS size is always a multiple of 4 bytes.
-
-    ldi     s1, #__bss_start
-    cpuid   s3, z, z
-clear_bss_loop:
-    min     vl, s2, s3
-    sub     s2, s2, vl
-    stw     vz, s1, #4
-    ldea    s1, s1, vl*4
-    bnz     s2, clear_bss_loop
-bss_cleared:
-
-
-    ; ------------------------------------------------------------------------
-    ; Set up the stack area.
-    ; ------------------------------------------------------------------------
-
-    ; Initialize the stack: Place the stack at the top of VRAM.
-    ldi     s1, #MMIO_START
-    ldw     s1, s1, #VRAMSIZE
-    ldi     sp, #VRAM_START
-    add     sp, sp, s1
-
-    ldi     s20, #STACK_SIZE
-    sub     s20, sp, s20        ; s20 = Start of stack.
-
-
-    ; ------------------------------------------------------------------------
-    ; Make both video layers "silent" (use no memory cycles).
-    ; ------------------------------------------------------------------------
-
-    ldi     s1, #0x50007fff     ; WAITY 32767 = wait forever
-    ldi     s2, #VRAM_START
-    stw     s1, s2, #16         ; Layer 1
-    stw     s1, s2, #32         ; Layer 2
-
-
-    ; ------------------------------------------------------------------------
-    ; Initialize the memory allocator.
-    ; ------------------------------------------------------------------------
-
-    bl      mem_init
-
-    ; Add a memory allocation pool for the XRAM.
-    ; Note: By adding this pool first, we give it the highest priority. This
-    ; means that if anyone calls mem_alloc() with MEM_TYPE_ANY, the allocator
-    ; will try to allocate XRAM first.
-    ldi     s1, #XRAM_START
-    ldi     s2, #MMIO_START
-    ldw     s2, s2, #XRAMSIZE
-    ldi     s3, #MEM_TYPE_EXT
-    bl      mem_add_pool
-
-    ; Add a memory allocation pool for the VRAM.
-    ldi     s1, #__vram_free_start  ; s1 = Start of free VRAM
-    sub     s2, s20, s1             ; s2 = Number of free VRAM bytes
-    ldi     s3, #MEM_TYPE_VIDEO     ; s3 = The memory type
-    bl      mem_add_pool
-
-
     ; ------------------------------------------------------------------------
     ; Clear all CPU registers.
     ; ------------------------------------------------------------------------
@@ -154,34 +95,172 @@ bss_cleared:
 
 
     ; ------------------------------------------------------------------------
+    ; Set up the stack and heap (total of 1 KiB at top of VRAM):
+    ;
+    ; Top of VRAM ->  +---------------------------------------------+
+    ;                 | 512 bytes: Boot code (loaded from SD card)  |
+    ;                 +---------------------------------------------+
+    ;                 |  64 bytes: Heap (for SD card routines)      |
+    ;                 +---------------------------------------------+
+    ;                 | 448 bytes: Stack                            |
+    ;                 +---------------------------------------------+
+    ; ------------------------------------------------------------------------
+
+    ldi     s1, #MMIO_START
+    ldw     s1, s1, #VRAMSIZE
+    ldi     s25, #VRAM_START
+    add     s25, s25, s1                ; s25 = Top of VRAM
+    add     s24, s25, #-BOOT_CODE_SIZE  ; s24 = Start of boot code area
+    add     s23, s24, #-HEAP_SIZE       ; s23 = Start of heap
+    mov     sp, s23                     ; sp = Top of stack
+    add     s22, sp, #-STACK_SIZE       ; s22 = Bottom of stack
+
+
+    ; ------------------------------------------------------------------------
+    ; Clear the BSS data (if any).
+    ; ------------------------------------------------------------------------
+
+    ldi     s2, #__bss_size
+    bz      s2, bss_cleared
+    lsr     s2, s2, #2      ; BSS size is always a multiple of 4 bytes.
+
+    ldi     s1, #__bss_start
+    cpuid   s3, z, z
+clear_bss_loop:
+    min     vl, s2, s3
+    sub     s2, s2, vl
+    stw     vz, s1, #4
+    ldea    s1, s1, vl*4
+    bnz     s2, clear_bss_loop
+bss_cleared:
+
+
+    ; ------------------------------------------------------------------------
+    ; Make both video layers "silent" (use no memory cycles).
+    ; ------------------------------------------------------------------------
+
+    ldi     s1, #0x50007fff     ; WAITY 32767 = wait forever
+    ldi     s2, #VRAM_START
+    stw     s1, s2, #16         ; Layer 1 VCP
+    stw     s1, s2, #32         ; Layer 2 VCP
+
+
+    ; ------------------------------------------------------------------------
+    ; Try to boot from an SD card.
+    ; ------------------------------------------------------------------------
+
+    ; Initilize the SD card.
+    ldea    s1, s23, #HEAP_SDCTX    ; sdctx_t
+    ldi     s2, #0                  ; No logging function
+    bl      sdcard_init
+    bz      s1, bootloader_failed
+
+    ; Load the boot code block.
+    ldea    s1, s23, #HEAP_SDCTX    ; sdctx_t
+    mov     s2, s24                 ; Load to start of boot code area in VRAM
+    ldi     s3, #0                  ; Load the first block (block #0)
+    ldi     s4, #1                  ; Load one block (512 bytes)
+    bl      sdcard_read
+    bz      s1, bootloader_failed
+
+    ; Is the magic ID correct?
+    ldw     s1, s24, #0             ; s1 = magic ID
+    ldi     s2, #0x4231434d
+    seq     s1, s1, s2
+    bns     s1, bootloader_failed
+
+    ; Is the checksum correct?
+    ldea    s1, s24, #8             ; s1 = start of code
+    ldi     s2, #BOOT_CODE_SIZE-8
+    bl      crc32c
+    ldw     s2, s24, #4             ; s2 = expected checksum
+    seq     s1, s1, s2
+    bns     s1, bootloader_failed
+
+    ; Set up the jump table for ROM routines (pointer in s26).
+    addpchi s26, #rom_jump_table@pchi
+    add     s26, s26, #rom_jump_table+4@pclo
+
+    ; Call the boot code (never return).
+    j       s24, #8
+
+bootloader_failed:
+
+.ifdef ENABLE_DEMO
+    ; ------------------------------------------------------------------------
+    ; Initialize the memory allocator.
+    ; ------------------------------------------------------------------------
+
+    bl      mem_init
+
+    ; Add a memory allocation pool for the XRAM.
+    ; Note: By adding this pool first, we give it the highest priority. This
+    ; means that if anyone calls mem_alloc() with MEM_TYPE_ANY, the allocator
+    ; will try to allocate XRAM first.
+    ldi     s1, #XRAM_START
+    ldi     s2, #MMIO_START
+    ldw     s2, s2, #XRAMSIZE
+    ldi     s3, #MEM_TYPE_EXT
+    bl      mem_add_pool
+
+    ; Add a memory allocation pool for the VRAM.
+    ldi     s1, #__vram_free_start  ; s1 = Start of free VRAM
+    sub     s2, s22, s1             ; s2 = Number of free VRAM bytes
+    ldi     s3, #MEM_TYPE_VIDEO     ; s3 = The memory type
+    bl      mem_add_pool
+
+
+    ; ------------------------------------------------------------------------
     ; Call main().
     ; ------------------------------------------------------------------------
 
-    ; s1 = argc
-    ldi     s1, #1
-
-    ; s2 = argv
-    ldi     s2, #argv@pc
+    ; s1 = argc, s2 = argv (these are invalid - don't use them!)
+    ldi     s1, #0
+    ldi     s2, #0
 
     ; Jump to main().
     call    #main@pc
+.endif
 
-
-    ; ------------------------------------------------------------------------
-    ; Terminate the program.
-    ; ------------------------------------------------------------------------
-
-    ; Loop forever...
+    ; Terminate the program: Loop forever...
 1$:
     b       1$
 
 
-    .section .rodata
+    ; ------------------------------------------------------------------------
+    ; int blk_read(void* ptr,
+    ;              int device,
+    ;              size_t first_block,
+    ;              size_t num_blocks)
+    ; ------------------------------------------------------------------------
 
-    .p2align 2
-argv:
-    .word   arg0
+blk_read:
+    ; We only support device == 0
+    bnz     s2, 1f
 
-arg0:
-    ; We provide a fake program name (just to have a valid call to main).
-    .asciz  "program"
+    ; Start address = ptr
+    mov     s2, s1
+
+    ; Calculate the address of the ROM owned sdctx_t.
+    ldi     s1, #MMIO_START
+    ldw     s1, s1, #VRAMSIZE
+    ldi     s15, #VRAM_START
+    add     s1, s1, s15
+    add     s1, s1, #HEAP_SDCTX-(BOOT_CODE_SIZE+HEAP_SIZE)
+    b       sdcard_read
+
+1:
+    ldi     s1, #0
+    ret
+
+
+    ; ------------------------------------------------------------------------
+    ; ROM jump table for the boot code.
+    ; ------------------------------------------------------------------------
+
+rom_jump_table:
+    b       doh         ; Offset =  0
+    b       blk_read    ; Offset =  4
+    b       crc32c      ; Offset =  8
+    b       LZG_Decode  ; Offset = 12
+
