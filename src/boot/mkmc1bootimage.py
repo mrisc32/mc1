@@ -26,9 +26,9 @@ import struct
 _MAX_CODE_SIZE = 512 - 8
 
 
-def convert(raw, img):
-    # Read the raw data.
-    with open(raw, "rb") as f:
+def convert(boot, img, extras):
+    # Read the raw boot data.
+    with open(boot, "rb") as f:
         data = f.read()
     code_size = len(data)
 
@@ -50,6 +50,24 @@ def convert(raw, img):
     print(f"CRC32C:    {crc:#08x}")
     print("--------------------------------------------------------------------")
 
+    # Append optional extra files.
+    block_no = 1
+    for extra in extras:
+        with open(extra, "rb") as f:
+            extra_data = f.read()
+        extra_size = len(extra_data)
+        num_blocks = (extra_size + 511) >> 9
+        pad = 512 * num_blocks - extra_size
+        if pad > 0:
+            extra_data += bytearray(pad)
+        data += extra_data
+
+        print(f"File:   {extra}")
+        print(f"Block:  {block_no}, Num. blocks: {num_blocks}")
+        print("--------------------------------------------------------------------")
+
+        block_no += num_blocks
+
     # Write the boot image.
     with open(img, "wb") as f:
         f.write(data)
@@ -60,14 +78,15 @@ def convert(raw, img):
 def main():
     # Parse command line arguments.
     parser = argparse.ArgumentParser(
-        description="Convert a raw file to a boot block image"
+        description="Convert raw files to an MC1 boot image"
     )
-    parser.add_argument("raw", metavar="RAW_FILE", help="the raw file to convert")
+    parser.add_argument("boot", metavar="BOOT_CODE", help="the raw boot code (max 504 bytes)")
     parser.add_argument("img", metavar="IMAGE", help="the boot image")
+    parser.add_argument("extras", nargs="*", metavar="EXTRA", help="extra file(s)")
     args = parser.parse_args()
 
     # Convert the file.
-    convert(args.raw, args.img)
+    convert(args.boot, args.img, args.extras)
 
 
 if __name__ == "__main__":
