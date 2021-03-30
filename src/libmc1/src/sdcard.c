@@ -39,15 +39,45 @@ static inline void _sdcard_log(const sdctx_t* ctx, const char* msg) {
   }
 }
 
+static void _sdcard_log_num(const sdctx_t* ctx, int x) {
+  if (ctx->log_func == (sdcard_log_func_t)0) {
+    return;
+  }
+
+  // We do this in a very manual and roundabout way to avoid using the standard C library.
+  char buf[16];
+
+  bool is_neg = (x < 0);
+  if (is_neg) {
+    x = -x;
+  }
+
+  int k = 16;
+  buf[--k] = 0;
+  do {
+    int d = x % 10;
+    x /= 10;
+    buf[--k] = d + 48;
+  } while (x != 0);
+  if (is_neg) {
+    buf[--k] = '-';
+  }
+
+  ctx->log_func(&buf[k]);
+}
+
 #define SDCARD_LOG(msg) _sdcard_log(ctx, msg)
 #ifdef SDCARD_ENABLE_DEBUGGING
 #define SDCARD_DEBUG(msg) _sdcard_log(ctx, msg)
+#define SDCARD_DEBUG_NUM(x) _sdcard_log_num(ctx, x)
 #else
 #define SDCARD_DEBUG(msg)
+#define SDCARD_DEBUG_NUM(x)
 #endif
 #else
 #define SDCARD_LOG(msg)
 #define SDCARD_DEBUG(msg)
+#define SDCARD_DEBUG_NUM(x)
 #endif
 
 //--------------------------------------------------------------------------------------------------
@@ -57,6 +87,8 @@ static inline void _sdcard_log(const sdctx_t* ctx, const char* msg) {
 // This converts a microsecond value to a loop count for an MRISC32-A1 CPU running at about 100 MHz.
 // I.e. it is very appoximate.
 #define PERIOD_MICROS(us) (((us) + 10) / 20)
+
+#define SD_SLEEP_400KHZ 1200  // 1/(2*1200us) ~= 400 kHz
 
 static inline void _sdio_sleep(int period) {
 #ifdef __MRISC32__
@@ -109,7 +141,7 @@ static void _sdio_set_sck(const uint32_t value) {
 
 static void _sdio_set_sck_slow(const uint32_t value) {
   // Sleep/delay to achieve a clock frequence close to 400 kHz.
-  _sdio_sleep(PERIOD_MICROS(1200));
+  _sdio_sleep(PERIOD_MICROS(SD_SLEEP_400KHZ));
 
   // Set the clock signal.
   _sdio_set_sck(value);
@@ -119,7 +151,7 @@ static void _sdio_set_sck_slow(const uint32_t value) {
 // Low level SD card command interface.
 //--------------------------------------------------------------------------------------------------
 
-static void _sdcard_sck_cycles(sdctx_t* ctx, const int num_cycles) {
+static void _sdcard_sck_cycles_slow(sdctx_t* ctx, const int num_cycles) {
   (void)ctx;  // Currently unused.
   for (int i = 0; i < num_cycles; ++i) {
     _sdio_set_sck_slow(0);
@@ -130,21 +162,53 @@ static void _sdcard_sck_cycles(sdctx_t* ctx, const int num_cycles) {
 static void _sdcard_send_byte(sdctx_t* ctx, const uint32_t byte) {
   (void)ctx;  // Currently unused.
   for (int shift = 7; shift >= 0; --shift) {
-    _sdio_set_sck_slow(0);
     _sdio_set_mosi((byte >> shift) & 1);
-    _sdio_set_sck_slow(1);
+    _sdio_set_sck(0);
+    _sdio_sleep(PERIOD_MICROS(SD_SLEEP_400KHZ));
+    _sdio_set_sck(1);
+    _sdio_sleep(PERIOD_MICROS(SD_SLEEP_400KHZ));
   }
 }
 
 static uint32_t _sdcard_receive_byte(sdctx_t* ctx) {
   (void)ctx;  // Currently unused.
   uint32_t byte = 0;
-  for (int shift = 7; shift >= 0; --shift) {
-    _sdio_set_sck_slow(0);
+  for (int i = 8; i > 0; --i) {
+    _sdio_set_sck(0);
+    _sdio_sleep(PERIOD_MICROS(SD_SLEEP_400KHZ));
+    _sdio_set_sck(1);
     byte = (byte << 1) | _sdio_get_miso();
-    _sdio_set_sck_slow(1);
+    _sdio_sleep(PERIOD_MICROS(SD_SLEEP_400KHZ));
   }
   return byte;
+}
+
+static uint32_t _sdcard_receive_byte_fast(sdctx_t* ctx) {
+  (void)ctx;  // Currently unused.
+  uint32_t byte = 0;
+  for (int i = 8; i > 0; --i) {
+    _sdio_set_sck(0);
+    _sdio_set_sck(1);
+    byte = (byte << 1) | _sdio_get_miso();
+  }
+  return byte;
+}
+
+static void _sdcard_terminate_operation(sdctx_t* ctx) {
+  // Send 8 dummy cycles to terminate.
+  _sdio_set_mosi(1);
+  _sdcard_sck_cycles_slow(ctx, 8);
+}
+
+static void _sdcard_select_card(sdctx_t* ctx) {
+  (void)ctx;
+  _sdio_sleep(PERIOD_MICROS(1000));
+  _sdio_set_cs_(0);
+}
+
+static void _sdcard_deselect_card(sdctx_t* ctx) {
+  _sdio_set_cs_(1);
+  _sdcard_terminate_operation(ctx);
 }
 
 static bool _sdcard_send_cmd(sdctx_t* ctx, const uint8_t* cmd, const int len) {
@@ -178,13 +242,13 @@ static bool _sdcard_send_cmd(sdctx_t* ctx, const uint8_t* cmd, const int len) {
 }
 
 static bool _sdcard_get_response(sdctx_t* ctx, uint8_t* response, const int len) {
-  // Drive MOSI high.
+  // Drive MOSI high (shouldn't be necessary, as we've sent a 1 bit in _sdcard_send_cmd).
   _sdio_set_mosi(1);
 
   // Wait for the start bit, i.e. the first 0-bit after 1-bits (time out after too many cycles).
   bool got_1_bit = false;
   bool success = false;
-  for (int i = 20; i > 0; --i) {
+  for (int i = 200; i > 0; --i) {
     const uint32_t bit = _sdio_get_miso();
     if (!got_1_bit && (bit == 1)) {
       got_1_bit = true;
@@ -192,7 +256,7 @@ static bool _sdcard_get_response(sdctx_t* ctx, uint8_t* response, const int len)
       success = true;
       break;
     }
-    _sdcard_sck_cycles(ctx, 1);
+    _sdcard_sck_cycles_slow(ctx, 1);
   }
   if (!success) {
     SDCARD_LOG("SD: Get response timeout\n");
@@ -202,7 +266,7 @@ static bool _sdcard_get_response(sdctx_t* ctx, uint8_t* response, const int len)
   // Read the first byte (skip first zero-bit, because we already got it).
   uint32_t value = 0;
   for (int i = 1; i < 8; ++i) {
-    _sdcard_sck_cycles(ctx, 1);
+    _sdcard_sck_cycles_slow(ctx, 1);
     const int bit = 7 - (i & 7);
     value |= _sdio_get_miso() << bit;
   }
@@ -214,9 +278,7 @@ static bool _sdcard_get_response(sdctx_t* ctx, uint8_t* response, const int len)
     response[i] = value;
   }
 
-  // Run 8 dummy cycles to let the operation terminate.
-  _sdio_set_mosi(1);
-  _sdcard_sck_cycles(ctx, 8);
+  _sdcard_terminate_operation(ctx);
 
   return true;
 }
@@ -308,6 +370,96 @@ bool _sdcard_cmd8(sdctx_t* ctx) {
     SDCARD_DEBUG("CMD8: Version 1\n");
     _sdcard_dump_r1(ctx, resp[0]);
   }
+
+  return true;
+}
+
+bool _sdcard_cmd9(sdctx_t* ctx) {
+  SDCARD_DEBUG("SD: Send CMD9\n");
+
+  // Send command.
+  uint8_t cmd[5] = {0x49, 0x00, 0x00, 0x00, 0x00};
+  if (!_sdcard_send_cmd(ctx, cmd, sizeof(cmd))) {
+    return false;
+  }
+
+  // Get response (R2).
+  uint8_t resp[17];
+  if (!_sdcard_get_response(ctx, resp, sizeof(resp))) {
+    return false;
+  }
+
+  if ((resp[0] & 0xfe) != 0) {
+    SDCARD_LOG("CMD9: Unexpected response\n");
+    _sdcard_dump_r1(ctx, resp[0]);
+    return false;
+  }
+
+  // CSD register bit mappings:
+  //   resp[0]:  135:128  (R1)
+  //   resp[1]:  127:120
+  //   resp[2]:  119:112
+  //   resp[3]:  111:104
+  //   resp[4]:  103:96
+  //   resp[5]:  95:88
+  //   resp[6]:  87:80
+  //   resp[7]:  79:72
+  //   resp[8]:  71:64
+  //   resp[9]:  63:56
+  //   resp[10]: 55:48
+  //   resp[11]: 47:40
+  //   resp[12]: 39:32
+  //   resp[13]: 31:24
+  //   resp[14]: 23:16
+  //   resp[15]: 15:8
+  //   resp[16]: 7:0
+
+  // Decode card version (CSD_STRUCTURE, bits 127:126, byte 1).
+  ctx->protocol_version = (resp[1] >> 6) + 1;
+
+  // Decode card speed (TRAN_SPEED, bits 103:96, byte 4).
+  switch (resp[4] & 0x07) {
+    case 0:
+      // 100 kbit/s
+      SDCARD_DEBUG("SD: 100 kbit/s\n");
+      ctx->transfer_kbit = 100;
+      break;
+    case 1:
+      // 1 Mbit/s
+      SDCARD_DEBUG("SD: 1 Mbit/s\n");
+      ctx->transfer_kbit = 1000;
+      break;
+    case 2:
+      // 10 Mbit/s
+      SDCARD_DEBUG("SD: 10 Mbit/s\n");
+      ctx->transfer_kbit = 10000;
+      break;
+    default:  // Foolishly assume that future values indicate faster speeds.
+    case 3:
+      // 100 Mbit/s
+      SDCARD_DEBUG("SD: 100 Mbit/s\n");
+      ctx->transfer_kbit = 100000;
+      break;
+  }
+
+  // Decode card capacity.
+  // (According to Physical Layer Simplified Specification Version 8.00, p. 191).
+  // C_SIZE, bits 73:62 (in bytes 7, 8 and 9).
+  size_t c_size = ((resp[7] & 0x03) << 10) | (resp[8] << 2) | (resp[9] >> 6);
+
+  // C_SIZE_MULT, bits 49:47 (in bytes 10 and 11).
+  int c_size_mult = ((resp[10] & 0x03) << 1) | (resp[11] >> 7);
+
+  // Calculate the total capacity.
+  ctx->num_blocks = (c_size + 1) << (c_size_mult + 3);
+
+  SDCARD_DEBUG("SD: C_SIZE=");
+  SDCARD_DEBUG_NUM(c_size);
+  SDCARD_DEBUG(", C_SIZE_MULT=");
+  SDCARD_DEBUG_NUM(c_size_mult);
+  SDCARD_DEBUG(", num_blocks=");
+  SDCARD_DEBUG_NUM(ctx->num_blocks);
+  SDCARD_DEBUG("\n");
 
   return true;
 }
@@ -451,13 +603,18 @@ bool _sdcard_cmd17(sdctx_t* ctx, const uint32_t block_addr) {
 static bool _sdcard_reset(sdctx_t* ctx) {
   bool success = false;
 
+  // Initialize the SD context with default values.
+  ctx->num_blocks = 0;
+  ctx->transfer_kbit = 100;
+  ctx->protocol_version = 1;
+  ctx->use_cmd1 = false;
   ctx->is_sdhc = false;
 
   // 1) Hold MOSI and CS* high for more than 74 cycles of "dummy-clock",
   //    and then pull CS* low.
   _sdio_set_mosi(1);
   _sdio_set_cs_(1);
-  _sdcard_sck_cycles(ctx, 100);
+  _sdcard_sck_cycles_slow(ctx, 100);
   _sdio_set_cs_(0);
 
   // 2) Send CMD0.
@@ -470,9 +627,14 @@ static bool _sdcard_reset(sdctx_t* ctx) {
     goto done;
   }
 
+  // 4) Send CMD9 (query card capabilities).
+  if (!_sdcard_cmd9(ctx)) {
+    goto done;
+  }
+
   ctx->use_cmd1 = false;
   for (int i = 0; i < 10000; ++i) {
-    // 4a) Send CMD55 (prefix for ACMD).
+    // 5a) Send CMD55 (prefix for ACMD).
     if (!_sdcard_cmd55(ctx)) {
       goto done;
     }
@@ -482,7 +644,7 @@ static bool _sdcard_reset(sdctx_t* ctx) {
       return 0;
     }
 
-    // 4b) Send ACMD41.
+    // 5b) Send ACMD41.
     if (_sdcard_acmd41(ctx)) {
       success = true;
       break;
@@ -491,15 +653,16 @@ static bool _sdcard_reset(sdctx_t* ctx) {
     // Delay a bit before the next try.
     _sdio_sleep(PERIOD_MICROS(1000));
   }
-
-  if (success) {
-    // 5) Check the card type (read the OCR).
-    success = _sdcard_cmd58(ctx);
+  if (!success) {
+    goto done;
   }
 
+  // 6) Check the card type (read the OCR).
+  success = _sdcard_cmd58(ctx);
+
 done:
-  // Pull CS* high again.
-  _sdio_set_cs_(1);
+  // Deselect card again.
+  _sdcard_deselect_card(ctx);
 
   if (success) {
     SDCARD_DEBUG("SD: Initialization succeeded!\n");
@@ -527,20 +690,33 @@ bool sdcard_init(sdctx_t* ctx, sdcard_log_func_t log_func) {
   return _sdcard_reset(ctx);
 }
 
+size_t sdcard_get_size(sdctx_t* ctx) {
+  return ctx->num_blocks;
+}
+
 bool sdcard_read(sdctx_t* ctx, void* ptr, size_t first_block, size_t num_blocks) {
   bool success = false;
 
-  // Pull CS* low.
-  _sdio_set_cs_(0);
+  // Select card.
+  _sdcard_select_card(ctx);
 
-  // Set block size.
-  if (!_sdcard_cmd16(ctx, SD_BLOCK_SIZE)) {
-    // TODO(m): We should probably try _sdcard_reset() here and retry.
+  // Set block size (retry with a reset if necessary).
+  int retry;
+  for (retry = 2; retry > 0; --retry) {
+    if (_sdcard_cmd16(ctx, SD_BLOCK_SIZE)) {
+      break;
+    }
+
+    // Try to reset the card and retry the command once more.
+    _sdcard_reset(ctx);
+  }
+  if (retry <= 0) {
     goto done;
   }
 
   uint8_t* buf = (uint8_t*)ptr;
 
+  // TODO(m): Use CMD18 (READ_MULTIPLE_BLOCK) when num_blocks > 1.
   const size_t block_end = first_block + num_blocks;
   for (size_t block_no = first_block; block_no < block_end; ++block_no) {
     // Set the block address, depending on if we're using HC or standard capacity.
@@ -565,14 +741,23 @@ bool sdcard_read(sdctx_t* ctx, void* ptr, size_t first_block, size_t num_blocks)
     }
 
     // Read one block.
-    for (int i = 0; i < SD_BLOCK_SIZE; ++i) {
-      buf[i] = _sdcard_receive_byte(ctx);
+    if (ctx->transfer_kbit >= 10000) {
+      // Use fast transfer if the SD card can do 10+ Mbit/s.
+      for (int i = 0; i < SD_BLOCK_SIZE; ++i) {
+        buf[i] = _sdcard_receive_byte_fast(ctx);
+      }
+    } else {
+      for (int i = 0; i < SD_BLOCK_SIZE; ++i) {
+        buf[i] = _sdcard_receive_byte(ctx);
+      }
     }
 
-    // Send a few of dummy bytes to terminate the transfer.
-    for (int i = 0; i < 10; ++i) {
+    // Send a couple of dummy bytes to terminate the transfer.
+    for (int i = 0; i < 2; ++i) {
       _sdcard_send_byte(ctx, 0xff);
     }
+
+    _sdcard_terminate_operation(ctx);
 
     buf += SD_BLOCK_SIZE;
   }
@@ -580,8 +765,8 @@ bool sdcard_read(sdctx_t* ctx, void* ptr, size_t first_block, size_t num_blocks)
   success = true;
 
 done:
-  // Pull CS* high again.
-  _sdio_set_cs_(1);
+  // Deselect card again.
+  _sdcard_deselect_card(ctx);
 
   return success;
 }
