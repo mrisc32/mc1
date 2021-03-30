@@ -30,12 +30,15 @@ all: $(OUT)/boot.img
 clean:
 	rm -f $(OUT)/*
 
-SRC = boot-minimal.s
+SRC = boot-pictures.s
+
+PICS = files/butterfly-1200x675-2bpp.raw \
+       files/currant-1200x675-2bpp.raw
 
 $(OUT)/boot.o: $(SRC)
 	$(AS) -o $@ $<
 
-$(OUT)/boot.img: $(OUT)/boot.o
+$(OUT)/boot.img: $(OUT)/boot.o $(PICS)
 	$(OBJCOPY) -O binary $< $(OUT)/boot.raw
-	./mkmc1bootimage.py $(OUT)/boot.raw $@
+	./mkmc1bootimage.py $(OUT)/boot.raw $@ $(PICS)
 
