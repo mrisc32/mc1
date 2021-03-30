@@ -39,6 +39,7 @@ static inline void _sdcard_log(const sdctx_t* ctx, const char* msg) {
   }
 }
 
+#ifdef SDCARD_ENABLE_DEBUGGING
 static void _sdcard_log_num(const sdctx_t* ctx, int x) {
   if (ctx->log_func == (sdcard_log_func_t)0) {
     return;
@@ -65,6 +66,7 @@ static void _sdcard_log_num(const sdctx_t* ctx, int x) {
 
   ctx->log_func(&buf[k]);
 }
+#endif
 
 #define SDCARD_LOG(msg) _sdcard_log(ctx, msg)
 #ifdef SDCARD_ENABLE_DEBUGGING
