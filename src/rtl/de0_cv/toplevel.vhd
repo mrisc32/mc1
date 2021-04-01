@@ -286,31 +286,18 @@ begin
   s_io_mousebtns <= (others => '0');
 
   -- I/O: SD card interface.
-  process(s_cpu_rst, s_cpu_clk)
-  begin
-    if s_cpu_rst = '1' then
-      SD_CLK <= '0';
-      SD_CMD <= 'Z';
-      SD_DATA <= (others => 'Z');
-      s_io_sdin <= (others => '0');
-    elsif rising_edge(s_cpu_clk) then
-      for k in 0 to 3 loop
-        if s_io_regs_w.SDWE(k) = '1' then
-          SD_DATA(k) <= s_io_regs_w.SDOUT(k);
-        else
-          SD_DATA(k) <= 'Z';
-          s_io_sdin(k) <= SD_DATA(k);
-        end if;
-      end loop;
-      if s_io_regs_w.SDWE(4) = '1' then
-        SD_CMD <= s_io_regs_w.SDOUT(4);
-      else
-        SD_CMD <= 'Z';
-        s_io_sdin(4) <= SD_CMD;
-      end if;
-      SD_CLK <= s_io_regs_w.SDOUT(5);
-    end if;
-  end process;
+  s_io_sdin(0) <= SD_DATA(0);
+  s_io_sdin(1) <= SD_DATA(1);
+  s_io_sdin(2) <= SD_DATA(2);
+  s_io_sdin(3) <= SD_DATA(3);
+  s_io_sdin(4) <= SD_CMD;
+  s_io_sdin(31 downto 5) <= (others => '0');
+  SD_DATA(0) <= s_io_regs_w.SDOUT(0) when s_io_regs_w.SDWE(0) = '1' else 'Z';
+  SD_DATA(1) <= s_io_regs_w.SDOUT(1) when s_io_regs_w.SDWE(1) = '1' else 'Z';
+  SD_DATA(2) <= s_io_regs_w.SDOUT(2) when s_io_regs_w.SDWE(2) = '1' else 'Z';
+  SD_DATA(3) <= s_io_regs_w.SDOUT(3) when s_io_regs_w.SDWE(3) = '1' else 'Z';
+  SD_CMD <= s_io_regs_w.SDOUT(4) when s_io_regs_w.SDWE(4) = '1' else 'Z';
+  SD_CLK <= s_io_regs_w.SDOUT(5);
 
   -- I/O: Input.
   s_io_switches(31 downto 10) <= (others => '0');

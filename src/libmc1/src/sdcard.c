@@ -24,12 +24,16 @@
 #include <mc1/crc7.h>
 #include <mc1/mmio.h>
 
+// HACK!
+#define SD_MOSI_BIT (1 << SDBIT_MOSI)
+#define SD_SCK_BIT  (1 << SDBIT_SCK)
+
 //--------------------------------------------------------------------------------------------------
 // Debug logging.
 //--------------------------------------------------------------------------------------------------
 
 #define SDCARD_ENABLE_LOGGING
-//#define SDCARD_ENABLE_DEBUGGING
+#define SDCARD_ENABLE_DEBUGGING
 
 #ifdef SDCARD_ENABLE_LOGGING
 static inline void _sdcard_log(const sdctx_t* ctx, const char* msg) {
@@ -187,12 +191,77 @@ static uint32_t _sdcard_receive_byte(sdctx_t* ctx) {
 
 static uint32_t _sdcard_receive_byte_fast(sdctx_t* ctx) {
   (void)ctx;  // Currently unused.
+  uint32_t sck_hi = SD_MOSI_BIT | SD_SCK_BIT;  // MOSI high, CS* low, SCK high
+  uint32_t sck_lo = SD_MOSI_BIT;               // MOSI high, CS* low, SCK low
+#ifdef __MRISC32__
+  // This assembler optimized routine takes five CPU clock cycles per bit, with a 40:60 SCK cycle.
+  uint32_t mmio = 0xc0000000;
+  uint32_t byte;
+  uint32_t tmp;
+  __asm__ volatile(
+      "   stw   %[sck_lo], %[mmio], #100\n"  // MMIO(SDOUT) = sck_lo
+      "   nop\n"
+      "   nop\n"
+      "   stw   %[sck_hi], %[mmio], #100\n"  // MMIO(SDOUT) = sck_hi
+      "   ldw   %[byte], %[mmio], #60\n"     // byte = MMIO(SDIN) (bit #0 is MISO)
+
+      "   stw   %[sck_lo], %[mmio], #100\n"
+      "   mkbf  %[byte], %[byte], #(1<<5)|7\n"
+      "   nop\n"
+      "   stw   %[sck_hi], %[mmio], #100\n"
+      "   ldw   %[tmp], %[mmio], #60\n"
+
+      "   stw   %[sck_lo], %[mmio], #100\n"
+      "   mkbf  %[tmp], %[tmp], #(1<<5)|6\n"
+      "   or    %[byte], %[byte], %[tmp]\n"
+      "   stw   %[sck_hi], %[mmio], #100\n"
+      "   ldw   %[tmp], %[mmio], #60\n"
+
+      "   stw   %[sck_lo], %[mmio], #100\n"
+      "   mkbf  %[tmp], %[tmp], #(1<<5)|5\n"
+      "   or    %[byte], %[byte], %[tmp]\n"
+      "   stw   %[sck_hi], %[mmio], #100\n"
+      "   ldw   %[tmp], %[mmio], #60\n"
+
+      "   stw   %[sck_lo], %[mmio], #100\n"
+      "   mkbf  %[tmp], %[tmp], #(1<<5)|4\n"
+      "   or    %[byte], %[byte], %[tmp]\n"
+      "   stw   %[sck_hi], %[mmio], #100\n"
+      "   ldw   %[tmp], %[mmio], #60\n"
+
+      "   stw   %[sck_lo], %[mmio], #100\n"
+      "   mkbf  %[tmp], %[tmp], #(1<<5)|3\n"
+      "   or    %[byte], %[byte], %[tmp]\n"
+      "   stw   %[sck_hi], %[mmio], #100\n"
+      "   ldw   %[tmp], %[mmio], #60\n"
+
+      "   stw   %[sck_lo], %[mmio], #100\n"
+      "   mkbf  %[tmp], %[tmp], #(1<<5)|2\n"
+      "   or    %[byte], %[byte], %[tmp]\n"
+      "   stw   %[sck_hi], %[mmio], #100\n"
+      "   ldw   %[tmp], %[mmio], #60\n"
+
+      "   stw   %[sck_lo], %[mmio], #100\n"
+      "   mkbf  %[tmp], %[tmp], #(1<<5)|1\n"
+      "   or    %[byte], %[byte], %[tmp]\n"
+      "   stw   %[sck_hi], %[mmio], #100\n"
+      "   ldw   %[tmp], %[mmio], #60\n"
+
+      "   and   %[tmp], %[tmp], #1\n"
+      "   or    %[byte], %[byte], %[tmp]\n"
+      : [ byte ] "=r"(byte), [ tmp ] "=&r"(tmp)
+      : [ sck_hi ] "r"(sck_hi), [ sck_lo ] "r"(sck_lo), [ mmio ] "r"(mmio));
+#else
   uint32_t byte = 0;
   for (int i = 8; i > 0; --i) {
-    _sdio_set_sck(0);
-    _sdio_set_sck(1);
-    byte = (byte << 1) | _sdio_get_miso();
+    MMIO(SDOUT) = sck_lo;
+    byte = byte << 1;
+    // We insert a scheduling barrier here to better balance the SCK hi/lo periods.
+    __asm__ volatile("" : : : "memory");
+    MMIO(SDOUT) = sck_hi;
+    byte |= _sdio_get_miso();
   }
+#endif
   return byte;
 }
 
@@ -314,6 +383,26 @@ static void _sdcard_dump_r1(sdctx_t* ctx, const uint8_t r) {
 #endif
 }
 
+static void _sdcard_dump_error_token(sdctx_t* ctx, const uint8_t token) {
+#ifdef SDCARD_ENABLE_DEBUGGING
+  if ((token & 0x01) != 0) {
+    SDCARD_DEBUG("token: Error\n");
+  }
+  if ((token & 0x02) != 0) {
+    SDCARD_DEBUG("token: CC Error\n");
+  }
+  if ((token & 0x04) != 0) {
+    SDCARD_DEBUG("token: Card ECC Failed\n");
+  }
+  if ((token & 0x08) != 0) {
+    SDCARD_DEBUG("token: out of range\n");
+  }
+#else
+  (void)ctx;
+  (void)token;
+#endif
+}
+
 //--------------------------------------------------------------------------------------------------
 // Implementation of specific SD card commands.
 //--------------------------------------------------------------------------------------------------
@@ -321,22 +410,24 @@ static void _sdcard_dump_r1(sdctx_t* ctx, const uint8_t r) {
 bool _sdcard_cmd0(sdctx_t* ctx, const int retries) {
   SDCARD_DEBUG("SD: Send CMD0\n");
 
-  for (int i = 0; i < retries; ++i) {
+  uint8_t r = 0;
+  bool got_response = false;
+  for (int i = retries; i > 0; --i) {
     // Send command.
     uint8_t cmd[5] = {0x40, 0x00, 0x00, 0x00, 0x00};
-    if (!_sdcard_send_cmd(ctx, cmd, sizeof(cmd))) {
-      return false;
+    if (_sdcard_send_cmd(ctx, cmd, sizeof(cmd))) {
+      // Get response (R1).
+      uint8_t resp[1];
+      if (_sdcard_get_response(ctx, resp, sizeof(resp))) {
+        got_response = true;
+        r = resp[0];
+        if (r == 0x01) {
+          return true;
+        }
+      }
     }
-
-    // Get response (R1).
-    uint8_t resp[1];
-    if (!_sdcard_get_response(ctx, resp, sizeof(resp))) {
-      return false;
-    }
-    const int r = resp[0];
-    if (r == 0x01) {
-      return true;
-    }
+  }
+  if (got_response) {
     _sdcard_dump_r1(ctx, r);
   }
 
@@ -598,6 +689,52 @@ bool _sdcard_cmd17(sdctx_t* ctx, const uint32_t block_addr) {
   return true;
 }
 
+bool _sdcard_cmd18(sdctx_t* ctx, const uint32_t block_addr) {
+  SDCARD_DEBUG("SD: Send CMD18\n");
+
+  // Send command.
+  uint8_t cmd[5] = {0x52, block_addr >> 24, block_addr >> 16, block_addr >> 8, block_addr};
+  if (!_sdcard_send_cmd(ctx, cmd, sizeof(cmd))) {
+    return false;
+  }
+
+  // Get response (R1).
+  uint8_t resp[1];
+  if (!_sdcard_get_response(ctx, resp, sizeof(resp))) {
+    return false;
+  }
+
+  if (resp[0] != 0x00) {
+    SDCARD_LOG("CMD18: Unexpected response\n");
+    return false;
+  }
+
+  return true;
+}
+
+bool _sdcard_cmd12(sdctx_t* ctx) {
+  SDCARD_DEBUG("SD: Send CMD12\n");
+
+  // Send command.
+  uint8_t cmd[5] = {0x4c, 0x00, 0x00, 0x00, 0x00};
+  if (!_sdcard_send_cmd(ctx, cmd, sizeof(cmd))) {
+    return false;
+  }
+
+  // Get response (R1).
+  uint8_t resp[1];
+  if (!_sdcard_get_response(ctx, resp, sizeof(resp))) {
+    return false;
+  }
+
+  if (resp[0] != 0x00) {
+    SDCARD_LOG("CMD12: Unexpected response\n");
+    return false;
+  }
+
+  return true;
+}
+
 //--------------------------------------------------------------------------------------------------
 // Reset/initialization routine.
 //--------------------------------------------------------------------------------------------------
@@ -697,6 +834,10 @@ size_t sdcard_get_size(sdctx_t* ctx) {
 }
 
 bool sdcard_read(sdctx_t* ctx, void* ptr, size_t first_block, size_t num_blocks) {
+  if (num_blocks == 0) {
+    return true;
+  }
+
   bool success = false;
 
   // Select card.
@@ -716,17 +857,21 @@ bool sdcard_read(sdctx_t* ctx, void* ptr, size_t first_block, size_t num_blocks)
     goto done;
   }
 
-  uint8_t* buf = (uint8_t*)ptr;
-
-  // TODO(m): Use CMD18 (READ_MULTIPLE_BLOCK) when num_blocks > 1.
-  const size_t block_end = first_block + num_blocks;
-  for (size_t block_no = first_block; block_no < block_end; ++block_no) {
-    // Set the block address, depending on if we're using HC or standard capacity.
-    const uint32_t block_addr = ctx->is_sdhc ? block_no : block_no * SD_BLOCK_SIZE;
+  const uint32_t block_addr = ctx->is_sdhc ? first_block : first_block * SD_BLOCK_SIZE;
+  if (num_blocks > 1) {
+    // Use CMD18 (READ_MULTIPLE_BLOCK) when num_blocks > 1.
+    if (!_sdcard_cmd18(ctx, block_addr)) {
+      goto done;
+    }
+  } else {
+    // Use CMD17 (READ_SINGLE_BLOCK) when num_blocks == 1.
     if (!_sdcard_cmd17(ctx, block_addr)) {
       goto done;
     }
+  }
 
+  uint8_t* buf = (uint8_t*)ptr;
+  for (size_t blk = 0; blk < num_blocks; ++blk) {
     // Wait for the response token.
     uint32_t token = 0xff;
     for (int i = 0; i < 1000; ++i) {
@@ -736,15 +881,19 @@ bool sdcard_read(sdctx_t* ctx, void* ptr, size_t first_block, size_t num_blocks)
       }
     }
     if (token != 0xfe) {
-      // The card returned an error response.
-      SDCARD_LOG("SD: Read error\n");
-      _sdcard_send_byte(ctx, 0xff);
-      goto done;
+      if (token == 0xff) {
+        // Timeout.
+        SDCARD_LOG("SD: Read data token timeout\n");
+      } else {
+        // The card returned an error response.
+        _sdcard_dump_error_token(ctx, token);
+      }
+      goto terminate;
     }
 
-    // Read one block.
+    // Read a single block of data.
+    // Use fast transfer if the SD card can do 10+ Mbit/s, otherwise slow transfer.
     if (ctx->transfer_kbit >= 10000) {
-      // Use fast transfer if the SD card can do 10+ Mbit/s.
       for (int i = 0; i < SD_BLOCK_SIZE; ++i) {
         buf[i] = _sdcard_receive_byte_fast(ctx);
       }
@@ -754,20 +903,27 @@ bool sdcard_read(sdctx_t* ctx, void* ptr, size_t first_block, size_t num_blocks)
       }
     }
 
-    // Send a couple of dummy bytes to terminate the transfer.
-    for (int i = 0; i < 2; ++i) {
-      _sdcard_send_byte(ctx, 0xff);
+    // Skip 2 CRC bytes.
+    for (int i = 0; i < 3; ++i) {
+      (void)_sdcard_receive_byte(ctx);
     }
-
-    _sdcard_terminate_operation(ctx);
 
     buf += SD_BLOCK_SIZE;
   }
 
+  if (num_blocks > 1) {
+    // Terminate READ_MULTIPLE_BLOCK.
+    if (!_sdcard_cmd12(ctx)) {
+      goto done;
+    }
+  }
+
   success = true;
 
+terminate:
+  _sdcard_terminate_operation(ctx);
+
 done:
-  // Deselect card again.
   _sdcard_deselect_card(ctx);
 
   return success;
