@@ -78,18 +78,28 @@ extern "C" {
 #define KEYBUF_SIZE 16
 
 // SPI SD card I/O bits (SDIN, SDOUT, SDWE).
-#define SDBIT_MISO 0
-#define SDBIT_CS_  3
-#define SDBIT_MOSI 4
-#define SDBIT_SCK  5
+#define SD_MISO_BIT_NO 0
+#define SD_MISO_BIT    (1 << SD_MISO_BIT_NO)
+#define SD_CS_BIT_NO   3
+#define SD_CS_BIT      (1 << SD_CS_BIT_NO)
+#define SD_MOSI_BIT_NO 4
+#define SD_MOSI_BIT    (1 << SD_MOSI_BIT_NO)
+#define SD_SCK_BIT_NO  5
+#define SD_SCK_BIT     (1 << SD_SCK_BIT_NO)
 
 // SD mode SD card I/O bits (SDIN, SDOUT, SDWE).
-#define SDBIT_DAT0 0
-#define SDBIT_DAT1 1
-#define SDBIT_DAT2 2
-#define SDBIT_DAT3 3
-#define SDBIT_CMD  4
-#define SDBIT_CLK  5
+#define SD_DAT0_BIT_NO 0
+#define SD_DAT0_BIT    (1 << SD_DAT0_BIT_NO)
+#define SD_DAT1_BIT_NO 1
+#define SD_DAT1_BIT    (1 << SD_DAT1_BIT_NO)
+#define SD_DAT2_BIT_NO 2
+#define SD_DAT2_BIT    (1 << SD_DAT2_BIT_NO)
+#define SD_DAT3_BIT_NO 3
+#define SD_DAT3_BIT    (1 << SD_DAT3_BIT_NO)
+#define SD_CMD_BIT_NO  4
+#define SD_CMD_BIT     (1 << SD_CMD_BIT_NO)
+#define SD_CLK_BIT_NO  5
+#define SD_CLK_BIT     (1 << SD_CLK_BIT_NO)
 
 #ifdef __cplusplus
 }
