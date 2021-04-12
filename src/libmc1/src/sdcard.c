@@ -282,9 +282,15 @@ static void _sdcard_deselect_card(sdctx_t* ctx) {
   _sdcard_terminate_operation(ctx);
 }
 
-static bool _sdcard_send_cmd(sdctx_t* ctx, const uint8_t* cmd, const int len) {
-  // Calculate the CRC first, since we may have to wait for the card to go ready anyway.
-  const uint32_t crc = crc7(cmd, len);
+static bool _sdcard_send_cmd(sdctx_t* ctx, const uint32_t cmd, const uint32_t value) {
+  // Prepare the command buffer.
+  uint8_t buf[6];
+  buf[0] = 0x40 | cmd;
+  buf[1] = value >> 24;
+  buf[2] = value >> 16;
+  buf[3] = value >> 8;
+  buf[4] = value;
+  buf[5] = (crc7(buf, 5) << 1) | 1;
 
   // Wait for the card to be ready to receive data (time out after a while).
   bool success = false;
@@ -301,13 +307,10 @@ static bool _sdcard_send_cmd(sdctx_t* ctx, const uint8_t* cmd, const int len) {
     return false;
   }
 
-  // Send the command bytes (excluding the trailing CRC-byte).
-  for (int i = 0; i < len; ++i) {
-    _sdcard_send_byte(ctx, cmd[i]);
+  // Send the command bytes, including the trailing CRC-byte.
+  for (int i = 0; i < 6; ++i) {
+    _sdcard_send_byte(ctx, buf[i]);
   }
-
-  // Last byte of the command is always (CRC << 1) | 1.
-  _sdcard_send_byte(ctx, (crc << 1) | 1);
 
   return true;
 }
@@ -414,8 +417,7 @@ bool _sdcard_cmd0(sdctx_t* ctx, const int retries) {
   bool got_response = false;
   for (int i = retries; i > 0; --i) {
     // Send command.
-    uint8_t cmd[5] = {0x40, 0x00, 0x00, 0x00, 0x00};
-    if (_sdcard_send_cmd(ctx, cmd, sizeof(cmd))) {
+    if (_sdcard_send_cmd(ctx, 0, 0)) {
       // Get response (R1).
       uint8_t resp[1];
       if (_sdcard_get_response(ctx, resp, sizeof(resp))) {
@@ -438,8 +440,7 @@ bool _sdcard_cmd8(sdctx_t* ctx) {
   SDCARD_DEBUG("SD: Send CMD8\n");
 
   // Send command.
-  uint8_t cmd[5] = {0x48, 0x00, 0x00, 0x01, 0xaa};
-  if (!_sdcard_send_cmd(ctx, cmd, sizeof(cmd))) {
+  if (!_sdcard_send_cmd(ctx, 8, 0x000001aa)) {
     return false;
   }
 
@@ -453,7 +454,7 @@ bool _sdcard_cmd8(sdctx_t* ctx) {
     // Version 2+.
     ctx->protocol_version = 2;
     SDCARD_DEBUG("CMD8: Version 2.0+\n");
-    if (resp[1] != cmd[1] || resp[2] != cmd[2] || resp[3] != cmd[3] || resp[4] != cmd[4]) {
+    if (resp[1] != 0 || resp[2] != 0 || resp[3] != 0x01 || resp[4] != 0xaa) {
       SDCARD_LOG("CMD8: Invalid response\n");
       return false;
     }
@@ -471,8 +472,7 @@ bool _sdcard_cmd9(sdctx_t* ctx) {
   SDCARD_DEBUG("SD: Send CMD9\n");
 
   // Send command.
-  uint8_t cmd[5] = {0x49, 0x00, 0x00, 0x00, 0x00};
-  if (!_sdcard_send_cmd(ctx, cmd, sizeof(cmd))) {
+  if (!_sdcard_send_cmd(ctx, 9, 0)) {
     return false;
   }
 
@@ -561,8 +561,7 @@ bool _sdcard_cmd55(sdctx_t* ctx) {
   SDCARD_DEBUG("SD: Send CMD55\n");
 
   // Send command.
-  uint8_t cmd[5] = {0x77, 0x00, 0x00, 0x00, 0x00};
-  if (!_sdcard_send_cmd(ctx, cmd, sizeof(cmd))) {
+  if (!_sdcard_send_cmd(ctx, 55, 0)) {
     return false;
   }
 
@@ -586,9 +585,8 @@ bool _sdcard_cmd55(sdctx_t* ctx) {
 bool _sdcard_acmd41(sdctx_t* ctx) {
   SDCARD_DEBUG("SD: Send ACMD41\n");
 
-  // Send command.
-  uint8_t cmd[5] = {0x69, 0x40, 0x00, 0x00, 0x00};
-  if (!_sdcard_send_cmd(ctx, cmd, sizeof(cmd))) {
+  // Send command (request HCS=1, i.e. set bit 30).
+  if (!_sdcard_send_cmd(ctx, 41, 0x40000000)) {
     return false;
   }
 
@@ -616,8 +614,7 @@ bool _sdcard_cmd58(sdctx_t* ctx) {
   SDCARD_DEBUG("SD: Send CMD58\n");
 
   // Send command.
-  uint8_t cmd[5] = {0x7a, 0x00, 0x00, 0x00, 0x00};
-  if (!_sdcard_send_cmd(ctx, cmd, sizeof(cmd))) {
+  if (!_sdcard_send_cmd(ctx, 58, 0)) {
     return false;
   }
 
@@ -647,8 +644,7 @@ bool _sdcard_cmd16(sdctx_t* ctx, const uint32_t block_size) {
   SDCARD_DEBUG("SD: Send CMD16\n");
 
   // Send command.
-  uint8_t cmd[5] = {0x50, block_size >> 24, block_size >> 16, block_size >> 8, block_size};
-  if (!_sdcard_send_cmd(ctx, cmd, sizeof(cmd))) {
+  if (!_sdcard_send_cmd(ctx, 16, block_size)) {
     return false;
   }
 
@@ -670,8 +666,7 @@ bool _sdcard_cmd17(sdctx_t* ctx, const uint32_t block_addr) {
   SDCARD_DEBUG("SD: Send CMD17\n");
 
   // Send command.
-  uint8_t cmd[5] = {0x51, block_addr >> 24, block_addr >> 16, block_addr >> 8, block_addr};
-  if (!_sdcard_send_cmd(ctx, cmd, sizeof(cmd))) {
+  if (!_sdcard_send_cmd(ctx, 17, block_addr)) {
     return false;
   }
 
@@ -693,8 +688,7 @@ bool _sdcard_cmd18(sdctx_t* ctx, const uint32_t block_addr) {
   SDCARD_DEBUG("SD: Send CMD18\n");
 
   // Send command.
-  uint8_t cmd[5] = {0x52, block_addr >> 24, block_addr >> 16, block_addr >> 8, block_addr};
-  if (!_sdcard_send_cmd(ctx, cmd, sizeof(cmd))) {
+  if (!_sdcard_send_cmd(ctx, 18, block_addr)) {
     return false;
   }
 
@@ -716,8 +710,7 @@ bool _sdcard_cmd12(sdctx_t* ctx) {
   SDCARD_DEBUG("SD: Send CMD12\n");
 
   // Send command.
-  uint8_t cmd[5] = {0x4c, 0x00, 0x00, 0x00, 0x00};
-  if (!_sdcard_send_cmd(ctx, cmd, sizeof(cmd))) {
+  if (!_sdcard_send_cmd(ctx, 12, 0)) {
     return false;
   }
 
