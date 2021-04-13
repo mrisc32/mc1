@@ -45,21 +45,21 @@
     PIC_BLOCK = 1
     PIC_NUM_BLOCKS = 396
 
-    .text
+    .section .text.start, "ax"
+    .globl  _boot
     .p2align 2
-    .globl  boot
 
-boot:
+_boot:
     ; s10 = start of VRAM
     ldi     s10, #0x40000000
 
     ldi     s9, #0x50007fff     ; Wait forever
-    stw     s9, s10, #8
+    stw     s9, s10, #16
 
     ; Generate VCP prologue layer 1.
     addpchi s2, #vcp_preamble@pchi
     add     s2, s2, #vcp_preamble+4@pclo
-    add     s3, s10, #16
+    add     s3, s10, #32
     ldi     s4, #0
 1:
     ldw     s1, s2, s4*4

@@ -29,48 +29,47 @@ _MAX_CODE_SIZE = 512 - 8
 def convert(boot, img, extras):
     # Read the raw boot data.
     with open(boot, "rb") as f:
-        data = f.read()
-    code_size = len(data)
+        boot_block = f.read()
+    code_size = len(boot_block)
 
     # Pad the data to _MAX_CODE_SIZE bytes.
     if code_size > _MAX_CODE_SIZE:
-        print(f"Code size is too large: {len(data)} (max {_MAX_CODE_SIZE})")
+        print(f"Code size is too large: {len(boot_block)} (max {_MAX_CODE_SIZE})")
     pad = _MAX_CODE_SIZE - code_size
     if pad > 0:
-        data += bytearray(pad)
+        boot_block += bytearray(pad)
+
+    # Calculate the CRC of the padded boot code data.
+    crc = crc32c.crc32c(boot_block)
 
     # Prepend the header.
     magic = 0x4231434D
-    crc = crc32c.crc32c(data)
-    data = struct.pack("<LL", magic, crc) + data
+    boot_block = struct.pack("<LL", magic, crc) + boot_block
 
     print("--------------------------------------------------------------------")
-    print(f"Code size: {code_size} bytes (padded to {len(data)} bytes)")
+    print(f"Code size: {code_size} bytes (padded to {len(boot_block)} bytes)")
     print(f"Magic ID:  {magic:#08x}")
     print(f"CRC32C:    {crc:#08x}")
     print("--------------------------------------------------------------------")
 
-    # Append optional extra files.
-    block_no = 1
-    for extra in extras:
-        with open(extra, "rb") as f:
-            extra_data = f.read()
-        extra_size = len(extra_data)
-        num_blocks = (extra_size + 511) >> 9
-        pad = 512 * num_blocks - extra_size
-        if pad > 0:
-            extra_data += bytearray(pad)
-        data += extra_data
-
-        print(f"File:   {extra}")
-        print(f"Block:  {block_no}, Num. blocks: {num_blocks}")
-        print("--------------------------------------------------------------------")
-
-        block_no += num_blocks
-
     # Write the boot image.
     with open(img, "wb") as f:
-        f.write(data)
+        # Write the boot block.
+        f.write(boot_block)
+
+        # Write optional extra files.
+        block_no = 1
+        for extra in extras:
+            with open(extra, "rb") as ef:
+                extra_data = ef.read()
+            f.write(extra_data)
+            extra_size = len(extra_data)
+            num_blocks = (extra_size + 511) >> 9
+            pad = 512 * num_blocks - extra_size
+            if pad > 0:
+                f.write(bytearray(pad))
+            print(f"File: {extra}, block: {block_no}, #blocks: {num_blocks}")
+            block_no += num_blocks
 
     print(f"\nBoot image written to {img}")
 

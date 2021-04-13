@@ -42,9 +42,9 @@ The video RAM can be accessed by both the CPU and the video logic hardware, and 
 
 | Address | Description |
 | --- | --- |
-| 40000008 | Video layer 1 VCP start address |
-| 40000010 | Video layer 2 VCP start address |
-| 40000100 | BSS start |
+| 40000010 | Video layer 1 VCP start address |
+| 40000020 | Video layer 2 VCP start address |
+| 40000100 | BSS start for the ROM code |
 
 The size of the VRAM can be queried via the VRAMSIZE MMIO register.
 

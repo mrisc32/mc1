@@ -1,0 +1,73 @@
+/* -*- mode: ld-script; tab-width: 4; indent-tabs-mode: nil; -*-             */
+/* ------------------------------------------------------------------------- */
+/* Linker script for MC1 boot blocks.                                        */
+/* ------------------------------------------------------------------------- */
+
+OUTPUT_FORMAT("elf32-mrisc32")
+OUTPUT_ARCH("mrisc32")
+ENTRY(_boot)
+
+__boot_start = 0x40010000;  /* DOES NOT MATTER - CODE MUST BE PC RELATIVE! */
+__vram_start = 0x40000100;  /* Leave room for video "registers" */
+
+SECTIONS
+{
+    /* --------------------------------------------------------------------- */
+    /* Put code and data after each other in the boot block.                 */
+    /* --------------------------------------------------------------------- */
+
+    . = __boot_start;
+
+    .text :
+    {
+        *(.text.entry)
+        *(.text.start)
+        *(.text*)
+    }
+
+    .rodata :
+    {
+        *(.rodata*)
+    }
+
+    .data :
+    {
+        *(.data*)
+    }
+
+    .sdata :
+    {
+        *(.sdata*)
+    }
+
+    __boot_size = . - __boot_start;
+
+
+    /* --------------------------------------------------------------------- */
+    /* BSS goes into VRAM.                                                   */
+    /* We define __bss_start and __bss_size so the startup code knows what   */
+    /* memory area to clear.                                                 */
+    /* --------------------------------------------------------------------- */
+
+    . = __vram_start;
+    __bss_start = .;
+
+    .sbss (NOLOAD) :
+    {
+        *(.sbss*)
+        *(.scommon*)
+    }
+
+    .bss (NOLOAD) :
+    {
+        *(.bss*)
+        *(COMMON)
+    }
+
+    . = ALIGN(4);
+    __bss_size = . - __bss_start;
+
+
+    /* This tells the system where it can start to allocate VRAM. */
+    __vram_free_start = .;
+}

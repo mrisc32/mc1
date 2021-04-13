@@ -112,8 +112,9 @@ _start:
     add     s25, s25, s1                ; s25 = Top of VRAM
     add     s24, s25, #-BOOT_CODE_SIZE  ; s24 = Start of boot code area
     add     s23, s24, #-HEAP_SIZE       ; s23 = Start of heap
+    add     s22, s23, #-STACK_SIZE      ; s22 = Bottom of stack
+
     mov     sp, s23                     ; sp = Top of stack
-    add     s22, sp, #-STACK_SIZE       ; s22 = Bottom of stack
 
 
     ; ------------------------------------------------------------------------
@@ -127,7 +128,7 @@ _start:
     ldi     s1, #__bss_start
     cpuid   s3, z, z
 clear_bss_loop:
-    min     vl, s2, s3
+    minu    vl, s2, s3
     sub     s2, s2, vl
     stw     vz, s1, #4
     ldea    s1, s1, vl*4
@@ -178,8 +179,7 @@ bss_cleared:
     bns     s1, bootloader_failed
 
     ; Set up the jump table for ROM routines (pointer in s26).
-    addpchi s26, #rom_jump_table@pchi
-    add     s26, s26, #rom_jump_table+4@pclo
+    ldi     s26, #rom_jump_table@pc
 
     ; Call the boot code (never return).
     j       s24, #8
@@ -235,18 +235,19 @@ bootloader_failed:
     ; ------------------------------------------------------------------------
 
 blk_read:
-    ; We only support device == 0
+    ; We currently only support device == 0
     bnz     s2, 1f
 
     ; Start address = ptr
     mov     s2, s1
 
     ; Calculate the address of the ROM owned sdctx_t.
-    ldi     s1, #MMIO_START
-    ldw     s1, s1, #VRAMSIZE
-    ldi     s15, #VRAM_START
+    ldi     s1, #VRAM_START-BOOT_CODE_SIZE-HEAP_SIZE+HEAP_SDCTX
+    ldi     s15, #MMIO_START
+    ldw     s15, s15, #VRAMSIZE
     add     s1, s1, s15
-    add     s1, s1, #HEAP_SDCTX-(BOOT_CODE_SIZE+HEAP_SIZE)
+
+    ; Tail-call sdcard_read(ctx, ptr, first_block, num_blocks).
     b       sdcard_read
 
 1:

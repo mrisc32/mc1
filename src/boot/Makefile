@@ -19,6 +19,8 @@
 #--------------------------------------------------------------------------------------------------
 
 AS      = mrisc32-elf-as
+LD      = mrisc32-elf-gcc
+LDFLAGS = -T link.ld -mno-crt0
 OBJCOPY = mrisc32-elf-objcopy
 
 OUT     = ./out
@@ -38,7 +40,10 @@ PICS = files/butterfly-1200x675-2bpp.raw \
 $(OUT)/boot.o: $(SRC)
 	$(AS) -o $@ $<
 
-$(OUT)/boot.img: $(OUT)/boot.o $(PICS)
-	$(OBJCOPY) -O binary $< $(OUT)/boot.raw
+$(OUT)/boot.elf: $(OUT)/boot.o link.ld
+	$(LD) $(LDFLAGS) -o $@ $(OUT)/boot.o
+
+$(OUT)/boot.img: $(OUT)/boot.elf $(PICS)
+	$(OBJCOPY) -O binary $(OUT)/boot.elf $(OUT)/boot.raw
 	./mkmc1bootimage.py $(OUT)/boot.raw $@ $(PICS)
 
