@@ -203,15 +203,23 @@ void console_t::init() {
   }
 #endif
 
-  vcon_print("Initializing SD-card...\n");
+  // SD card test.
+  vcon_print("Initializing SD-card... ");
   if (sdcard_init(&m_sdctx, sdcard_log_func)) {
-    // Test: Read and print the first blocks of the SD card.
+    vcon_print("Ok!\n");
+
+    // Read and print the first blocks of the SD card.
     char buf[1026];
     if (sdcard_read(&m_sdctx, buf, 0, 2)) {
+      vcon_print("Read 1024 bytes: ");
       buf[1024] = '\n';
       buf[1025] = 0;
       vcon_print(buf);
+    } else {
+      vcon_print("Read error.\n");
     }
+  } else {
+    vcon_print("No card found.\n");
   }
 
   // Give instructions.
