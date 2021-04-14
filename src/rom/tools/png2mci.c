@@ -96,6 +96,10 @@
 #define PIXFMT_PAL2     4
 #define PIXFMT_PAL1     5
 
+// Palette modes.
+#define PAL_OPTIMAL   0
+#define PAL_GRAYSCALE 1
+
 // Compression methods.
 #define COMP_NONE   0
 #define COMP_LZG    1
@@ -398,9 +402,22 @@ static int is_opaque_white(const rgba_t col, const uint8_t threshold) {
          col.b >= (255u - threshold) && col.a >= (255u - threshold);
 }
 
-static void create_palette(image_t* image, const unsigned target_pixfmt) {
+static void create_palette(image_t* image, const unsigned target_pixfmt, const int palette_mode) {
   const int no_palette_colors = palette_colors_for_pixfmt(target_pixfmt);
   if (no_palette_colors == 0) {
+    return;
+  }
+
+  // Grayscale?
+  if (palette_mode == PAL_GRAYSCALE) {
+    // Generate a plain grayscale palette.
+    for (int i = 0; i < no_palette_colors; ++i) {
+      uint32_t g = (unsigned)(i * 255) / (unsigned)(no_palette_colors - 1);
+      rgba_t rgba = {g, g, g, 255};
+      image->palette[i] = rgba;
+    }
+
+    // Done!
     return;
   }
 
@@ -675,6 +692,9 @@ static void print_usage(const char* prg_name) {
   fprintf(stderr, "  --pal4      - Pixel format = PAL4 (4 bpp palette)\n");
   fprintf(stderr, "  --pal2      - Pixel format = PAL2 (2 bpp palette)\n");
   fprintf(stderr, "  --pal1      - Pixel format = PAL1 (1 bpp palette)\n");
+  fprintf(stderr, "\nPalette options (only for PAL formats):\n");
+  fprintf(stderr, "  --optimal   - Use optimal palette (default)\n");
+  fprintf(stderr, "  --grayscale - Use a grayscale palette\n");
   fprintf(stderr, "\nCompression options:\n");
   fprintf(stderr, "  --nocomp    - Use no compression (default)\n");
   fprintf(stderr, "  --lzg       - Use LZG compression\n");
@@ -690,6 +710,7 @@ int main(int argc, char** argv) {
     exit(1);
   }
   int target_pixfmt = PIXFMT_RGBA8888;
+  int palette_mode = PAL_OPTIMAL;
   int comp_mode = COMP_NONE;
   const char* png_file_name = NULL;
   const char* mci_file_name = NULL;
@@ -710,6 +731,10 @@ int main(int argc, char** argv) {
       target_pixfmt = PIXFMT_PAL2;
     } else if (strcmp(arg, "--pal1") == 0) {
       target_pixfmt = PIXFMT_PAL1;
+    } else if (strcmp(arg, "--optimal") == 0) {
+      palette_mode = PAL_OPTIMAL;
+    } else if (strcmp(arg, "--grayscale") == 0) {
+      palette_mode = PAL_GRAYSCALE;
     } else if (strcmp(arg, "--nocomp") == 0) {
       comp_mode = COMP_NONE;
     } else if (strcmp(arg, "--lzg") == 0) {
@@ -745,7 +770,7 @@ int main(int argc, char** argv) {
   }
 
   // Create an optimal palette.
-  create_palette(&image, target_pixfmt);
+  create_palette(&image, target_pixfmt, palette_mode);
 
   // Convert to the target bit depth.
   convert_pixels(&image, target_pixfmt);
