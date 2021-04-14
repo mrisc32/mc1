@@ -178,10 +178,8 @@ bss_cleared:
     seq     s1, s1, s2
     bns     s1, bootloader_failed
 
-    ; Set up the jump table for ROM routines (pointer in s26).
-    ldi     s26, #rom_jump_table@pc
-
     ; Call the boot code (never return).
+    ldi     s1, #rom_jump_table@pc  ; s1 = rom_jump_table (arg 1)
     j       s24, #8
 
 bootloader_failed:

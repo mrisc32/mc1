@@ -1,10 +1,11 @@
 # MC1 boot sequence
 
 The MC1 first boots from ROM, which does minimal system initialization. This includes:
+
 * Set up a small (512 bytes) stack in RAM.
 * Initialize the boot medium device.
 
-After the initialization, the ROM boot process will try to load the boot block from a boot medium (e.g. an SD card). The block is loaded into the upper part of VRAM. Since the size of VRAM may vary, the position of the loaded boot block is not fixed. Hence, *the boot code must be position independent*.
+After the initialization, the ROM boot process will try to load the boot block from a boot medium (e.g. an SD card). The block is loaded into the upper part of VRAM. Since the size of VRAM may vary, the position of the loaded boot block is not fixed. Hence, *the boot code must be position independent* (all addressing must be PC-relative).
 
 After successfully loading the boot code, the ROM code calls the boot code (the first word of the boot code is the call target).
 
@@ -12,7 +13,7 @@ When the boot code is called, it is passed the following information in register
 
 | Register | Contents |
 |---|---|
-| S26 | ROM function table (see below) |
+| S1 | ROM base (see "ROM function table" below) |
 
 Once the boot code has been called, it is not expected that it will return. All system control is handed over to the loaded boot code.
 
@@ -37,11 +38,13 @@ The ROM function table is an array of callable routines that can be useful for t
 | 0 | doh | noreturn void doh(const char* message) |
 | 4 | blk_read | int blk_read(void* ptr, int device, size_t first_block, size_t num_block) |
 | 8 | crc32c | unsigned crc32c(void* ptr, size_t num_bytes) |
-| 12 | LZG_Decode | unsigned LZG_Decode(void* in, unsigned insize, void* out, unsigned outsize) |
+| 12 | LZG_Decode | unsigned LZG_Decode(const void* in, unsigned insize, void* out, unsigned outsize) |
 
-To call a function, jump and link to the address S26+offset, e.g:
+To call a function, jump and link to the address rom_base+offset, e.g:
 
 ```
+  mov s26, s1     ; s26 = rom_base
+  ...
   jl  s26, #4     ; Call blk_read()
 ```
 
@@ -63,8 +66,15 @@ Here is a simple example that loads a larger piece of code into memory and execu
   START_BLOCK = 1
   NUM_BLOCKS = 78
 
-boot:
-  ; Read the program blocks into the allocated VRAM.
+  .section .text.start, "ax"
+  .globl  _boot
+  .p2align 2
+
+_boot:
+  ; Store the ROM jump table address in s26.
+  mov     s26, s1
+
+  ; Read the program blocks into VRAM.
   ldi     s16, #PRG_ADDRESS
   mov     s1, s16
   ldi     s2, #0
@@ -77,8 +87,7 @@ boot:
   j       s16, #0
 
 fail:
-  addpchi s1, #msg@pchi
-  add     s1, s1, #msg+4@pclo
+  ldi     s1, #msg@pc
   j       s26, #DOH        ; doh (msg) !
 
 msg:

@@ -20,7 +20,7 @@
 
 AS      = mrisc32-elf-as
 LD      = mrisc32-elf-gcc
-LDFLAGS = -T link.ld -mno-crt0
+LDFLAGS = -T mc1-boot.ld -mno-crt0
 OBJCOPY = mrisc32-elf-objcopy
 
 OUT     = ./out
@@ -40,7 +40,7 @@ PICS = files/butterfly-1200x675-2bpp.raw \
 $(OUT)/boot.o: $(SRC)
 	$(AS) -o $@ $<
 
-$(OUT)/boot.elf: $(OUT)/boot.o link.ld
+$(OUT)/boot.elf: $(OUT)/boot.o mc1-boot.ld
 	$(LD) $(LDFLAGS) -o $@ $(OUT)/boot.o
 
 $(OUT)/boot.img: $(OUT)/boot.elf $(PICS)
