@@ -19,7 +19,7 @@
 #--------------------------------------------------------------------------------------------------
 
 OUT = out
-LIBMC1DIR   = ../libmc1
+LIBMC1DIR   = ../mc1-sdk/libmc1
 LIBMC1INC   = $(LIBMC1DIR)/include
 LIBMC1OUT   = $(LIBMC1DIR)/out
 SELFTESTDIR = ../selftest
@@ -109,7 +109,7 @@ $(HOST_OUT)/version.o: tools/liblzg/lib/version.c
 
 # Demo configuration.
 ENABLE_DEMO = yes
-DEMO_INTERACTIVE_MODE = no
+DEMO_INTERACTIVE_MODE = yes
 DEMO_ENABLE_SELFTEST = no
 DEMO_ENABLE_DHRYSTONE = no
 
