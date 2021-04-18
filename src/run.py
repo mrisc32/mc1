@@ -4,7 +4,7 @@ import struct
 import sys
 from vunit import VUnit
 
-sys.path.insert(1, os.path.join(sys.path[0], '../tools/vcpas'))
+sys.path.insert(1, os.path.join(sys.path[0], 'mc1-sdk/tools'))
 import vcpas
 
 
