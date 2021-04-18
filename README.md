@@ -34,11 +34,11 @@ Examples of things that a video control program can accomplish are:
 
 This means that it is possible to mix resolutions and color modes in a single frame, and you can fill the screen with rich colors and high resolution content even with very limited video RAM resources.
 
-For more details, see the [video logic documentation](docs/video_logic.md).
+For more details, see the [MC1 SDK documentation](https://github.com/mrisc32/mc1-sdk).
 
 ### I/O
 
-Primitive I/O, such as reading buttons and switches and writing to leds and seven-segment displays, is provided as memory mapped I/O (see the [MC1 memory map](docs/memory_map.md)), directly accessible for the CPU.
+Primitive I/O, such as reading buttons and switches and writing to leds and seven-segment displays, is provided as memory mapped I/O (see the [MC1 SDK documentation](https://github.com/mrisc32/mc1-sdk)), directly accessible for the CPU.
 
 Keyboard input is provided for boards that have a PS/2 connector, and SD card I/O is provided for boards with an SD card port.
 
@@ -48,7 +48,7 @@ No operating system is planned at this point. There will be libraries of helper 
 
 The ROM can load a program binary into RAM, and all system control is transfered to the loaded program (so it's essentially a two-stage boot).
 
-See: [MC1 boot sequence](docs/mc1-boot-sequence.md).
+See: [MC1 SDK documentation](https://github.com/mrisc32/mc1-sdk).
 
 ## Planned features
 
