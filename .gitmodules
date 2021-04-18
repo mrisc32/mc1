@@ -4,3 +4,6 @@
 [submodule "src/rom/selftest"]
 	path = src/selftest
 	url = git@github.com:mrisc32/mrisc32-selftest.git
+[submodule "src/mc1-sdk"]
+	path = src/mc1-sdk
+	url = git@github.com:mrisc32/mc1-sdk.git
