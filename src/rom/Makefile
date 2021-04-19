@@ -19,17 +19,12 @@
 #--------------------------------------------------------------------------------------------------
 
 OUT = out
-LIBMC1DIR   = ../mc1-sdk/libmc1
+SDK_ROOT    = ../mc1-sdk
+LIBMC1DIR   = $(SDK_ROOT)/libmc1
 LIBMC1INC   = $(LIBMC1DIR)/include
 LIBMC1OUT   = $(LIBMC1DIR)/out
 SELFTESTDIR = ../selftest
 SELFTESTOUT = $(SELFTESTDIR)/out
-
-HOST_OUT      = $(OUT)/host
-HOST_CC       = gcc
-HOST_CXX      = g++
-HOST_CCFLAGS  = -c -O2 -I tools/liblzg/include -Wall -Wextra -Werror -MMD -MP
-HOST_CXXFLAGS = $(HOST_CCFLAGS)
 
 CFLAGS_COMMON = -c -I $(LIBMC1INC) -Os -ffast-math -Wall -Wextra -Wshadow -pedantic -Werror -MMD -MP
 
@@ -50,7 +45,7 @@ DHRYSTONE_FLAGS = -S -w -fno-inline -O3
 
 .PHONY: clean all libmc1 selftest
 
-all: $(OUT)/rom.vhd $(HOST_OUT)/png2mci
+all: $(OUT)/rom.vhd
 
 clean:
 	rm -f $(OUT)/*.a \
@@ -61,46 +56,9 @@ clean:
 	      $(OUT)/*.elf \
 	      $(OUT)/*.mci \
 	      $(OUT)/*.raw \
-	      $(OUT)/*.vhd \
-	      $(HOST_OUT)/*.o \
-	      $(HOST_OUT)/*.d \
-	      $(HOST_OUT)/png2mci
+	      $(OUT)/*.vhd
 	$(MAKE) -C $(LIBMC1DIR) clean
 	$(MAKE) -C $(SELFTESTDIR) clean
-
-
-#-----------------------------------------------------------------------------
-# Tools (compiled for the host!)
-#-----------------------------------------------------------------------------
-
-PNG2MCI_OBJS = \
-    $(HOST_OUT)/png2mci.o \
-    $(HOST_OUT)/lodepng.o \
-    $(HOST_OUT)/checksum.o \
-    $(HOST_OUT)/decode.o \
-    $(HOST_OUT)/encode.o \
-    $(HOST_OUT)/version.o
-
-$(HOST_OUT)/png2mci: $(PNG2MCI_OBJS)
-	$(HOST_CC) -o $@ $(PNG2MCI_OBJS)
-
-$(HOST_OUT)/png2mci.o: tools/png2mci.c
-	$(HOST_CC) $(HOST_CCFLAGS) -o $@ $<
-
-$(HOST_OUT)/lodepng.o: tools/lodepng/lodepng.c
-	$(HOST_CC) $(HOST_CCFLAGS) -o $@ $<
-
-$(HOST_OUT)/checksum.o: tools/liblzg/lib/checksum.c
-	$(HOST_CC) $(HOST_CCFLAGS) -w -o $@ $<
-
-$(HOST_OUT)/decode.o: tools/liblzg/lib/decode.c
-	$(HOST_CC) $(HOST_CCFLAGS) -w -o $@ $<
-
-$(HOST_OUT)/encode.o: tools/liblzg/lib/encode.c
-	$(HOST_CC) $(HOST_CCFLAGS) -w -o $@ $<
-
-$(HOST_OUT)/version.o: tools/liblzg/lib/version.c
-	$(HOST_CC) $(HOST_CCFLAGS) -w -o $@ $<
 
 
 #-----------------------------------------------------------------------------
@@ -172,9 +130,9 @@ $(OUT)/stars.o: demo/stars.cpp
 $(OUT)/mrisc32_logo.o: $(OUT)/mrisc32_logo.c
 	$(AS) $(ASFLAGS) -o $@ $<
 
-$(OUT)/mrisc32_logo.c: demo/mrisc32-logo-512x97.png $(HOST_OUT)/png2mci
-	$(HOST_OUT)/png2mci --lzg --pal4 demo/mrisc32-logo-512x97.png $(OUT)/mrisc32_logo.mci
-	tools/raw2c.py $(OUT)/mrisc32_logo.mci mrisc32_logo > $@
+$(OUT)/mrisc32_logo.c: demo/mrisc32-logo-512x97.png
+	$(SDK_ROOT)/tools/png2mci --lzg --pal4 demo/mrisc32-logo-512x97.png $(OUT)/mrisc32_logo.mci
+	$(SDK_ROOT)/tools/raw2c.py $(OUT)/mrisc32_logo.mci mrisc32_logo > $@
 
 
 #-----------------------------------------------------------------------------
