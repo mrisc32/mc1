@@ -138,12 +138,20 @@ bss_cleared:
 
     ; ------------------------------------------------------------------------
     ; Make both video layers "silent" (use no memory cycles).
+    ; We also set the background color for both layers, since the content of
+    ; the palette registers is undefined after reset.
     ; ------------------------------------------------------------------------
 
-    ldi     s1, #0x50007fff     ; WAITY 32767 = wait forever
-    ldi     s2, #VRAM_START
-    stw     s1, s2, #16         ; Layer 1 VCP
-    stw     s1, s2, #32         ; Layer 2 VCP
+    ldi     s1, #0x60000000     ; SETPAL 0, 1
+    ldi     s2, #0x00000000     ; Color 0 = fully transparent black
+    ldi     s3, #0x50007fff     ; WAITY 32767 = wait forever
+    ldi     s4, #VRAM_START
+    stw     s1, s4, #16         ; Layer 1 VCP
+    stw     s2, s4, #20
+    stw     s3, s4, #24
+    stw     s1, s4, #32         ; Layer 2 VCP
+    stw     s2, s4, #36
+    stw     s3, s4, #40
 
 
     ; ------------------------------------------------------------------------
