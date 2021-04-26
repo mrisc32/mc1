@@ -380,16 +380,25 @@ begin
   begin
     if reset = '1' then
       refresh_counter <= 0;
+      should_refresh <= '0';
     elsif rising_edge(clk) then
+      -- Update the refresh counter.
       if state = REFRESH and wait_counter = 0 then
         refresh_counter <= 0;
       elsif refresh_counter /= MAX_REFRESH_COUNT then
         refresh_counter <= refresh_counter + 1;
       end if;
+
+      -- Time for a refresh?
+      if refresh_counter = REFRESH_INTERVAL-2 then
+        should_refresh <= '1';
+      elsif state /= REFRESH and next_state = REFRESH then
+        should_refresh <= '0';
+      end if;
     end if;
   end process;
 
-  -- latch the rquest
+  -- latch the request
   latch_request : process (reset, clk)
   begin
     if reset = '1' then
@@ -436,15 +445,13 @@ begin
   read_done      <= '1' when wait_counter = READ_WAIT-1      else '0';
   write_done     <= '1' when wait_counter = WRITE_WAIT-1     else '0';
 
-  -- the SDRAM should be refreshed when the refresh interval has elapsed
-  should_refresh <= '1' when refresh_counter >= REFRESH_INTERVAL-1 else '0';
-
   -- a new request is only allowed at the end of the IDLE, READ, WRITE, and
-  -- REFRESH states
-  start <= '1' when (state = IDLE) or
-                    (state = READ and read_done = '1') or
-                    (state = WRITE and write_done = '1') or
-                    (state = REFRESH and refresh_done = '1') else '0';
+  -- REFRESH states, as long as a refresh is not pending.
+  start <= (not should_refresh) when
+               (state = IDLE) or
+               (state = READ and read_done = '1') or
+               (state = WRITE and write_done = '1') or
+               (state = REFRESH and refresh_done = '1') else '0';
 
   -- assert the ready signal when we're ready to accept a new request
   ready <= start;
