@@ -38,17 +38,17 @@ entity toplevel is
     CLOCK4_50 : in std_logic;
 
     -- DRAM  "3.3-V LVTTL"
+    DRAM_CLK : out std_logic;
+    DRAM_CKE : out std_logic;
     DRAM_ADDR : out std_logic_vector(12 downto 0);
     DRAM_BA : out std_logic_vector(1 downto 0);
-    DRAM_CAS_N : out std_logic;
-    DRAM_CKE : out std_logic;
-    DRAM_CLK : out std_logic;
-    DRAM_CS_N : out std_logic;
     DRAM_DQ : inout std_logic_vector(15 downto 0);
-    DRAM_LDQM : out std_logic;
+    DRAM_CS_N : out std_logic;
     DRAM_RAS_N : out std_logic;
-    DRAM_UDQM : out std_logic;
+    DRAM_CAS_N : out std_logic;
     DRAM_WE_N : out std_logic;
+    DRAM_LDQM : out std_logic;
+    DRAM_UDQM : out std_logic;
 
     -- GPIO "3.3-V LVTTL"
     GPIO_0 : inout std_logic_vector(35 downto 0);
