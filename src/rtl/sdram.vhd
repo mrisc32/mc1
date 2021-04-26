@@ -255,6 +255,9 @@ architecture arch of sdram is
   signal sel_n_reg : std_logic_vector(DATA_WIDTH/8-1 downto 0);
   signal q_reg     : std_logic_vector(DATA_WIDTH-1 downto 0);
 
+  -- DQ in/out signals
+  signal dq_in : std_logic_vector(SDRAM_DATA_WIDTH-1 downto 0);
+
   -- aliases to decode the address
   signal addr_current : unsigned(SDRAM_COL_WIDTH+SDRAM_ROW_WIDTH+SDRAM_BANK_WIDTH-1 downto 0);
   alias col  : unsigned(SDRAM_COL_WIDTH-1 downto 0) is addr_current(SDRAM_COL_WIDTH-1 downto 0);
@@ -506,21 +509,22 @@ begin
 
   -- read the next sub-word as it's bursted from the SDRAM
   process (reset, clk)
-    variable v_burst_cnt : natural range 0 to BURST_LENGTH := BURST_LENGTH;
+    -- Add one extra cycle delay due to SDRAM clock phase diff.
+    constant C_START_CNT : integer := -1;
+    variable v_burst_cnt : integer range C_START_CNT to BURST_LENGTH := BURST_LENGTH;
   begin
     if reset = '1' then
       q_reg <= (others => '0');
       valid <= '0';
     elsif rising_edge(clk) then
-      -- Which sub-word are we currently reading?
       if state = READ and wait_counter = CAS_LATENCY then
-        v_burst_cnt := 0;
+        v_burst_cnt := C_START_CNT;
       elsif v_burst_cnt < BURST_LENGTH then
         v_burst_cnt := v_burst_cnt + 1;
       end if;
 
-      if v_burst_cnt < BURST_LENGTH then
-        q_reg(SDRAM_DATA_WIDTH*(v_burst_cnt+1)-1 downto SDRAM_DATA_WIDTH*v_burst_cnt) <= sdram_dq;
+      if v_burst_cnt >= 0 and v_burst_cnt < BURST_LENGTH then
+        q_reg(SDRAM_DATA_WIDTH*(v_burst_cnt+1)-1 downto SDRAM_DATA_WIDTH*v_burst_cnt) <= dq_in;
       end if;
 
       -- Was this the final sub-word?
@@ -556,4 +560,15 @@ begin
       end if;
     end if;
   end process;
+
+  -- Sample the input DQ signal.
+  process (reset, clk)
+  begin
+    if reset = '1' then
+      dq_in <= (others => '0');
+    elsif rising_edge(clk) then
+      dq_in <= sdram_dq;
+    end if;
+  end process;
+
 end architecture arch;
