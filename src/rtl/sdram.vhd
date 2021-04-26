@@ -127,6 +127,17 @@ entity sdram is
     sdram_we_n  : out std_logic;
     sdram_dqm   : out std_logic_vector(SDRAM_DATA_WIDTH/8-1 downto 0)
   );
+
+  -- Use fast I/O flip-flops for the SDRAM output signals.
+  attribute useioff : boolean;
+  attribute useioff of sdram_a : signal is true;
+  attribute useioff of sdram_ba : signal is true;
+  attribute useioff of sdram_cke : signal is true;
+  attribute useioff of sdram_cs_n : signal is true;
+  attribute useioff of sdram_ras_n : signal is true;
+  attribute useioff of sdram_cas_n : signal is true;
+  attribute useioff of sdram_we_n : signal is true;
+  attribute useioff of sdram_dqm : signal is true;
 end sdram;
 
 architecture arch of sdram is
@@ -257,12 +268,18 @@ architecture arch of sdram is
 
   -- DQ in/out signals
   signal dq_in : std_logic_vector(SDRAM_DATA_WIDTH-1 downto 0);
+  signal dq_out : std_logic_vector(SDRAM_DATA_WIDTH-1 downto 0);
+  signal dq_out_en : std_logic;
 
   -- aliases to decode the address
   signal addr_current : unsigned(SDRAM_COL_WIDTH+SDRAM_ROW_WIDTH+SDRAM_BANK_WIDTH-1 downto 0);
   alias col  : unsigned(SDRAM_COL_WIDTH-1 downto 0) is addr_current(SDRAM_COL_WIDTH-1 downto 0);
   alias row  : unsigned(SDRAM_ROW_WIDTH-1 downto 0) is addr_current(SDRAM_COL_WIDTH+SDRAM_ROW_WIDTH-1 downto SDRAM_COL_WIDTH);
   alias bank : unsigned(SDRAM_BANK_WIDTH-1 downto 0) is addr_current(SDRAM_COL_WIDTH+SDRAM_ROW_WIDTH+SDRAM_BANK_WIDTH-1 downto SDRAM_COL_WIDTH+SDRAM_ROW_WIDTH);
+
+  -- Use fast I/O flip-flops for the SDRAM data in/out signals.
+  attribute useioff of dq_in : signal is true;
+  attribute useioff of dq_out : signal is true;
 begin
   -- state machine
   fsm : process (state, wait_counter, req, we_reg, sel_n_reg, load_mode_done, active_done, refresh_done, read_done, write_done, should_refresh)
@@ -541,7 +558,8 @@ begin
     variable v_burst_cnt : natural range 0 to BURST_LENGTH := BURST_LENGTH;
   begin
     if reset = '1' then
-      sdram_dq <= (others => 'Z');
+      dq_out_en <= '0';
+      dq_out <= (others => '0');
       sdram_dqm <= (others => '0');
     elsif rising_edge(clk) then
       if next_state = WRITE and next_state /= state then
@@ -552,14 +570,21 @@ begin
       end if;
 
       if v_burst_cnt < BURST_LENGTH then
-        sdram_dq <= data_reg(SDRAM_DATA_WIDTH*(v_burst_cnt+1)-1 downto SDRAM_DATA_WIDTH*v_burst_cnt);
+        dq_out_en <= '1';
+        dq_out <= data_reg(SDRAM_DATA_WIDTH*(v_burst_cnt+1)-1 downto SDRAM_DATA_WIDTH*v_burst_cnt);
         sdram_dqm <= sel_n_reg((SDRAM_DATA_WIDTH/8)*(v_burst_cnt+1)-1 downto (SDRAM_DATA_WIDTH/8)*v_burst_cnt);
       else
-        sdram_dq <= (others => 'Z');
+        dq_out_en <= '0';
+        dq_out <= (others => '0');
         sdram_dqm <= (others => '0');
       end if;
     end if;
   end process;
+
+  ---------------------------------------------------------------------------
+  -- SDRAM data interface - Since the SDRAM_DQ signal is an inout signal, we
+  -- need to use constructs that map well to FPGA I/O buffers.
+  ---------------------------------------------------------------------------
 
   -- Sample the input DQ signal.
   process (reset, clk)
@@ -570,5 +595,8 @@ begin
       dq_in <= sdram_dq;
     end if;
   end process;
+
+  -- This should infer an IOBUF.
+  sdram_dq <= dq_out when dq_out_en = '1' else (others => 'Z');
 
 end architecture arch;
