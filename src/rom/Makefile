@@ -172,7 +172,7 @@ $(OUT)/libmc1.a: libmc1
 	@$(CP) $(LIBMC1OUT)/libmc1.a $(OUT)/libmc1.a
 
 libmc1:
-	$(MAKE) -C $(LIBMC1DIR)
+	$(MAKE) CFLAGS_OPT='-Os' -C $(LIBMC1DIR)
 
 
 #-----------------------------------------------------------------------------
