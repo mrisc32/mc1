@@ -107,7 +107,7 @@ _start:
     ; ------------------------------------------------------------------------
 
     ldi     r1, #MMIO_START
-    ldw     r1, r1, #VRAMSIZE
+    ldw     r1, [r1, #VRAMSIZE]
     ldi     r25, #VRAM_START
     add     r25, r25, r1                ; r25 = Top of VRAM
     add     r24, r25, #-BOOT_CODE_SIZE  ; r24 = Start of boot code area
@@ -130,8 +130,8 @@ _start:
 clear_bss_loop:
     minu    vl, r2, r3
     sub     r2, r2, vl
-    stw     vz, r1, #4
-    ldea    r1, r1, vl*4
+    stw     vz, [r1, #4]
+    ldea    r1, [r1, vl*4]
     bnz     r2, clear_bss_loop
 bss_cleared:
 
@@ -146,12 +146,12 @@ bss_cleared:
     ldi     r2, #0x00000000     ; Color 0 = fully transparent black
     ldi     r3, #0x50007fff     ; WAITY 32767 = wait forever
     ldi     r4, #VRAM_START
-    stw     r1, r4, #16         ; Layer 1 VCP
-    stw     r2, r4, #20
-    stw     r3, r4, #24
-    stw     r1, r4, #32         ; Layer 2 VCP
-    stw     r2, r4, #36
-    stw     r3, r4, #40
+    stw     r1, [r4, #16]       ; Layer 1 VCP
+    stw     r2, [r4, #20]
+    stw     r3, [r4, #24]
+    stw     r1, [r4, #32]       ; Layer 2 VCP
+    stw     r2, [r4, #36]
+    stw     r3, [r4, #40]
 
 
     ; ------------------------------------------------------------------------
@@ -159,13 +159,13 @@ bss_cleared:
     ; ------------------------------------------------------------------------
 
     ; Initilize the SD card.
-    ldea    r1, r23, #HEAP_SDCTX    ; sdctx_t
+    ldea    r1, [r23, #HEAP_SDCTX]  ; sdctx_t
     ldi     r2, #0                  ; No logging function
     bl      sdcard_init
     bz      r1, bootloader_failed
 
     ; Load the boot code block.
-    ldea    r1, r23, #HEAP_SDCTX    ; sdctx_t
+    ldea    r1, [r23, #HEAP_SDCTX]  ; sdctx_t
     mov     r2, r24                 ; Load to start of boot code area in VRAM
     ldi     r3, #0                  ; Load the first block (block #0)
     ldi     r4, #1                  ; Load one block (512 bytes)
@@ -173,16 +173,16 @@ bss_cleared:
     bz      r1, bootloader_failed
 
     ; Is the magic ID correct?
-    ldw     r1, r24, #0             ; r1 = magic ID
+    ldw     r1, [r24]               ; r1 = magic ID
     ldi     r2, #0x4231434d
     seq     r1, r1, r2
     bns     r1, bootloader_failed
 
     ; Is the checksum correct?
-    ldea    r1, r24, #8             ; r1 = start of code
+    ldea    r1, [r24, #8]           ; r1 = start of code
     ldi     r2, #BOOT_CODE_SIZE-8
     bl      crc32c
-    ldw     r2, r24, #4             ; r2 = expected checksum
+    ldw     r2, [r24, #4]           ; r2 = expected checksum
     seq     r1, r1, r2
     bns     r1, bootloader_failed
 
@@ -205,7 +205,7 @@ bootloader_failed:
     ; will try to allocate XRAM first.
     ldi     r1, #XRAM_START
     ldi     r2, #MMIO_START
-    ldw     r2, r2, #XRAMSIZE
+    ldw     r2, [r2, #XRAMSIZE]
     ldi     r3, #MEM_TYPE_EXT
     bl      mem_add_pool
 
@@ -250,7 +250,7 @@ blk_read:
     ; Calculate the address of the ROM owned sdctx_t.
     ldi     r1, #VRAM_START-BOOT_CODE_SIZE-HEAP_SIZE+HEAP_SDCTX
     ldi     r15, #MMIO_START
-    ldw     r15, r15, #VRAMSIZE
+    ldw     r15, [r15, #VRAMSIZE]
     add     r1, r1, r15
 
     ; Tail-call sdcard_read(ctx, ptr, first_block, num_blocks).

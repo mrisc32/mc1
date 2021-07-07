@@ -285,8 +285,7 @@ inline void stars_t::plot(const int x, const int y, const int z, uint8_t* pix_bu
       "mul     %[offset], %[y], %[STARS_STRIDE]\n\t"
 
       // Calculate the pixel shift.
-      "and     %[pix_shift], %[x], #3\n\t"
-      "lsl     %[pix_shift], %[pix_shift], #1\n\t"
+      "mkbf    %[pix_shift], %[x], #<1:2>\n\t"
 
       // Calculate the color.
       "asr     %[color], %[color], #%[LOG2_NUM_STARS]-1\n\t"
@@ -295,14 +294,14 @@ inline void stars_t::plot(const int x, const int y, const int z, uint8_t* pix_bu
       // Calculate the byte pointer offset.
       "asr     %[tmp], %[x], #2\n\t"
       "add     %[offset], %[offset], %[tmp]\n\t"
-      "ldub    %[pix], %[pix_buf], %[offset]\n\t"
+      "ldub    %[pix], [%[pix_buf], %[offset]]\n\t"
 
       // Shift the color into the right bit-position.
       "lsl     %[color], %[color], %[pix_shift]\n\t"
 
       // Update the color
       "or      %[pix], %[pix], %[color]\n\t"
-      "stb     %[pix], %[pix_buf], %[offset]\n\t"
+      "stb     %[pix], [%[pix_buf], %[offset]]\n\t"
       : [color] "=&r"(color),
         [offset] "=&r"(offset),
         [pix] "=&r"(pix),

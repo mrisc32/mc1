@@ -591,16 +591,16 @@ void retro_t::draw_text(const int frame_no) {
             "1:\n\t"
             "min     vl, %0, r2\n\t"
             "sub     %0, %0, vl\n\t"
-            "ldw     v1, %1, #4\n\t"
-            "ldea    %1, %1, vl*4\n\t"
-            "stw     v1, %2, #4\n\t"
-            "ldea    %2, %2, vl*4\n\t"
+            "ldw     v1, [%1, #4]\n\t"
+            "ldea    %1, [%1, vl*4]\n\t"
+            "stw     v1, [%2, #4]\n\t"
+            "ldea    %2, [%2, vl*4]\n\t"
             "bnz     %0, 1b"
             : "+r"(words_left),  // %0
               "+r"(src),         // %1
               "+r"(dst)          // %2
             :
-            : "r2", "vl", "memory");
+            : "r2", "vl", "v1", "memory");
         dst += words_per_glyph;
         src += words_per_glyph;
       }

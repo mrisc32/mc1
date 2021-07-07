@@ -133,7 +133,7 @@ static void mandel_row(const float re_c,
       "mov     %[pixels_left], %[width]\n\t"
 
       // [v1, v2] = C
-      "ldea    v2, z, #1\n\t"
+      "ldea    v2, [z, #1]\n\t"
       "itof    v2, v2, z\n\t"
       "fmul    v1, v2, %[dre_dx]\n\t"
       "fadd    v1, v1, %[re_c]\n\t"    // v1 = re_c + dre_dx * [0.0f, 1.0f, 2.0f, 3.0f]
@@ -188,14 +188,14 @@ static void mandel_row(const float re_c,
       "ldi     vl, #2\n\t"
       "and/f   v6, v6, v6\n\t"
       "ldi     vl, #1\n\t"
-      "stw     v6, %[tmp_vec], #0\n\t"
-      "ldw     %[tmp1], %[tmp_vec], #0\n\t"
+      "stw     v6, [%[tmp_vec]]\n\t"
+      "ldw     %[tmp1], [%[tmp_vec]]\n\t"
       "ldi     vl, #4\n\t"
       "bns     %[tmp1], 2f\n\t"
 
       // Early-out for these four pixels.
       "ldi     %[tmp1], #0x7f7f7f7f\n\t"
-      "stw     %[tmp1], %[pix], #0\n\t"
+      "stw     %[tmp1], [%[pix]]\n\t"
       "b       4f\n\t"
 
       "\n2:\n\t"
@@ -220,8 +220,8 @@ static void mandel_row(const float re_c,
       "ldi     vl, #2\n\t"
       "or/f    v9, v9, v9\n\t"
       "ldi     vl, #1\n\t"
-      "stw     v9, %[tmp_vec], #0\n\t"
-      "ldw     %[tmp1], %[tmp_vec], #0\n\t"
+      "stw     v9, [%[tmp_vec]]\n\t"
+      "ldw     %[tmp1], [%[tmp_vec]]\n\t"
       "ldi     vl, #4\n\t"
       "bz      %[tmp1], 3f\n\t"
 
@@ -244,7 +244,7 @@ static void mandel_row(const float re_c,
       "ldi     vl, #2\n\t"
       "pack.h/f v10, v10, v10\n\t"
       "ldi     vl, #1\n\t"
-      "stw     v10, %[pix], #0\n\t"
+      "stw     v10, [%[pix]]\n\t"
       "ldi     vl, #4\n\t"
 
       // Next four pixels...
@@ -271,7 +271,7 @@ static void mandel_row(const float re_c,
         [width] "r"(width),
         [row_pixels] "r"(row_pixels),
         [tmp_vec] "r"(tmp_vec)
-      : "vl", "memory");
+      : "vl", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "memory");
 }
 
 //--------------------------------------------------------------------------------------------------
