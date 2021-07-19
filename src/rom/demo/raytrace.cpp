@@ -47,19 +47,19 @@ T2 bit_cast(const T1 x) {
   return y;
 }
 
-/// @brief Create a float constant that can be loaded with a single ldhi instruction.
+/// @brief Create a float constant that can be loaded with a single ldi instruction.
 /// @param x The value to approximate.
-/// @returns a constant value that approximates @c x to 21 bits precision (13 effective significand
+/// @returns a constant value that approximates @c x to 20 bits precision (12 effective significand
 /// bits).
 template <typename T>
 constexpr float flt21(const T x) {
   const auto xi = bit_cast<uint32_t>(static_cast<float>(x));
-  if ((xi & 0x00000800u) == 0u) {
+  if ((xi & 0x00001000u) == 0u) {
     // Cater for zero fill of low bits.
-    return bit_cast<float>(xi & 0xfffff000u);
+    return bit_cast<float>(xi & 0xffffe000u);
   } else {
     // Cater for one fill of low bits.
-    return bit_cast<float>(xi | 0x00000fffu);
+    return bit_cast<float>(xi | 0x00001fffu);
   }
 }
 
