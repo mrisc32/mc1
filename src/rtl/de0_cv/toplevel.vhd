@@ -261,7 +261,7 @@ begin
   -- XRAM.
   -- TODO(m): Implement me!
   s_xram_dat <= (others => '0');
-  s_xram_ack <= '0';
+  s_xram_ack <= '1';  -- Never block, always return zero.
   s_xram_stall <= '0';
   s_xram_err <= '0';
 
