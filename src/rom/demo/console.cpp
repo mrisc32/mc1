@@ -180,6 +180,11 @@ void console_t::init() {
     // Run the Dhrystone benchmark.
     vcon_print("Dhrystone: ");
     const int number_of_runs = 100000;
+
+    // Warm up caches etc (to get reproducible results).
+    dhrystone(10);
+
+    // Do the runs, and measure the time.
     const auto start_time = get_ticks();
     dhrystone(number_of_runs);
     const auto end_time = get_ticks();
