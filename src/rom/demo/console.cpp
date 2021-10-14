@@ -96,10 +96,39 @@ void sdcard_log_func(const char* msg) {
 }
 
 template <int N>
-void print_dec_times_N(const int x_times_N) {
-  vcon_print_dec(x_times_N / N);
-  vcon_print(".");
-  vcon_print_dec(x_times_N % N);
+constexpr float digit_scalef() {
+  float scale = 1.0F;
+  for (int i = 0; i < N; ++i) {
+    scale *= 10.0F;
+  }
+  return scale;
+}
+
+template <int N>
+constexpr int digit_scalei() {
+  int scale = 1;
+  for (int i = 0; i < N; ++i) {
+    scale *= 10;
+  }
+  return scale;
+}
+
+template <int N>
+void vcon_print_float(const float x) {
+  auto xi = static_cast<int>(x * digit_scalef<N>());
+  constexpr auto iscale = digit_scalei<N>();
+  vcon_print_dec(xi / iscale);
+  if (N > 0) {
+    auto frac = xi % iscale;
+    char buf[N + 2];
+    buf[0] = '.';
+    buf[N + 1] = 0;
+    for (int i = N; i >= 1; --i) {
+      buf[i] = '0' + (frac % 10);
+      frac /= 10;
+    }
+    vcon_print(buf);
+  }
 }
 
 void print_size(uint32_t size) {
@@ -162,7 +191,7 @@ void console_t::init() {
 
   // Print CPU info.
   vcon_print("\n\nCPU Freq: ");
-  print_dec_times_N<10>((static_cast<int>(MMIO(CPUCLK)) + 50000) / 100000);
+  vcon_print_float<2>(static_cast<float>(MMIO(CPUCLK)) * (1.0F / 1000000.0F));
   vcon_print(" MHz\n\n");
 
 #ifdef ENABLE_SELFTEST
@@ -195,15 +224,15 @@ void console_t::init() {
     //  2) DMIPS (relative to VAX 11/780)
     //  3) DMIPS/MHz (relative to CPU frequency)
     const auto dhrystones_per_second = static_cast<float>(number_of_runs) / user_time;
-    const auto dmips = dhrystones_per_second / 1757.0f;
-    const auto dmips_per_mhz = (dmips * 1000000.0f) / static_cast<float>(MMIO(CPUCLK));
+    const auto dmips = dhrystones_per_second * (1.0F / 1757.0F);
+    const auto dmips_per_mhz = (dmips * 1000000.0F) / static_cast<float>(MMIO(CPUCLK));
 
     // Print results.
-    print_dec_times_N<10>(_mr32_ftoir(dhrystones_per_second * 10.0f, 0));
+    vcon_print_float<1>(dhrystones_per_second);
     vcon_print(" Dhrystones/s, ");
-    print_dec_times_N<10>(_mr32_ftoir(dmips * 10.0f, 0));
+    vcon_print_float<2>(dmips);
     vcon_print(" DMIPS, ");
-    print_dec_times_N<100>(_mr32_ftoir(dmips_per_mhz * 100.0f, 0));
+    vcon_print_float<3>(dmips_per_mhz);
     vcon_print(" DMIPS/MHz\n\n");
   }
 #endif
