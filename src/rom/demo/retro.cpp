@@ -587,9 +587,9 @@ void retro_t::draw_text(const int frame_no) {
       for (int y = 0; y < GLYPH_HEIGHT; ++y) {
         auto words_left = words_per_row;
         __asm__ volatile(
-            "cpuid   r2, z, z\n"
+            "getsr   vl, #0x10\n"
             "1:\n\t"
-            "min     vl, %0, r2\n\t"
+            "min     vl, vl, %0\n\t"
             "sub     %0, %0, vl\n\t"
             "ldw     v1, [%1, #4]\n\t"
             "ldea    %1, [%1, vl*4]\n\t"
@@ -600,7 +600,7 @@ void retro_t::draw_text(const int frame_no) {
               "+r"(src),         // %1
               "+r"(dst)          // %2
             :
-            : "r2", "vl", "v1", "memory");
+            : "vl", "v1", "memory");
         dst += words_per_glyph;
         src += words_per_glyph;
       }

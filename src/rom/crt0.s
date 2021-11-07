@@ -60,7 +60,7 @@ _start:
 
     ; Set all the vector registers to a known state: clear all elements.
     ; Also: The default vector length is the max vector register length.
-    cpuid   vl, z, z
+    getsr   vl, #0x10
     or      v1, vz, #0
     or      v2, vz, #0
     or      v3, vz, #0
@@ -126,9 +126,9 @@ _start:
     lsr     r2, r2, #2      ; BSS size is always a multiple of 4 bytes.
 
     ldi     r1, #__bss_start
-    cpuid   r3, z, z
+    getsr   vl, #0x10
 clear_bss_loop:
-    minu    vl, r2, r3
+    minu    vl, vl, r2
     sub     r2, r2, vl
     stw     vz, [r1, #4]
     ldea    r1, [r1, vl*4]
