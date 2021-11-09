@@ -75,17 +75,16 @@ ENABLE_DEMO = yes
 DEMO_INTERACTIVE_MODE = yes
 DEMO_ENABLE_SELFTEST = no
 DEMO_ENABLE_DHRYSTONE = yes
+DEMO_ENABLE_MANDELBROT = yes
+DEMO_ENABLE_RAYTRACE = yes
+DEMO_ENABLE_RETRO = yes
+DEMO_ENABLE_STARS = yes
 
 DEMO_OBJS =
 ifeq ($(ENABLE_DEMO),yes)
   DEMO_OBJS += \
       $(OUT)/console.o \
-      $(OUT)/demo.o \
-      $(OUT)/mandelbrot.o \
-      $(OUT)/mrisc32_logo.o \
-      $(OUT)/raytrace.o \
-      $(OUT)/retro.o \
-      $(OUT)/stars.o
+      $(OUT)/demo.o
 
   DEMO_FLAGS =
   ifeq ($(DEMO_INTERACTIVE_MODE),yes)
@@ -99,6 +98,27 @@ ifeq ($(ENABLE_DEMO),yes)
     DEMO_OBJS += \
         $(OUT)/dhry_1.o \
         $(OUT)/dhry_2.o
+  endif
+  ifeq ($(DEMO_ENABLE_MANDELBROT),yes)
+    DEMO_FLAGS += -DENABLE_MANDELBROT
+    DEMO_OBJS += \
+        $(OUT)/mandelbrot.o
+  endif
+  ifeq ($(DEMO_ENABLE_RAYTRACE),yes)
+    DEMO_FLAGS += -DENABLE_RAYTRACE
+    DEMO_OBJS += \
+        $(OUT)/raytrace.o
+  endif
+  ifeq ($(DEMO_ENABLE_RETRO),yes)
+    DEMO_FLAGS += -DENABLE_RETRO
+    DEMO_OBJS += \
+        $(OUT)/mrisc32_logo.o \
+        $(OUT)/retro.o
+  endif
+  ifeq ($(DEMO_ENABLE_STARS),yes)
+    DEMO_FLAGS += -DENABLE_STARS
+    DEMO_OBJS += \
+        $(OUT)/stars.o
   endif
 endif
 

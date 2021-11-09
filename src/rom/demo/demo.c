@@ -28,21 +28,29 @@ void console_init(void);
 void console_deinit(void);
 void console(int frame_no);
 
+#ifdef ENABLE_MANDELBROT
 void mandelbrot_init(void);
 void mandelbrot_deinit(void);
 void mandelbrot(int frame_no);
+#endif
 
+#ifdef ENABLE_RAYTRACE
 void raytrace_init(void);
 void raytrace_deinit(void);
 void raytrace(int frame_no);
+#endif
 
+#ifdef ENABLE_RETRO
 void retro_init(void);
 void retro_deinit(void);
 void retro(int frame_no);
+#endif
 
+#ifdef ENABLE_STARS
 void stars_init(const char* text);
 void stars_deinit(void);
 void stars(int frame_no);
+#endif
 
 int g_demo_select;
 
@@ -176,10 +184,18 @@ int main(void) {
     // If we're moving to a new demo, deinit all.
     if (demo_select != demo_select_old) {
       console_deinit();
+#ifdef ENABLE_MANDELBROT
       mandelbrot_deinit();
+#endif
+#ifdef ENABLE_RAYTRACE
       raytrace_deinit();
+#endif
+#ifdef ENABLE_RETRO
       retro_deinit();
+#endif
+#ifdef ENABLE_STARS
       stars_deinit();
+#endif
       wait_vblank();
       demo_select_old = demo_select;
       frame_no = 0;
@@ -187,27 +203,35 @@ int main(void) {
 
     // Run a single frame of the selected demo.
     switch (demo_select) {
+#ifdef ENABLE_MANDELBROT
       case DEMO_MANDELBROT:
         mandelbrot_init();
         mandelbrot(frame_no);
         break;
+#endif
 
+#ifdef ENABLE_RAYTRACE
       case DEMO_RAYTRACE:
         raytrace_init();
         raytrace(frame_no);
         break;
+#endif
 
+#ifdef ENABLE_RETRO
       case DEMO_RETRO:
         retro_init();
         retro(frame_no);
         wait_vblank();
         break;
+#endif
 
+#ifdef ENABLE_STARS
       case DEMO_STARS:
         stars_init(star_text);
         stars(frame_no);
         wait_vblank();
         break;
+#endif
 
       default:
         console_init();
