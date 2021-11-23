@@ -63,3 +63,7 @@ The following things are not yet implemented, but planned:
   * Support for off-chip RAM (e.g. DRAM or SRAM) - probably with an on-chip L2 cache.
 * I/O:
   * Mouse input.
+
+## Build instructions
+
+See: [Building the MC1](docs/building.md).
