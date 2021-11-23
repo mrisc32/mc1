@@ -67,6 +67,19 @@ clean:
 
 
 #-----------------------------------------------------------------------------
+# MC1 tools
+#-----------------------------------------------------------------------------
+
+PNG2MCI = $(SDK_ROOT)/tools/png2mci
+RAW2C   = $(SDK_ROOT)/tools/raw2c.py
+
+$(PNG2MCI):
+	@echo "=============================================================================="
+	@echo " Please build $(PNG2MCI) (see $(SDK_ROOT)/tools/README.md)"
+	@echo "=============================================================================="
+	@false
+
+#-----------------------------------------------------------------------------
 # Demo application
 #-----------------------------------------------------------------------------
 
@@ -155,9 +168,9 @@ $(OUT)/stars.o: demo/stars.cpp
 $(OUT)/mrisc32_logo.o: $(OUT)/mrisc32_logo.c
 	$(AS) $(ASFLAGS) -o $@ $<
 
-$(OUT)/mrisc32_logo.c: demo/mrisc32-logo-512x97.png
-	$(SDK_ROOT)/tools/png2mci --lzg --pal4 demo/mrisc32-logo-512x97.png $(OUT)/mrisc32_logo.mci
-	$(SDK_ROOT)/tools/raw2c.py $(OUT)/mrisc32_logo.mci mrisc32_logo > $@
+$(OUT)/mrisc32_logo.c: demo/mrisc32-logo-512x97.png $(PNG2MCI)
+	$(PNG2MCI) --lzg --pal4 demo/mrisc32-logo-512x97.png $(OUT)/mrisc32_logo.mci
+	$(RAW2C) $(OUT)/mrisc32_logo.mci mrisc32_logo > $@
 
 
 #-----------------------------------------------------------------------------

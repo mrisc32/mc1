@@ -14,6 +14,8 @@ You also need a working installation of the [MRISC32 GNU toolchain](https://gith
 
 ## Build the ROM
 
+First build the MC1 SDK tools, according to the instructions in the tools README (`src/mc1-sdk/tools/README.md`).
+
 The ROM source code is located in [src/rom](../src/rom/). When building the ROM, a VHDL file is created that is used when building the VHDL design.
 
 ```bash
