@@ -23,12 +23,51 @@ SECTIONS
         *(.text.entry)
         *(.text.start)
         *(.text*)
+        KEEP (*(SORT_NONE(.init)))
+        KEEP (*(SORT_NONE(.fini)))
     }
+    . = ALIGN(4);
 
     .rodata :
     {
         *(.rodata*)
     }
+    . = ALIGN(4);
+
+
+    /* --------------------------------------------------------------------- */
+    /* C++ helpers (ctor/dtor/eh_frame) go into the ROM.                     */
+    /* --------------------------------------------------------------------- */
+
+    .ctor :
+    {
+        __CTOR_START = .;
+        KEEP (*crtbegin.o(.ctors))
+        KEEP (*crtbegin?.o(.ctors))
+        KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o) .ctors))
+        KEEP (*(SORT(.ctors.*)))
+        KEEP (*(.ctors))
+        __CTOR_END = .;
+    }
+    . = ALIGN(4);
+
+    .dtor :
+    {
+        __DTOR_START = .;
+        KEEP (*crtbegin.o(.dtors))
+        KEEP (*crtbegin?.o(.dtors))
+        KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o) .dtors))
+        KEEP (*(SORT(.dtors.*)))
+        KEEP (*(.dtors))
+        __DTOR_END = .;
+    }
+    . = ALIGN(4);
+
+    .eh_frame :
+    {
+        *(.eh_frame*)
+    }
+    . = ALIGN(4);
 
 
     /* --------------------------------------------------------------------- */
@@ -40,19 +79,11 @@ SECTIONS
     {
         *(.data*)
     }
+    . = ALIGN(4);
 
     .sdata :
     {
         *(.sdata*)
-    }
-
-    /* C++ code may generate an eh_frame section. We don't use exceptions, but
-       just in case it slips in, we put eh_frame sections in the ROM just to
-       avoid having it end up in RAM (which would confuse objcopy into
-       producing a multi-GB ROM image). */
-    .eh_frame :
-    {
-        *(.eh_frame*)
     }
 
     __rom_size = . - 0x00000000;
@@ -72,14 +103,15 @@ SECTIONS
         *(.sbss*)
         *(.scommon*)
     }
+    . = ALIGN(4);
 
     .bss (NOLOAD) :
     {
         *(.bss*)
         *(COMMON)
     }
-
     . = ALIGN(4);
+
     __bss_size = . - __bss_start;
 
 

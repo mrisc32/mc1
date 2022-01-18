@@ -137,6 +137,13 @@ bss_cleared:
 
 
     ; ------------------------------------------------------------------------
+    ; Call _init() to run static constructors.
+    ; ------------------------------------------------------------------------
+
+    bl      _init
+
+
+    ; ------------------------------------------------------------------------
     ; Make both video layers "silent" (use no memory cycles).
     ; We also set the background color for both layers, since the content of
     ; the palette registers is undefined after reset.
@@ -225,8 +232,16 @@ bootloader_failed:
     ldi     r2, #0
 
     ; Jump to main().
-    call    #main@pc
+    bl      main
 .endif
+
+
+    ; ------------------------------------------------------------------------
+    ; Call _fini() to run static destructors.
+    ; ------------------------------------------------------------------------
+
+    bl      _fini
+
 
     ; Terminate the program: Loop forever...
 1$:
