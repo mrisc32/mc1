@@ -25,6 +25,7 @@ LIBMC1INC   = $(LIBMC1DIR)/include
 LIBMC1OUT   = $(LIBMC1DIR)/out
 SELFTESTDIR = ../selftest
 SELFTESTOUT = $(SELFTESTDIR)/out
+SELFTESTINC = $(SELFTESTDIR)/src
 
 # TODO(m): Remove -Wno-array-bounds once the GCC 12 bug has been fixed upstream. This is a
 # temporary workaround to make the MMIO() macro work (i.e. access a constant address).
@@ -40,7 +41,7 @@ CXXFLAGS = $(CFLAGS_COMMON) -std=c++17 -Wold-style-cast -fno-exceptions
 AS       = mrisc32-elf-gcc
 ASFLAGS  = -c -I $(LIBMC1INC)
 LD       = mrisc32-elf-gcc
-LDFLAGS  = -L$(OUT) -L$(SELFTESTOUT) -T link.ld -mno-crt0
+LDFLAGS  = -L$(OUT) -L$(SELFTESTOUT) -T link.ld -mno-crt0 -mno-ctor-dtor
 AR       = mrisc32-elf-ar
 ARFLAGS  = rcs
 OBJCOPY  = mrisc32-elf-objcopy
@@ -67,7 +68,7 @@ clean:
 
 
 #-----------------------------------------------------------------------------
-# MC1 tools
+# MC1 tools (currently unused, kept in case we want to add a splash image)
 #-----------------------------------------------------------------------------
 
 PNG2MCI = $(SDK_ROOT)/tools/png2mci
@@ -79,127 +80,46 @@ $(PNG2MCI):
 	@echo "=============================================================================="
 	@false
 
-#-----------------------------------------------------------------------------
-# Demo application
-#-----------------------------------------------------------------------------
-
-# Demo configuration.
-ENABLE_DEMO = yes
-DEMO_INTERACTIVE_MODE = yes
-DEMO_ENABLE_SELFTEST = no
-DEMO_ENABLE_DHRYSTONE = yes
-DEMO_ENABLE_MANDELBROT = yes
-DEMO_ENABLE_RAYTRACE = yes
-DEMO_ENABLE_RETRO = yes
-DEMO_ENABLE_STARS = yes
-
-DEMO_OBJS =
-ifeq ($(ENABLE_DEMO),yes)
-  DEMO_OBJS += \
-      $(OUT)/console.o \
-      $(OUT)/demo.o
-
-  DEMO_FLAGS =
-  ifeq ($(DEMO_INTERACTIVE_MODE),yes)
-    DEMO_FLAGS += -DINTERACTIVE_MODE
-  endif
-  ifeq ($(DEMO_ENABLE_SELFTEST),yes)
-    DEMO_FLAGS += -DENABLE_SELFTEST
-  endif
-  ifeq ($(DEMO_ENABLE_DHRYSTONE),yes)
-    DEMO_FLAGS += -DENABLE_DHRYSTONE
-    DEMO_OBJS += \
-        $(OUT)/dhry_1.o \
-        $(OUT)/dhry_2.o
-  endif
-  ifeq ($(DEMO_ENABLE_MANDELBROT),yes)
-    DEMO_FLAGS += -DENABLE_MANDELBROT
-    DEMO_OBJS += \
-        $(OUT)/mandelbrot.o
-  endif
-  ifeq ($(DEMO_ENABLE_RAYTRACE),yes)
-    DEMO_FLAGS += -DENABLE_RAYTRACE
-    DEMO_OBJS += \
-        $(OUT)/raytrace.o
-  endif
-  ifeq ($(DEMO_ENABLE_RETRO),yes)
-    DEMO_FLAGS += -DENABLE_RETRO
-    DEMO_OBJS += \
-        $(OUT)/mrisc32_logo.o \
-        $(OUT)/retro.o
-  endif
-  ifeq ($(DEMO_ENABLE_STARS),yes)
-    DEMO_FLAGS += -DENABLE_STARS
-    DEMO_OBJS += \
-        $(OUT)/stars.o
-  endif
-endif
-
-$(OUT)/console.o: demo/console.cpp
-	$(CXX) $(CXXFLAGS) $(DEMO_FLAGS) -o $@ $<
-
-$(OUT)/demo.o: demo/demo.c
-	$(CC) $(CCFLAGS) $(DEMO_FLAGS) -o $@ $<
-
-$(OUT)/dhry_1.s: demo/dhry_1.c
-	$(CC) $(DHRYSTONE_FLAGS) -o $@ $<
-
-$(OUT)/dhry_1.o: $(OUT)/dhry_1.s
-	$(CC) -c -o $@ $<
-
-$(OUT)/dhry_2.s: demo/dhry_2.c
-	$(CC) $(DHRYSTONE_FLAGS) -o $@ $<
-
-$(OUT)/dhry_2.o: $(OUT)/dhry_2.s
-	$(CC) -c -o $@ $<
-
-$(OUT)/mandelbrot.o: demo/mandelbrot.c
-	$(CC) $(CCFLAGS) $(DEMO_FLAGS) -o $@ $<
-
-$(OUT)/raytrace.o: demo/raytrace.cpp
-	$(CXX) $(CXXFLAGS) $(DEMO_FLAGS) -o $@ $<
-
-$(OUT)/retro.o: demo/retro.cpp
-	$(CXX) $(CXXFLAGS) $(DEMO_FLAGS) -o $@ $<
-
-$(OUT)/stars.o: demo/stars.cpp
-	$(CXX) $(CXXFLAGS) $(DEMO_FLAGS) -o $@ $<
-
-$(OUT)/mrisc32_logo.o: $(OUT)/mrisc32_logo.c
-	$(AS) $(ASFLAGS) -o $@ $<
-
-$(OUT)/mrisc32_logo.c: demo/mrisc32-logo-512x97.png $(PNG2MCI)
-	$(PNG2MCI) --lzg --pal4 demo/mrisc32-logo-512x97.png $(OUT)/mrisc32_logo.mci
-	$(RAW2C) $(OUT)/mrisc32_logo.mci mrisc32_logo > $@
-
 
 #-----------------------------------------------------------------------------
 # ROM image
 #-----------------------------------------------------------------------------
 
+# ROM configuration
+ENABLE_DIAGNOSTICS = yes
+ENABLE_SELFTEST = no
+
 ROM_OBJS = \
     $(OUT)/crt0.o \
-    $(OUT)/doh.o
+    $(OUT)/elf32.o \
+    $(OUT)/main.o
 
 ROM_FLAGS =
-ifeq ($(ENABLE_DEMO),yes)
-  ROM_FLAGS += -DENABLE_DEMO -Wa,--defsym,ENABLE_DEMO=1
+
+ifeq ($(ENABLE_DIAGNOSTICS),yes)
+  ROM_FLAGS += -DENABLE_DIAGNOSTICS
+endif
+ifeq ($(ENABLE_SELFTEST),yes)
+  ROM_FLAGS += -DENABLE_SELFTEST -I $(SELFTESTINC)
 endif
 
 $(OUT)/crt0.o: crt0.s $(LIBMC1INC)/mc1/memory.inc $(LIBMC1INC)/mc1/mmio.inc
 	$(AS) $(ASFLAGS) $(ROM_FLAGS) -o $@ crt0.s
 
-$(OUT)/doh.o: doh.cpp
+$(OUT)/main.o: main.cpp
 	$(CXX) $(CXXFLAGS) $(ROM_FLAGS) -o $@ $<
 
-$(OUT)/rom.vhd: $(OUT)/rom.raw rom.vhd.in
-	tools/raw2vhd.py $(OUT)/rom.raw rom.vhd.in > $@
+$(OUT)/elf32.o: elf32.cpp
+	$(CXX) $(CXXFLAGS) $(ROM_FLAGS) -o $@ $<
+
+$(OUT)/rom.elf: $(ROM_OBJS) $(OUT)/libmc1.a $(OUT)/libselftest.a link.ld
+	$(LD) $(LDFLAGS) -o $@ $(ROM_OBJS) -lmc1 -lselftest -lm
 
 $(OUT)/rom.raw: $(OUT)/rom.elf
 	$(OBJCOPY) -O binary $< $@
 
-$(OUT)/rom.elf: $(DEMO_OBJS) $(ROM_OBJS) $(OUT)/libmc1.a $(OUT)/libselftest.a link.ld
-	$(LD) $(LDFLAGS) -o $@ $(DEMO_OBJS) $(ROM_OBJS) -lmc1 -lselftest -lm
+$(OUT)/rom.vhd: $(OUT)/rom.raw rom.vhd.in
+	tools/raw2vhd.py $(OUT)/rom.raw rom.vhd.in > $@
 
 
 #-----------------------------------------------------------------------------
@@ -225,6 +145,5 @@ selftest:
 
 
 # Include dependency files (generated when building the object files).
--include $(PNG2MCI_OBJS:.o=.d)
--include $(DEMO_OBJS:.o=.d)
+-include $(ROM_OBJS:.o=.d)
 

@@ -1,6 +1,5 @@
-// -*- mode: c; tab-width: 2; indent-tabs-mode: nil; -*-
 //--------------------------------------------------------------------------------------------------
-// Copyright (c) 2020 Marcus Geelnard
+// Copyright (c) 2022 Marcus Geelnard
 //
 // This software is provided 'as-is', without any express or implied warranty. In no event will the
 // authors be held liable for any damages arising from the use of this software.
@@ -18,22 +17,19 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
-#ifndef MC1_DOH_H_
-#define MC1_DOH_H_
+#ifndef MC1_ELF32_H_
+#define MC1_ELF32_H_
 
-/// @fn doh
-/// @brief Cause abnormal program termination.
-///
-/// A program may call this function to indicate that it can no longer continue exection. After this
-/// function has been called, the program will not resume execution.
-///
-/// @param message An optional text message that will be shown in an error message, or NULL if no
-/// specific message is to be shown.
+#include <cstdint>
 
-#ifdef __cplusplus
-extern "C" [[noreturn]] void doh(const char* message);
-#else
-_Noreturn void doh(const char* message);
-#endif  // __cplusplus
+namespace elf32 {
 
-#endif  // MC1_DOH_H_
+/// @brief Load an ELF32 executable into memory.
+/// @param file_name The path to the executable file.
+/// @param[out] entry_address The start address of the program.
+/// @returns true on success, or false on failure.
+bool load(const char* file_name, uint32_t& entry_address);
+
+}  // namespace elf32
+
+#endif  // MC1_ELF32_H_
