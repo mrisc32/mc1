@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="256"
+   height="190"
+   viewBox="0 0 67.733332 50.270834"
+   version="1.1"
+   id="svg8"
+   inkscape:version="0.92.5 (2060ec1f9f, 2020-04-08)"
+   sodipodi:docname="boot-splash.svg"
+   inkscape:export-filename="/tmp/boot-splash-512x380.png"
+   inkscape:export-xdpi="192"
+   inkscape:export-ydpi="192">
+  <defs
+     id="defs2" />
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="0.98994949"
+     inkscape:cx="-40.575064"
+     inkscape:cy="339.87483"
+     inkscape:document-units="mm"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     units="px"
+     inkscape:window-width="1848"
+     inkscape:window-height="1136"
+     inkscape:window-x="1992"
+     inkscape:window-y="27"
+     inkscape:window-maximized="1"
+     inkscape:pagecheckerboard="true" />
+  <metadata
+     id="metadata5">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(0,-246.72916)"
+     style="opacity:1">
+    <rect
+       style="fill:#7e99d9;fill-opacity:1;stroke-width:0.21777947"
+       id="rect5271"
+       width="24.748932"
+       height="39.818283"
+       x="19.998219"
+       y="248.53656" />
+    <path
+       style="opacity:1;fill:#000000;fill-opacity:1;stroke-width:0.10164165"
+       d="m 19.31433,247.9998 c -0.457968,0.44401 -0.557063,0.7529 -0.703028,1.22298 -0.145965,0.47008 -0.180526,1.23474 -0.180526,1.48497 0,0.34615 5.17e-4,13.42967 0,18.03999 -5.18e-4,4.61032 0.0051,17.5238 0,18.04313 -0.0038,0.38896 0.01967,0.66055 0.076,0.92643 0.263211,1.24215 0.731129,1.78692 1.776689,2.06891 0.176911,0.0477 0.363253,0.0892 0.610616,0.098 0.319032,0.0115 8.208322,-0.002 13.428079,0 7.598284,0.004 11.666154,0 13.405285,0 0.559428,0 1.167221,-0.276 1.541651,-0.65798 0.37443,-0.38198 0.499946,-0.55501 0.61495,-1.48605 0.0344,-0.27847 0.03965,-0.62174 0.04101,-0.88904 v -11.58727 l -0.829624,-0.8775 c -0.479868,-0.48248 -0.941587,-1.00871 -1.025946,-1.16971 -0.12082,-0.23057 -0.14613,-0.58995 -0.118672,-1.69205 0.04294,-1.72364 0.100797,-1.82688 1.022969,-1.82688 0.522074,0 0.768603,0.0369 0.848735,-0.25593 0.07752,-0.28327 0.102538,-0.88894 0.102538,-2.15496 v -2.20033 l -1.645021,-1.6325 c -0.92828,-0.89795 -1.774552,-1.80258 -1.880473,-2.01021 -0.182473,-0.35767 -0.19226,-0.68708 -0.19226,-6.27307 v -5.84017 c 0,-0.45959 -0.225258,-1.00768 -0.578209,-1.34628 -0.352951,-0.33859 -0.833423,-0.69869 -1.62722,-0.69869 -0.793798,0 -8.04167,0 -11.618041,0 H 21.348601 c -0.906409,0 -1.576302,0.2702 -2.034271,0.71421 z m 22.141431,3.30069 c 0.241931,0 0.854201,2.48833 0.838793,2.54998 -0.01542,0.0616 -0.501851,0 -0.838793,0 -0.33694,0 -0.801404,0.0656 -0.838791,0 -0.03739,-0.0656 0.596862,-2.54998 0.838791,-2.54998 z m 1.140365,12.38876 c 0.294238,0 1.168764,0.29322 1.40068,0.46959 0.105366,0.0802 0.100856,0.0931 -0.125478,0.36155 -0.309373,0.36689 -0.694802,1.19628 -1.24968,2.69034 -0.365597,0.9844 -1.375158,3.94988 -1.375158,4.03913 0,0.012 0.249232,0.0221 0.553807,0.0221 0.807881,5e-5 1.036153,0.16706 1.036153,0.7567 v 0.2684 l -0.58188,-0.0208 c -0.414162,-0.0149 -0.891465,0.0215 -1.653336,0.12633 -1.211137,0.1667 -1.43079,0.17358 -1.811144,0.0566 -0.24692,-0.0759 -0.667801,-0.41003 -0.667801,-0.52999 0,-0.0612 0.71622,-0.2537 1.405784,-0.37814 l 0.524883,-0.0949 0.05359,-0.20587 c 0.02949,-0.1132 0.09541,-0.37203 0.146321,-0.57507 0.197028,-0.78575 0.892391,-3.13888 1.188854,-4.02339 0.249356,-0.74397 0.29172,-0.92109 0.213951,-0.89196 -0.19515,0.0731 -0.701332,0.40242 -1.06848,0.69502 -0.207126,0.16506 -0.399033,0.28588 -0.426626,0.26882 -0.118431,-0.0732 -0.03389,-0.32406 0.213099,-0.6325 0.144817,-0.18083 0.62592,-0.69931 1.069332,-1.15227 0.443415,-0.45295 0.863747,-0.91944 0.93407,-1.03658 0.07033,-0.11714 0.168931,-0.2131 0.219055,-0.2131 z m -21.468718,0.31901 h 7.216924 c 0.967169,0 1.745637,0.77847 1.745637,1.74564 h -8.121643 z m 11.715856,0 h 4.3977 v 1.74564 H 31.0972 c 0,-0.96718 0.778894,-1.74564 1.746064,-1.74564 z m -10.874938,2.81923 h 1.745639 v 5.32454 h -1.745639 z m 3.188002,0 h 1.745639 v 5.32454 h -1.745639 z m 3.188004,0 h 1.745637 v 5.32454 h -1.745637 z m 2.752868,0 h 1.746064 v 2.9498 c 0,0.36966 0.189475,0.6291 0.630794,0.6291 h 3.766906 v 1.74564 h -4.3977 c -0.967172,0 -1.746064,-0.77848 -1.746064,-1.74564 z"
+       id="path4603"
+       inkscape:connector-curvature="0"
+       sodipodi:nodetypes="zzsssccscszscccccssscccsszzsszsscsssccscsccccsccccsccccccscscccscccsccccccccccccccccccsccsscsc" />
+    <g
+       transform="matrix(0.36354716,0,0,0.36354716,28.41263,186.63068)"
+       id="g1222-7-0-1-4-6-5-5-9-2"
+       style="fill:#7e99d9;fill-opacity:1;stroke-width:0.70555556;stroke-miterlimit:4;stroke-dasharray:none"
+       inkscape:export-filename="/tmp/mrisc-logo.png"
+       inkscape:export-xdpi="191.3"
+       inkscape:export-ydpi="191.3" />
+    <flowRoot
+       xml:space="preserve"
+       id="flowRoot5278"
+       style="font-style:normal;font-weight:normal;font-size:40px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none"
+       transform="matrix(0.26458333,0,0,0.26458333,-4.3467262,230.85417)"><flowRegion
+         id="flowRegion5280"
+         style=""><rect
+           id="rect5282"
+           width="258.57141"
+           height="54.285694"
+           x="15"
+           y="211.71428"
+           style="" /></flowRegion><flowPara
+         id="flowPara5284"
+         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:21.33333397px;font-family:Manjari;-inkscape-font-specification:'Manjari Bold';text-align:center;text-anchor:middle"><flowSpan
+   style="font-size:20px"
+   id="flowSpan5286">Please insert boot </flowSpan>medium</flowPara></flowRoot>  </g>
+</svg>
