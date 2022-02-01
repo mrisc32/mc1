@@ -86,7 +86,7 @@ $(PNG2MCI):
 #-----------------------------------------------------------------------------
 
 # ROM configuration
-ENABLE_DIAGNOSTICS = yes
+ENABLE_CONSOLE = yes
 ENABLE_SELFTEST = no
 
 ROM_OBJS = \
@@ -96,8 +96,8 @@ ROM_OBJS = \
 
 ROM_FLAGS =
 
-ifeq ($(ENABLE_DIAGNOSTICS),yes)
-  ROM_FLAGS += -DENABLE_DIAGNOSTICS
+ifeq ($(ENABLE_CONSOLE),yes)
+  ROM_FLAGS += -DENABLE_CONSOLE
 endif
 ifeq ($(ENABLE_SELFTEST),yes)
   ROM_FLAGS += -DENABLE_SELFTEST -I $(SELFTESTINC)
