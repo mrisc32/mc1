@@ -18,6 +18,11 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
+#ifndef ROM_SPLASH_HPP_
+#define ROM_SPLASH_HPP_
+
+#include "fp32.hpp"
+
 #include <mc1/mci_decode.h>
 #include <mc1/mmio.h>
 #include <mc1/vcp.h>
@@ -51,7 +56,7 @@ public:
     mci_decode_pixels(boot_splash_mci, m_pixels);
 
     // Generate the VCP.
-    auto* mem_end = generate_vcp(DEFAULT_TARGET_VIEW_HEIGHT);
+    auto* mem_end = generate_vcp(scale_for_t(0));
 
     // Set up the VCP address.
     vcp_set_prg(LAYER_2, m_vcp);
@@ -63,24 +68,45 @@ public:
     vcp_set_prg(LAYER_2, nullptr);
   }
 
-private:
-  // Splash view height, on a 1080p screen.
-  static const uint32_t DEFAULT_TARGET_VIEW_HEIGHT = 436;
+  void update(const uint32_t t) {
+    (void)generate_vcp(scale_for_t(t));
+  }
 
-  void* generate_vcp(uint32_t target_view_height) {
-    // Get the HW resolution.
+private:
+  static fp32_t scale_for_t(const uint32_t t) {
+    // Scaling as a function of time: Simulate an x^2 "bouncing" motion.
+    auto t_mod = t & 127U;
+    if (t_mod >= 64U) {
+      t_mod = 127U - t_mod;
+    }
+    return 0.75_fp32 + 0.000126_fp32 * ((63U * 63U) - (t_mod * t_mod));
+  }
+
+  void* generate_vcp(fp32_t scale_for_1080p) {
+    // Get the HW resolution and adjust the scaling factor.
     const auto native_width = MMIO(VIDWIDTH);
     const auto native_height = MMIO(VIDHEIGHT);
+    auto scale = (scale_for_1080p * native_height) / static_cast<uint32_t>(1080);
 
     // Calculate the screen rectangle for the splash (centered, preserve aspect ratio).
-    const auto view_height = (target_view_height * native_height) / 1080U;
-    const auto view_width = (m_img_width * view_height) / m_img_height;
-    const auto view_top = (native_height - view_height) / 2;
-    const auto view_left = (native_width - view_width) / 2;
+    const auto view_height = static_cast<uint32_t>(scale * m_img_height);
+    const auto view_width = static_cast<uint32_t>(scale * m_img_width);
+    const auto view_top = (native_height - view_height) / 2U;
+    const auto view_left = (native_width - view_width) / 2U;
+
+    auto* vcp = m_vcp;
+
+    // We add a wait here, and add a few NOP:s (to fill up the pipeline after the WAITY instruction)
+    // so that the VCP modifications that we do during the blanking interval has effect.
+    *vcp++ = vcp_emit_waity(0);
+    *vcp++ = vcp_emit_nop();
+    *vcp++ = vcp_emit_nop();
+    *vcp++ = vcp_emit_nop();
 
     // VCP prologue.
-    auto* vcp = m_vcp;
-    *vcp++ = vcp_emit_setreg(VCR_XINCR, (0x010000 * m_img_width) / view_width);
+    // TODO(m): Use the fixed point width from the scaling and set VCR_XOFFS too for subpixel
+    // accuracy.
+    *vcp++ = vcp_emit_setreg(VCR_XINCR, (0x010000U * m_img_width) / view_width);
     *vcp++ = vcp_emit_setreg(VCR_CMODE, m_img_fmt);
 
     // Palette.
@@ -90,19 +116,20 @@ private:
     vcp += m_num_palette_colors;
 
     // Address pointers.
-    uint32_t vcp_pixels_addr = to_vcp_addr(reinterpret_cast<uintptr_t>(m_pixels));
     *vcp++ = vcp_emit_waity(view_top);
     *vcp++ = vcp_emit_setreg(VCR_HSTRT, view_left);
     *vcp++ = vcp_emit_setreg(VCR_HSTOP, view_left + view_width);
-    *vcp++ = vcp_emit_setreg(VCR_ADDR, vcp_pixels_addr);
-    const auto vcp_stride = m_img_word_stride;
-    for (uint32_t k = 1U; k < m_img_height; ++k) {
-      auto y = view_top + (k * view_height) / m_img_height;
-      vcp_pixels_addr += vcp_stride;
-      *vcp++ = vcp_emit_waity(y);
+    uint32_t vcp_pixels_addr = to_vcp_addr(reinterpret_cast<uintptr_t>(m_pixels));
+    const auto vcp_pixels_stride = m_img_word_stride;
+    auto y = fp32_t(view_top);
+    const auto y_step = fp32_t(view_height) / m_img_height;
+    for (uint32_t k = 0U; k < m_img_height; ++k) {
+      *vcp++ = vcp_emit_waity(static_cast<uint32_t>(y));
       *vcp++ = vcp_emit_setreg(VCR_ADDR, vcp_pixels_addr);
+      y += y_step;
+      vcp_pixels_addr += vcp_pixels_stride;
     }
-    *vcp++ = vcp_emit_waity(view_top + view_height);
+    *vcp++ = vcp_emit_waity(static_cast<uint32_t>(y));
     *vcp++ = vcp_emit_setreg(VCR_HSTOP, 0);
 
     // VCP epilogue: Wait forever.
@@ -122,3 +149,5 @@ private:
 };
 
 }  // namespace
+
+#endif  // ROM_SPLASH_HPP_

@@ -18,6 +18,9 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
+#ifndef ROM_MOSAIC_HPP_
+#define ROM_MOSAIC_HPP_
+
 #include <mc1/mmio.h>
 #include <mc1/vcp.h>
 
@@ -73,13 +76,11 @@ public:
   }
 
   void update(const uint32_t t) {
-    uint32_t t2 = t >> 1;
-
     // Define the four corner colors.
-    abgr32_t p11 = make_color(t2);
-    abgr32_t p12 = make_color(t2 + 3433U);
-    abgr32_t p21 = make_color(1150U - t2);
-    abgr32_t p22 = make_color(t2 + 13150U);
+    abgr32_t p11 = make_color(t);
+    abgr32_t p12 = make_color(t + 3433U);
+    abgr32_t p21 = make_color(1150U - t);
+    abgr32_t p22 = make_color(t + 13150U);
 
     // Interpolate all the "pixels" (tiles) in the mosaic.
     uint32_t* pixels = m_pixels;
@@ -133,3 +134,5 @@ private:
 };
 
 }  // namespace
+
+#endif  // ROM_MOSAIC_HPP_

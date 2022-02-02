@@ -66,10 +66,14 @@ public:
   }
 
   void wait_for_next_frame() {
+    // Wait for vertical blank.
+    const auto old_frame_no = MMIO(VIDFRAMENO);
     uint32_t frame_no;
     do {
       frame_no = MMIO(VIDFRAMENO);
-    } while (frame_no == m_last_frame_no);
+    } while (frame_no == old_frame_no);
+
+    // Increment T by the number of frames that has passed since the last time we were called.
     m_t += frame_no - m_last_frame_no;
     m_last_frame_no = frame_no;
   }
@@ -127,6 +131,9 @@ extern "C" int main(int, char**) {
     // Update splash screen.
     if (state != boot_state_t::INITIALIZE) {
       frame_sync.wait_for_next_frame();
+#ifdef ENABLE_SPLASH
+      splash.update(frame_sync.t());
+#endif
       mosaic.update(frame_sync.t());
 
       if (status != previous_status) {
