@@ -68,7 +68,7 @@ clean:
 
 
 #-----------------------------------------------------------------------------
-# MC1 tools (currently unused, kept in case we want to add a splash image)
+# MC1 tools
 #-----------------------------------------------------------------------------
 
 PNG2MCI = $(SDK_ROOT)/tools/png2mci
@@ -86,7 +86,8 @@ $(PNG2MCI):
 #-----------------------------------------------------------------------------
 
 # ROM configuration
-ENABLE_CONSOLE = yes
+ENABLE_SPLASH = yes
+ENABLE_CONSOLE = no
 ENABLE_SELFTEST = no
 
 ROM_OBJS = \
@@ -98,9 +99,13 @@ ROM_FLAGS =
 
 ifeq ($(ENABLE_CONSOLE),yes)
   ROM_FLAGS += -DENABLE_CONSOLE
+  ifeq ($(ENABLE_SELFTEST),yes)
+    ROM_FLAGS += -DENABLE_SELFTEST -I $(SELFTESTINC)
+  endif
 endif
-ifeq ($(ENABLE_SELFTEST),yes)
-  ROM_FLAGS += -DENABLE_SELFTEST -I $(SELFTESTINC)
+ifeq ($(ENABLE_SPLASH),yes)
+  ROM_FLAGS += -DENABLE_SPLASH
+  ROM_OBJS += $(OUT)/boot-splash.o
 endif
 
 $(OUT)/crt0.o: crt0.s $(LIBMC1INC)/mc1/memory.inc $(LIBMC1INC)/mc1/mmio.inc
@@ -111,6 +116,11 @@ $(OUT)/main.o: main.cpp
 
 $(OUT)/elf32.o: elf32.cpp
 	$(CXX) $(CXXFLAGS) $(ROM_FLAGS) -o $@ $<
+
+$(OUT)/boot-splash.o: media/boot-splash.png
+	$(PNG2MCI) --lzg --pal4 $< $(OUT)/boot-splash.mci
+	$(RAW2C) $(OUT)/boot-splash.mci boot_splash_mci > $(OUT)/boot-splash.c
+	$(CC) $(CCFLAGS) -o $@ $(OUT)/boot-splash.c
 
 $(OUT)/rom.elf: $(ROM_OBJS) $(OUT)/libmc1.a $(OUT)/libselftest.a link.ld
 	$(LD) $(LDFLAGS) -o $@ $(ROM_OBJS) -lmc1 -lselftest -lm

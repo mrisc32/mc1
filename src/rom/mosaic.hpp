@@ -73,7 +73,7 @@ public:
   }
 
   void update(const uint32_t t) {
-    uint32_t t2 = t >> 2;
+    uint32_t t2 = t >> 1;
 
     // Define the four corner colors.
     abgr32_t p11 = make_color(t2);

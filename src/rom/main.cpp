@@ -21,6 +21,9 @@
 #include "elf32.hpp"
 #include "mosaic.hpp"
 
+#ifdef ENABLE_SPLASH
+#include "splash.hpp"
+#endif
 #ifdef ENABLE_CONSOLE
 #include "console.hpp"
 #endif
@@ -107,10 +110,13 @@ void sdcard_log_fun(const char* msg) {
 extern "C" int main(int, char**) {
   sevseg_print("OLLEH ");  // Print a friendly "HELLO".
 
+  mosaic_t mosaic;
+#ifdef ENABLE_SPLASH
+  splash_t splash;
+#endif
 #ifdef ENABLE_CONSOLE
   console_t console;
 #endif
-  mosaic_t mosaic;
   sdctx_t sdctx;
   frame_sync_t frame_sync;
 
@@ -157,6 +163,9 @@ extern "C" int main(int, char**) {
       case boot_state_t::INITIALIZE: {
         auto* mem = reinterpret_cast<void*>(&__vram_free_start);
         mem = mosaic.init(mem);
+#ifdef ENABLE_SPLASH
+        mem = splash.init(mem);
+#endif
 #ifdef ENABLE_CONSOLE
         console.init(mem);
 #endif
@@ -209,6 +218,9 @@ extern "C" int main(int, char**) {
           // Deinitialize video (blank it while loading the boot executable).
 #ifdef ENABLE_CONSOLE
           console.deinit();
+#endif
+#ifdef ENABLE_SPLASH
+          splash.deinit();
 #endif
           mosaic.deinit();
 
