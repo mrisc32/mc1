@@ -35,6 +35,9 @@
 extern char __vram_free_start;
 
 namespace {
+// Name of the boot executable file.
+const char* BOOT_EXE = "MC1BOOT.EXE";
+
 // States for the boot state machine.
 enum class boot_state_t {
   INITIALIZE,
@@ -42,6 +45,14 @@ enum class boot_state_t {
   WAIT_FOR_SDCARD,
   MOUNT_FAT,
   LOAD_MC1BOOT,
+};
+
+// Status of the boot process.
+enum class boot_status_t {
+  NONE,
+  NO_SDCARD,
+  NO_FAT,
+  NO_BOOTEXE,
 };
 
 // Frame sync class.
@@ -103,12 +114,38 @@ extern "C" int main(int, char**) {
   sdctx_t sdctx;
   frame_sync_t frame_sync;
 
+  auto status = boot_status_t::NONE;
+  auto previous_status = boot_status_t::NONE;
   auto state = boot_state_t::INITIALIZE;
   while (true) {
     // Update splash screen.
     if (state != boot_state_t::INITIALIZE) {
       frame_sync.wait_for_next_frame();
       mosaic.update(frame_sync.t());
+
+      if (status != previous_status) {
+#ifdef ENABLE_CONSOLE
+        const char* msg;
+        switch (status) {
+          case boot_status_t::NO_SDCARD:
+            msg = "Insert bootable SD card\n";
+            break;
+          case boot_status_t::NO_FAT:
+            msg = "Not a FAT formatted SD card\n";
+            break;
+          case boot_status_t::NO_BOOTEXE:
+            msg = "No boot executable found\n";
+            break;
+          default:
+            msg = nullptr;
+            break;
+        }
+        if (msg != nullptr) {
+          console_t::print(msg);
+        }
+#endif
+        previous_status = status;
+      }
     }
 
     // Boot state machine.
@@ -134,7 +171,6 @@ extern "C" int main(int, char**) {
         if (!console.diags_have_been_run()) {
           console.run_diagnostics();
         }
-        console_t::print("Insert bootable SD-card... ");
 #endif
         state = boot_state_t::WAIT_FOR_SDCARD;
       } break;
@@ -144,11 +180,9 @@ extern "C" int main(int, char**) {
       //--------------------------------------------------------------------------------------------
       case boot_state_t::WAIT_FOR_SDCARD: {
         if (sdcard_init(&sdctx, sdcard_log_fun)) {
-#ifdef ENABLE_CONSOLE
-          console_t::print("OK!\nMounting FAT filesystem... ");
-#endif
-          sevseg_print("DRACDS");
           state = boot_state_t::MOUNT_FAT;
+        } else {
+          status = boot_status_t::NO_SDCARD;
         }
       } break;
 
@@ -157,13 +191,10 @@ extern "C" int main(int, char**) {
       //--------------------------------------------------------------------------------------------
       case boot_state_t::MOUNT_FAT: {
         if (mfat_mount(&read_block_fun, &write_block_fun, &sdctx) == 0) {
-#ifdef ENABLE_CONSOLE
-          console_t::print("OK!\n");
-#endif
-          sevseg_print("TAF   ");
           state = boot_state_t::LOAD_MC1BOOT;
         } else {
-          // Retry the SD card step until we find a valid SD card.
+          // Retry the SD card step until we find a valid FAT formatted SD card.
+          status = boot_status_t::NO_FAT;
           state = boot_state_t::WAIT_FOR_SDCARD;
         }
       } break;
@@ -172,32 +203,32 @@ extern "C" int main(int, char**) {
       // LOAD_MC1BOOT
       //--------------------------------------------------------------------------------------------
       case boot_state_t::LOAD_MC1BOOT: {
-        // TODO(m): Here we should just stat the exe file and fail back to WAIT_FOR_SDCARD if it
-        // does not exist instead of falling back all the way to INITIALIZE.
-
-        // Deinitialize video (blank it while loading the boot executable).
+        // Stat the boot exe file to see if it exists.
+        mfat_stat_t stat;
+        if (mfat_stat(BOOT_EXE, &stat) == 0) {
+          // Deinitialize video (blank it while loading the boot executable).
 #ifdef ENABLE_CONSOLE
-        console.deinit();
+          console.deinit();
 #endif
-        mosaic.deinit();
+          mosaic.deinit();
 
-        // Try to load the boot executable.
-        uint32_t entry_address = 0;
-        if (elf32::load("MC1BOOT.EXE", entry_address)) {
-          sevseg_print("TOOB  ");
+          // Try to load the boot executable.
+          uint32_t entry_address = 0;
+          if (elf32::load(BOOT_EXE, entry_address)) {
+            // Call the boot function.
+            auto* boot_fun = reinterpret_cast<boot_fun_t*>(entry_address);
+            boot_fun();
+          }
 
-          // Call the boot function.
-          auto* boot_fun = reinterpret_cast<boot_fun_t*>(entry_address);
-          boot_fun();
-
-          // TODO(m): If the boot program returns (it shouldn't!), we probably
-          // need to do a soft reset in order to get back a valid stack etc.
-        } else {
-          sevseg_print("LOL     ");
+          // If we got this far we either could not load the EXE file, or the EXE file has finished
+          // executing and returned. In either case we can not trust the contents of RAM (e.g. the
+          // stack), so we need to soft reset.
+          __asm__ volatile("\tj\tz, #0x00000200");
         }
 
-        // Since we deinitialized before, we need to go to initialize again.
-        state = boot_state_t::INITIALIZE;
+        // Retry the SD card step until we find a bootable SD card.
+        status = boot_status_t::NO_BOOTEXE;
+        state = boot_state_t::WAIT_FOR_SDCARD;
       } break;
     }
   }
