@@ -93,7 +93,7 @@ architecture rtl of toplevel is
   constant C_SYSTEM_CLK_HZ : integer := 50_000_000;
 
   -- 70 MHz seems to be a good safe bet, but going higher is certainly possible.
-  constant C_CPU_CLK_HZ : integer := 120_000_000;
+  constant C_CPU_CLK_HZ : integer := 80_000_000;
 
   -- Pixel frequencies for supported video modes:
   --  1920x1080 @ 60 Hz: 148.500 MHz
