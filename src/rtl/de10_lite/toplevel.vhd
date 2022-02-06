@@ -246,8 +246,17 @@ begin
   s_io_mousebtns <= (others => '0');
 
   -- I/O: SD card interface.
-  -- TODO(m): Support via GPIO?
-  s_io_sdin <= (others => '0');
+  -- We map some GPIO pins to SD card I/O.
+  s_io_sdin(0) <= GPIO(17);  -- DAT0 / MISO
+  s_io_sdin(1) <= '0';       -- DAT1
+  s_io_sdin(2) <= '0';       -- DAT2
+  s_io_sdin(3) <= GPIO(11);  -- DAT3 / CS
+  s_io_sdin(4) <= GPIO(13);  -- CMD  / MOSI
+  s_io_sdin(31 downto 5) <= (others => '0');
+  GPIO(17) <= s_io_regs_w.SDOUT(0) when s_io_regs_w.SDWE(0) = '1' else 'Z';
+  GPIO(11) <= s_io_regs_w.SDOUT(3) when s_io_regs_w.SDWE(3) = '1' else 'Z';
+  GPIO(13) <= s_io_regs_w.SDOUT(4) when s_io_regs_w.SDWE(4) = '1' else 'Z';
+  GPIO(15) <= s_io_regs_w.SDOUT(5);  -- CLK / SCK
 
   -- I/O: Input.
   s_io_switches(31 downto 9) <= (others => '0');
