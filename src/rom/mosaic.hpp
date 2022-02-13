@@ -99,7 +99,7 @@ private:
   // Color type.
   using abgr32_t = uint32_t;
 
-  static const int MOSAIC_W = 16;
+  static const int MOSAIC_W = 64;
   static const int MOSAIC_H = (MOSAIC_W * 9) / 16;
 
   static abgr32_t lerp(const abgr32_t c1, const abgr32_t c2, uint32_t w2) {
