@@ -172,6 +172,7 @@ architecture rtl of wb_crossbar_2x4 is
   -- Request arbiter signals for master A.
   signal s_req_a : std_logic;
   signal s_no_pending_req_a : std_logic;
+  signal s_can_honor_req_a : std_logic;
   signal s_req_validated_a : std_logic;
   signal s_req_port_a : T_PORT;
   signal s_next_port_a : T_PORT;
@@ -181,6 +182,7 @@ architecture rtl of wb_crossbar_2x4 is
   -- Request arbiter signals for master B.
   signal s_req_b : std_logic;
   signal s_no_pending_req_b : std_logic;
+  signal s_can_honor_req_b : std_logic;
   signal s_req_validated_b : std_logic;
   signal s_req_port_b : T_PORT;
   signal s_next_port_b : T_PORT;
@@ -293,7 +295,8 @@ begin
 
   --------------------------------------------------------------------------------------------------
   -- Master A slave selection logic.
-  -- Note: These signals are non-registered, so keep the logic complexity to a minimum.
+  -- Note: These signals are non-registered, so keep the logic complexity to a minimum, and NO
+  -- combinatorial loops (signal feedback)!
   --------------------------------------------------------------------------------------------------
 
   -- Do we have any pending requests for master A?
@@ -304,10 +307,11 @@ begin
   s_req_port_a <= address_to_port(i_adr_a);
 
   -- Can we honor the request from master A?
-  s_req_validated_a <= (s_req_a and not s_pending_reqs_is_max_a) when
+  s_can_honor_req_a <= not s_pending_reqs_is_max_a when
       s_req_port_a = s_active_port_a or
       (s_no_pending_req_a = '1' and (s_req_port_a /= s_active_port_b or s_no_pending_req_b = '1'))
       else '0';
+  s_req_validated_a <= s_req_a and s_can_honor_req_a;
 
   -- Determine the next slave port for master A.
   s_next_port_a <=
@@ -316,7 +320,7 @@ begin
       s_active_port_a;
 
   -- Do we need to stall master A?
-  s_stall_a <= s_stall_from_slave_a or (s_req_a and not s_req_validated_a);
+  s_stall_a <= s_stall_from_slave_a or not s_can_honor_req_a;
 
   -- Should STB be forwarded from master A?
   s_stb_a <= s_req_validated_a;
@@ -324,7 +328,8 @@ begin
 
   --------------------------------------------------------------------------------------------------
   -- Master B slave selection logic.
-  -- Note: These signals are non-registered, so keep the logic complexity to a minimum.
+  -- Note: These signals are non-registered, so keep the logic complexity to a minimum, and NO
+  -- combinatorial loops (signal feedback)!
   --------------------------------------------------------------------------------------------------
 
   -- Do we have any pending requests for master B?
@@ -336,10 +341,11 @@ begin
 
   -- Can we honor the request from master B?
   -- TODO(m): Can we optimize the collision detection logic (s_next_port_a is expensive)?
-  s_req_validated_b <= (s_req_b and not s_pending_reqs_is_max_b) when
+  s_can_honor_req_b <= not s_pending_reqs_is_max_b when
       s_req_port_b /= s_next_port_a and
       (s_req_port_b = s_active_port_b or s_no_pending_req_b = '1')
       else '0';
+  s_req_validated_b <= s_req_b and s_can_honor_req_b;
 
   -- Determine the next slave port for master B.
   s_next_port_b <=
@@ -348,7 +354,7 @@ begin
       s_active_port_b;
 
   -- Do we need to stall master B?
-  s_stall_b <= s_stall_from_slave_b or (s_req_b and not s_req_validated_b);
+  s_stall_b <= s_stall_from_slave_b or not s_can_honor_req_b;
 
   -- Should STB be forwarded from master B?
   s_stb_b <= s_req_validated_b;
