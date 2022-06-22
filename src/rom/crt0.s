@@ -7,6 +7,16 @@
 .include "mc1/memory.inc"
 .include "mc1/mmio.inc"
 
+
+.macro BOOTSTAGE num:req, sevseg:req
+    ldi     r1, #MMIO_START
+    ldi     r2, #1<<(\num - 1)
+    stw     r2, [r1, #LEDS]
+    ldi     r2, #\sevseg
+    stw     r2, [r1, #SEGDISP0]
+.endm
+
+
     .section .text.start, "ax"
 
     .globl  _start
@@ -16,6 +26,8 @@ _start:
     ; ------------------------------------------------------------------------
     ; Clear all CPU registers.
     ; ------------------------------------------------------------------------
+
+    BOOTSTAGE   1, 0b0000110
 
     ; Set all the scalar registers (except Z, SP and VL) to a known state.
     ldi     r1, #0
@@ -98,6 +110,8 @@ _start:
     ; Clear the BSS data (if any).
     ; ------------------------------------------------------------------------
 
+    BOOTSTAGE   2, 0b1011011
+
     ldi     r2, #__bss_size
     bz      r2, bss_cleared
     lsr     r2, r2, #2      ; BSS size is always a multiple of 4 bytes.
@@ -119,6 +133,8 @@ bss_cleared:
     ; the palette registers is undefined after reset.
     ; ------------------------------------------------------------------------
 
+    BOOTSTAGE   3, 0b1001111
+
     ldi     r1, #0x60000000     ; SETPAL 0, 1
     ldi     r2, #0xff8080a0     ; Color 0 = red tint (ABGR32)
     ldi     r3, #0x50007fff     ; WAITY 32767 = wait forever
@@ -137,6 +153,8 @@ bss_cleared:
     ; C++ constructors are not supported in the ROM code.
     ; ------------------------------------------------------------------------
 
+    BOOTSTAGE   4, 0b1100110
+
     ; r1 = argc, r2 = argv (these are invalid - don't use them!)
     ldi     r1, #0
     ldi     r2, #0
@@ -146,6 +164,7 @@ bss_cleared:
 
 
     ; Terminate the program: Loop forever...
+    BOOTSTAGE   8, 0b1001001    ; 7-segment (three horizontal bars)
 1$:
     b       1$
 
