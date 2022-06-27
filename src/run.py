@@ -26,11 +26,14 @@ def main():
     lib.add_source_files("test/*_tb.vhd")
 
     # Add the MC1 design.
+    lib.add_source_files("rtl/bit_synchronizer.vhd")
     lib.add_source_files("rtl/dither.vhd")
     lib.add_source_files("rtl/mc1.vhd")
     lib.add_source_files("rtl/mmio_types.vhd")
     lib.add_source_files("rtl/mmio.vhd")
     lib.add_source_files("rtl/prng.vhd")
+    lib.add_source_files("rtl/ps2_keyboard.vhd")
+    lib.add_source_files("rtl/ps2_receiver.vhd")
     lib.add_source_files("rtl/ram_true_dual_port.vhd")
     lib.add_source_files("rtl/reset_conditioner.vhd")
     lib.add_source_files("rtl/reset_stabilizer.vhd")
