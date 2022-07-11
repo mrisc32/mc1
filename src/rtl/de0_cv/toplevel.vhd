@@ -38,17 +38,17 @@ entity toplevel is
     CLOCK4_50 : in std_logic;
 
     -- DRAM  "3.3-V LVTTL"
+    DRAM_CLK : out std_logic;
+    DRAM_CKE : out std_logic;
     DRAM_ADDR : out std_logic_vector(12 downto 0);
     DRAM_BA : out std_logic_vector(1 downto 0);
-    DRAM_CAS_N : out std_logic;
-    DRAM_CKE : out std_logic;
-    DRAM_CLK : out std_logic;
-    DRAM_CS_N : out std_logic;
     DRAM_DQ : inout std_logic_vector(15 downto 0);
-    DRAM_LDQM : out std_logic;
+    DRAM_CS_N : out std_logic;
     DRAM_RAS_N : out std_logic;
-    DRAM_UDQM : out std_logic;
+    DRAM_CAS_N : out std_logic;
     DRAM_WE_N : out std_logic;
+    DRAM_LDQM : out std_logic;
+    DRAM_UDQM : out std_logic;
 
     -- GPIO "3.3-V LVTTL"
     GPIO_0 : inout std_logic_vector(35 downto 0);
@@ -95,6 +95,10 @@ architecture rtl of toplevel is
   -- 70 MHz seems to be a good safe bet, but going higher is certainly possible.
   constant C_CPU_CLK_HZ : integer := 80_000_000;
 
+  -- SDRAM read sample clock is phase-shifted to compensate for signal progpagation delay.
+  -- Note: This value has to be chosen carefully (not every value is valid).
+  constant C_SDRAM_CLK_PHASE : time := (270.0/360.0) * (1_000 ms / real(C_CPU_CLK_HZ));
+
   -- Pixel frequencies for supported video modes:
   --  1920x1080 @ 60 Hz: 148.500 MHz
   --   1280x720 @ 60 Hz:  74.250 MHz
@@ -117,6 +121,7 @@ architecture rtl of toplevel is
   signal s_vga_rst : std_logic;
   signal s_vga_clk : std_logic;
 
+  signal s_sdram_clk : std_logic;
   signal s_xram_cyc : std_logic;
   signal s_xram_stb : std_logic;
   signal s_xram_adr : std_logic_vector(29 downto 0);
@@ -164,16 +169,19 @@ begin
   pll_cpu: entity work.pll
     generic map (
       REFERENCE_CLOCK_FREQUENCY => C_SYSTEM_CLK_HZ,
-      NUMBER_OF_CLOCKS => 2,
+      NUMBER_OF_CLOCKS => 3,
       OUTPUT_CLOCK_FREQUENCY0 => C_CPU_CLK_HZ,
-      OUTPUT_CLOCK_FREQUENCY1 => C_VGA_REF_CLK_HZ
+      OUTPUT_CLOCK_FREQUENCY1 => C_CPU_CLK_HZ,
+      PHASE_SHIFT1 => C_SDRAM_CLK_PHASE,
+      OUTPUT_CLOCK_FREQUENCY2 => C_VGA_REF_CLK_HZ
     )
     port map
     (
       i_rst => s_system_rst,
       i_refclk => s_system_clk,
       o_clk0 => s_cpu_clk,
-      o_clk1 => s_vga_ref_clk,
+      o_clk1 => s_sdram_clk,
+      o_clk2 => s_vga_ref_clk,
       o_locked => s_pll_cpu_locked
     );
 
@@ -217,6 +225,7 @@ begin
       COLOR_BITS_G => VGA_G'length,
       COLOR_BITS_B => VGA_B'length,
       LOG2_VRAM_SIZE => 18,          -- 2^18 = 256 KiB
+      XRAM_SIZE => 2**26,            -- 2^26 = 64 MiB
       NUM_VIDEO_LAYERS => 2,
       VIDEO_CONFIG => C_1920_1080
     )
@@ -258,12 +267,52 @@ begin
       o_io_regs_w => s_io_regs_w
     );
 
-  -- XRAM.
-  -- TODO(m): Implement me!
-  s_xram_dat <= (others => '0');
-  s_xram_ack <= '1';  -- Never block, always return zero.
-  s_xram_stall <= '0';
-  s_xram_err <= '0';
+  -- XRAM - We use the on-board 32Mx16 SDRAM as XRAM.
+  -- Configuration according to ISSI IS42S163220F-7TL specs.
+  DRAM_CLK <= s_sdram_clk;
+  xram_1: entity work.xram_sdram
+    generic map (
+      CPU_CLK_HZ => C_CPU_CLK_HZ,
+      SDRAM_ADDR_WIDTH => DRAM_ADDR'length,
+      SDRAM_DATA_WIDTH => DRAM_DQ'length,
+      SDRAM_COL_WIDTH => 10,                -- 1k cols
+      SDRAM_ROW_WIDTH => 13,                -- 8k rows
+      SDRAM_BANK_WIDTH => 2,                -- 4 banks
+      CAS_LATENCY => 2,                     -- 2 below 133 MHz, 3 over 133 MHz
+      T_DESL => 200000.0,                   -- Can be lowered to 100 us?
+      T_MRD => 14.0,
+      T_RC => 60.0,
+      T_RCD => 15.0,
+      T_RP => 15.0,
+      T_WR => 14.0,                         -- Same as t_DPL?
+      T_REFI => 7812.5                      -- 8192 refreshes / 64 ms
+    )
+    port map (
+      i_rst  => s_cpu_rst,
+
+      i_wb_clk => s_cpu_clk,
+      i_wb_cyc => s_xram_cyc,
+      i_wb_stb => s_xram_stb,
+      i_wb_adr => s_xram_adr,
+      i_wb_dat => s_xram_dat_w,
+      i_wb_we => s_xram_we,
+      i_wb_sel => s_xram_sel,
+      o_wb_dat => s_xram_dat,
+      o_wb_ack => s_xram_ack,
+      o_wb_stall => s_xram_stall,
+      o_wb_err => s_xram_err,
+
+      o_sdram_a => DRAM_ADDR,
+      o_sdram_ba => DRAM_BA,
+      io_sdram_dq => DRAM_DQ,
+      o_sdram_cke => DRAM_CKE,
+      o_sdram_cs_n => DRAM_CS_N,
+      o_sdram_ras_n => DRAM_RAS_N,
+      o_sdram_cas_n => DRAM_CAS_N,
+      o_sdram_we_n => DRAM_WE_N,
+      o_sdram_dqm(0) => DRAM_LDQM,
+      o_sdram_dqm(1) => DRAM_UDQM
+    );
 
   -- I/O: PS/2 keyboard input.
   ps2_keyboard_1: entity work.ps2_keyboard

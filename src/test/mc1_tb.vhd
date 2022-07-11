@@ -58,6 +58,28 @@ architecture tb of mc1_tb is
   signal s_hsync : std_logic;
   signal s_vsync : std_logic;
 
+  signal s_xram_cyc : std_logic;
+  signal s_xram_stb : std_logic;
+  signal s_xram_adr : std_logic_vector(29 downto 0);
+  signal s_xram_dat_w : std_logic_vector(31 downto 0);
+  signal s_xram_we : std_logic;
+  signal s_xram_sel : std_logic_vector(3 downto 0);
+  signal s_xram_dat : std_logic_vector(31 downto 0);
+  signal s_xram_ack : std_logic;
+  signal s_xram_stall : std_logic;
+  signal s_xram_err : std_logic;
+
+  signal s_sdram_clk : std_logic;
+  signal s_sdram_addr : std_logic_vector(12 downto 0);
+  signal s_sdram_ba : std_logic_vector(1 downto 0);
+  signal s_sdram_dq : std_logic_vector(15 downto 0);
+  signal s_sdram_cs_n : std_logic;
+  signal s_sdram_cke : std_logic;
+  signal s_sdram_ras_n : std_logic;
+  signal s_sdram_cas_n : std_logic;
+  signal s_sdram_we_n : std_logic;
+  signal s_sdram_dqm : std_logic_vector(1 downto 0);
+
   -- Debug trace interface.
   signal s_debug_trace : T_DEBUG_TRACE;
 begin
@@ -69,6 +91,7 @@ begin
       COLOR_BITS_G => s_g'length,
       COLOR_BITS_B => s_b'length,
       LOG2_VRAM_SIZE => 17,          -- 2^17 = 128 KiB
+      XRAM_SIZE => 2**(10+13+2+1),
       VIDEO_CONFIG => C_1920_1080
     )
     port map (
@@ -95,15 +118,84 @@ begin
       i_io_mousebtns => (others => '0'),
       i_io_sdin => (others => '0'),
 
-      -- XRAM (none).
-      i_xram_dat => (others => '0'),
-      i_xram_ack => '0',
-      i_xram_stall => '0',
-      i_xram_err => '0',
+      -- XRAM interface.
+      o_xram_cyc => s_xram_cyc,
+      o_xram_stb => s_xram_stb,
+      o_xram_adr => s_xram_adr,
+      o_xram_dat => s_xram_dat_w,
+      o_xram_we => s_xram_we,
+      o_xram_sel => s_xram_sel,
+      i_xram_dat => s_xram_dat,
+      i_xram_ack => s_xram_ack,
+      i_xram_stall => s_xram_stall,
+      i_xram_err => s_xram_err,
 
       -- Debug trace interface.
       o_debug_trace => s_debug_trace
     );
+
+  -- XRAM - Interface an SDRAM controller to provide XRAM.
+  xram_1: entity work.xram_sdram
+    generic map (
+      CPU_CLK_HZ => C_CPU_CLK_HZ,
+      SDRAM_ADDR_WIDTH => s_sdram_addr'length,
+      SDRAM_DATA_WIDTH => s_sdram_dq'length,
+      SDRAM_COL_WIDTH => 10,                -- 1k cols
+      SDRAM_ROW_WIDTH => 13,                -- 8k rows
+      SDRAM_BANK_WIDTH => s_sdram_ba'length,
+      T_DESL => 1000.0  -- Use shorter wait times to speed up init
+    )
+    port map (
+      i_rst  => s_rst,
+
+      i_wb_clk => s_clk,
+      i_wb_cyc => s_xram_cyc,
+      i_wb_stb => s_xram_stb,
+      i_wb_adr => s_xram_adr,
+      i_wb_dat => s_xram_dat_w,
+      i_wb_we => s_xram_we,
+      i_wb_sel => s_xram_sel,
+      o_wb_dat => s_xram_dat,
+      o_wb_ack => s_xram_ack,
+      o_wb_stall => s_xram_stall,
+      o_wb_err => s_xram_err,
+
+      o_sdram_a => s_sdram_addr,
+      o_sdram_ba => s_sdram_ba,
+      io_sdram_dq => s_sdram_dq,
+      o_sdram_cke => s_sdram_cke,
+      o_sdram_cs_n => s_sdram_cs_n,
+      o_sdram_ras_n => s_sdram_ras_n,
+      o_sdram_cas_n => s_sdram_cas_n,
+      o_sdram_we_n => s_sdram_we_n,
+      o_sdram_dqm => s_sdram_dqm
+    );
+
+  -- SDRAM - Simulate an SDRAM device.
+  sdram_model_1: entity work.sdram_model
+    generic map (
+      ADDR_WIDTH => s_sdram_addr'length,
+      DATA_WIDTH => s_sdram_dq'length,
+      COL_WIDTH => 10,                -- 1k cols
+      ROW_WIDTH => 13,                -- 8k rows
+      BANK_WIDTH => s_sdram_ba'length
+    )
+    port map (
+      i_rst => s_rst,
+      i_clk => s_sdram_clk,
+      i_a => s_sdram_addr,
+      i_ba => s_sdram_ba,
+      io_dq => s_sdram_dq,
+      i_cke => s_sdram_cke,
+      i_cs_n => s_sdram_cs_n,
+      i_ras_n => s_sdram_ras_n,
+      i_cas_n => s_sdram_cas_n,
+      i_we_n => s_sdram_we_n,
+      i_dqm => s_sdram_dqm
+    );
+
+  -- The SDRAM clock is 180 degrees phase delayed (for simplicity).
+  s_sdram_clk <= not s_clk;
 
   main : process
     -- File I/O.
