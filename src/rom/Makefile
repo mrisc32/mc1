@@ -92,7 +92,6 @@ ENABLE_SELFTEST = no
 
 ROM_OBJS = \
     $(OUT)/crt0.o \
-    $(OUT)/elf32.o \
     $(OUT)/main.o
 
 ROM_FLAGS =
@@ -112,9 +111,6 @@ $(OUT)/crt0.o: crt0.s $(LIBMC1INC)/mc1/memory.inc $(LIBMC1INC)/mc1/mmio.inc
 	$(AS) $(ASFLAGS) $(ROM_FLAGS) -o $@ crt0.s
 
 $(OUT)/main.o: main.cpp
-	$(CXX) $(CXXFLAGS) $(ROM_FLAGS) -o $@ $<
-
-$(OUT)/elf32.o: elf32.cpp
 	$(CXX) $(CXXFLAGS) $(ROM_FLAGS) -o $@ $<
 
 $(OUT)/boot-splash.o: media/boot-splash.png

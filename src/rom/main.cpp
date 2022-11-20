@@ -18,7 +18,6 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
-#include "elf32.hpp"
 #include "mosaic.hpp"
 
 #ifdef ENABLE_SPLASH
@@ -28,6 +27,7 @@
 #include "console.hpp"
 #endif
 
+#include <mc1/elf32.h>
 #include <mc1/leds.h>
 #include <mc1/mfat_mc1.h>
 #include <mc1/sdcard.h>
@@ -233,7 +233,7 @@ extern "C" int main(int, char**) {
 
           // Try to load the boot executable.
           uint32_t entry_address = 0;
-          if (elf32::load(BOOT_EXE, entry_address)) {
+          if (elf32_load(BOOT_EXE, &entry_address)) {
             // Call the boot function.
             auto* boot_fun = reinterpret_cast<boot_fun_t*>(entry_address);
             boot_fun();
