@@ -41,6 +41,7 @@ def main():
     lib.add_source_files("rtl/reset_conditioner.vhd")
     lib.add_source_files("rtl/reset_stabilizer.vhd")
     lib.add_source_files("rtl/sdram.vhd")
+    lib.add_source_files("rtl/sdram_controller.vhd")
     lib.add_source_files("rtl/synchronizer.vhd")
     lib.add_source_files("rtl/vid_blend.vhd")
     lib.add_source_files("rtl/video_layer.vhd")
