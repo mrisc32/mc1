@@ -236,12 +236,14 @@ architecture rtl of sdram_controller is
 
   -- SDRAM DQ in/out signals (mapped to/from io_sdram_dq).
   signal s_dq_in : std_logic_vector(G_SDRAM_DQ_WIDTH-1 downto 0);
+  signal s_dq_in_reg : std_logic_vector(G_SDRAM_DQ_WIDTH-1 downto 0);
   signal s_dq_out : std_logic_vector(G_SDRAM_DQ_WIDTH-1 downto 0);
   signal s_dq_out_en : std_logic;
 
   -- Use I/O flip-flops for the SDRAM data in/out signals.
   attribute useioff of s_dq_in : signal is true;
   attribute useioff of s_dq_out : signal is true;
+  attribute useioff of s_dq_out_en : signal is true;
 
   -- Convert the precharge setting (all banks/single bank) to a signal suitable for o_sdram_a.
   function pre2sdram_a(precharge_all_banks : std_logic) return std_logic_vector is
@@ -369,13 +371,14 @@ begin
   process (i_rst, i_clk)
   begin
     if i_rst = '1' then
-      s_dq_in <= (others => '0');
+      s_dq_in_reg <= (others => '0');
     elsif rising_edge(i_clk) then
-      s_dq_in <= io_sdram_dq;
+      s_dq_in_reg <= io_sdram_dq;
     end if;
   end process;
 
   -- This should infer an IOBUF.
+  s_dq_in <= io_sdram_dq;
   io_sdram_dq <= s_dq_out when s_dq_out_en = '1' else (others => 'Z');
 
   -- Enable the SDRAM clock as soon as we exit reset.
@@ -757,60 +760,54 @@ begin
     if i_rst = '1' then
       -- Read signals.
       s_dat <= (others => '0');
-      s_rd_burst_cnt <= C_BURST_LENGTH-1;
+      s_rd_burst_cnt <= 0;
 
       -- Write signals.
       s_dq_out_en <= '0';
       s_dq_out <= (others => '0');
       o_sdram_dqm <= (others => '0');
       s_dpl_cycle_cnt <= 0;
-      s_wr_burst_cnt <= C_BURST_LENGTH-1;
+      s_wr_burst_cnt <= 0;
 
       s_ack <= '0';
     elsif rising_edge(i_clk) then
       ------------------------------------------------------------
       -- Read the next sub-word as it's bursted from the SDRAM.
       ------------------------------------------------------------
-      -- Shift in the data from the SDRAM.
-      s_dat(G_DATA_WIDTH-G_SDRAM_DQ_WIDTH-1 downto 0) <= s_dat(G_DATA_WIDTH-1 downto G_SDRAM_DQ_WIDTH);
-      s_dat(G_DATA_WIDTH-1 downto G_DATA_WIDTH-G_SDRAM_DQ_WIDTH) <= s_dq_in;
+      s_dat(G_SDRAM_DQ_WIDTH*(s_rd_burst_cnt+1)-1 downto G_SDRAM_DQ_WIDTH*s_rd_burst_cnt) <= s_dq_in_reg;
 
       -- Was this the final sub-word?
       if (s_read_burst_data_start = '1' and C_BURST_LENGTH = 1) or
-         (s_rd_burst_cnt = (C_BURST_LENGTH - 2)) then
+         (s_rd_burst_cnt = (C_BURST_LENGTH - 1) and C_BURST_LENGTH > 1) then
         v_read_done := '1';
       else
         v_read_done := '0';
       end if;
 
       -- Update the read burst counter.
-      if s_read_burst_data_start = '1' then
+      if s_rd_burst_cnt = (C_BURST_LENGTH-1) then
         s_rd_burst_cnt <= 0;
-      elsif s_rd_burst_cnt < (C_BURST_LENGTH-1) then
+      elsif (s_read_burst_data_start = '1' or s_rd_burst_cnt /= 0) and (C_BURST_LENGTH > 1) then
         s_rd_burst_cnt <= s_rd_burst_cnt + 1;
       end if;
+
 
       -------------------------------------------------------------------------------
       -- Write the next sub-word from the write buffer to the SDRAM.
       -- We also keep track of the Tdpl counter here (i.e. write-to-precharge delay).
       -------------------------------------------------------------------------------
-      if s_next_cmd = C_CMD_WR then
+      s_dq_out <= s_dat_w(G_SDRAM_DQ_WIDTH*(s_wr_burst_cnt+1)-1 downto G_SDRAM_DQ_WIDTH*s_wr_burst_cnt);
+      if s_next_cmd = C_CMD_WR or s_wr_burst_cnt /= 0 then
         s_dq_out_en <= '1';
-        s_dq_out <= s_dat_w(G_SDRAM_DQ_WIDTH-1 downto 0);
-        o_sdram_dqm <= s_sel_n((G_SDRAM_DQ_WIDTH/8)-1 downto 0);
-      elsif s_wr_burst_cnt < C_BURST_LENGTH-1 then
-        s_dq_out_en <= '1';
-        s_dq_out <= s_dat_w(G_SDRAM_DQ_WIDTH*(s_wr_burst_cnt+2)-1 downto G_SDRAM_DQ_WIDTH*(s_wr_burst_cnt+1));
-        o_sdram_dqm <= s_sel_n((G_SDRAM_DQ_WIDTH/8)*(s_wr_burst_cnt+2)-1 downto (G_SDRAM_DQ_WIDTH/8)*(s_wr_burst_cnt+1));
+        o_sdram_dqm <= s_sel_n((G_SDRAM_DQ_WIDTH/8)*(s_wr_burst_cnt+1)-1 downto (G_SDRAM_DQ_WIDTH/8)*s_wr_burst_cnt);
       else
         s_dq_out_en <= '0';
-        s_dq_out <= (others => '-');
         o_sdram_dqm <= (others => '0');  -- No mask during reads for instance.
       end if;
 
       -- Was this the final sub-word?
       if (s_next_cmd = C_CMD_WR and C_BURST_LENGTH = 1) or
-         (s_wr_burst_cnt = (C_BURST_LENGTH - 2)) then
+         (s_wr_burst_cnt = (C_BURST_LENGTH - 1) and C_BURST_LENGTH > 1) then
         v_write_done := '1';
         s_dpl_cycle_cnt <= C_DPL_CYCLES;
       else
@@ -820,10 +817,10 @@ begin
         end if;
       end if;
 
-      -- Update the read burst counter.
-      if s_next_cmd = C_CMD_WR then
+      -- Update the write burst counter.
+      if s_wr_burst_cnt = (C_BURST_LENGTH-1) then
         s_wr_burst_cnt <= 0;
-      elsif s_wr_burst_cnt < (C_BURST_LENGTH-1) then
+      elsif (s_next_cmd = C_CMD_WR or s_wr_burst_cnt /= 0) and (C_BURST_LENGTH > 1) then
         s_wr_burst_cnt <= s_wr_burst_cnt + 1;
       end if;
 
