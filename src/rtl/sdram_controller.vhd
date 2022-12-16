@@ -218,12 +218,11 @@ architecture rtl of sdram_controller is
 
   -- Control signals.
   signal s_busy : std_logic;
+  signal s_ack : std_logic;
   signal s_start_req : std_logic;
-  signal s_can_start_req : std_logic;
   signal s_time_for_refresh : std_logic;
+  signal s_next_time_for_refresh : std_logic;
   signal s_precharge_all_banks : std_logic;
-  signal s_dat_valid : std_logic;
-  signal s_write_done : std_logic;
 
   -- Per bank state.
   constant C_NUM_BANKS : integer := 2**G_SDRAM_BA_WIDTH;
@@ -290,9 +289,6 @@ begin
   -- Host interface.
   --------------------------------------------------------------------------------------------------
 
-  -- Are we busy (i.e. unable to accept a new request)?
-  s_busy <= (not s_can_start_req) or s_time_for_refresh;
-
   -- Is this the start of a new request?
   s_start_req <= i_req and not s_busy;
 
@@ -315,11 +311,7 @@ begin
   end process;
 
   -- Select unlatched or latched input signals.
-  process (s_start_req,
-           i_adr, s_latched_adr,
-           i_dat_w, s_latched_dat_w,
-           i_we, s_latched_we,
-           i_sel, s_latched_sel_n)
+  process (all)
   begin
     if s_start_req = '1' then
       -- Use un-latched input signals during the first request cycle.
@@ -353,7 +345,7 @@ begin
 
   -- Responses to the host interface.
   o_busy <= s_busy;
-  o_ack <= s_dat_valid or s_write_done;
+  o_ack <= s_ack;
   o_dat <= s_dat;
 
 
@@ -437,7 +429,6 @@ begin
     if i_rst = '1' then
       s_state_cycle_cnt <= 0;
       s_refresh_cycle_cnt <= C_REFRESH_INTERVAL_CYCLES;
-      s_time_for_refresh <= '0';
     elsif rising_edge(i_clk) then
       -- The state cycle counter keeps track of how many cycles have been spent in the current FSM
       -- state. We restart the state cycle counter whenever we have a state change.
@@ -451,13 +442,24 @@ begin
       -- regular intervals, regardless of what the state machine has been up to.
       if s_refresh_cycle_cnt /= 0 then
         s_refresh_cycle_cnt <= s_refresh_cycle_cnt - 1;
-        if s_state = ST_REFRESH then
-          s_time_for_refresh <= '0';
-        end if;
       else
         s_refresh_cycle_cnt <= C_REFRESH_INTERVAL_CYCLES;
-        s_time_for_refresh <= '1';
       end if;
+    end if;
+  end process;
+
+  -- Determine if it's time to start a refresh cycle.
+  s_next_time_for_refresh <=
+      '1' when s_refresh_cycle_cnt = 0 else
+      '0' when s_next_cmd <= C_CMD_REF else
+      s_time_for_refresh;
+
+  process (i_rst, i_clk)
+  begin
+    if i_rst = '1' then
+      s_time_for_refresh <= '0';
+    elsif rising_edge(i_clk) then
+      s_time_for_refresh <= s_next_time_for_refresh;
     end if;
   end process;
 
@@ -475,9 +477,6 @@ begin
     s_next_cmd <= C_CMD_NOP;
     s_next_return_state <= s_return_state;
     s_next_return_cmd <= s_return_cmd;
-
-    -- We can only accept new request during a few select cycles. Default to NO.
-    s_can_start_req <= '0';
 
     -- By default we will not precharge all banks.
     s_precharge_all_banks <= '0';
@@ -545,17 +544,16 @@ begin
             s_next_return_cmd <= C_CMD_REF;
           end if;
         else
-          s_can_start_req <= '1';
           if i_req = '1' then
             -- Check the state of this bank.
             v_bank_state := s_bank_state(to_integer(unsigned(s_bank)));
             if v_bank_state.active = '1' and v_bank_state.row = s_row then
               -- Send the WR/RD command immediately if we're in an already active row.
-              if s_we = '1' and s_read_cycle_cnt > 1 then
+              if i_we = '1' and s_read_cycle_cnt > 1 then
                 -- Handle read-to-write (+CAS latency delay).
                 s_next_state <= ST_DELAYED_WRITE;
               else
-                if s_we = '1' then
+                if i_we = '1' then
                   s_next_cmd <= C_CMD_WR;
                 else
                   s_next_cmd <= C_CMD_RD;
@@ -590,11 +588,11 @@ begin
 
       when ST_ACTIVE =>
         if s_state_cycle_cnt = C_RCD_CYCLES then
-          if s_we = '1' and s_read_cycle_cnt > 1 then
+          if s_latched_we = '1' and s_read_cycle_cnt > 1 then
             -- Handle read-to-write (+CAS latency delay).
             s_next_state <= ST_DELAYED_WRITE;
           else
-            if s_we = '1' then
+            if s_latched_we = '1' then
               s_next_cmd <= C_CMD_WR;
             else
               s_next_cmd <= C_CMD_RD;
@@ -663,11 +661,19 @@ begin
       s_cmd <= C_CMD_NOP;
       s_return_state <= ST_INIT;
       s_return_cmd <= C_CMD_NOP;
+      s_busy <= '1';
     elsif rising_edge(i_clk) then
       s_state <= s_next_state;
       s_cmd <= s_next_cmd;
       s_return_state <= s_next_return_state;
       s_return_cmd <= s_next_return_cmd;
+
+      -- Will the controller be busy (unable to accept requests) during the next cycle?
+      if s_next_state = ST_SERVICE_REQUEST and s_next_time_for_refresh = '0' then
+        s_busy <= '0';
+      else
+        s_busy <= '1';
+      end if;
     end if;
   end process;
 
@@ -742,57 +748,60 @@ begin
   -- from SDRAM.
   s_read_burst_data_start <= s_read_delay_line(C_READ_DLY_LEN-1);
 
-  -- Read the next sub-word as it's bursted from the SDRAM.
   process (i_rst, i_clk)
-    variable v_burst_cnt : integer range 0 to C_BURST_LENGTH := C_BURST_LENGTH;
+    variable v_rd_burst_cnt : integer range 0 to C_BURST_LENGTH := C_BURST_LENGTH;
+    variable v_wr_burst_cnt : integer range 0 to C_BURST_LENGTH := C_BURST_LENGTH;
+    variable v_read_done : std_logic;
+    variable v_write_done : std_logic;
   begin
     if i_rst = '1' then
+      -- Read signals.
       s_dat <= (others => '0');
-      s_dat_valid <= '0';
-    elsif rising_edge(i_clk) then
-      if s_read_burst_data_start = '1' then
-        -- Start a new read burst.
-        v_burst_cnt := 0;
-      elsif v_burst_cnt < C_BURST_LENGTH then
-        v_burst_cnt := v_burst_cnt + 1;
-      end if;
 
-      if v_burst_cnt < C_BURST_LENGTH then
-        s_dat(G_SDRAM_DQ_WIDTH*(v_burst_cnt+1)-1 downto G_SDRAM_DQ_WIDTH*v_burst_cnt) <= s_dq_in;
-      end if;
-
-      -- Was this the final sub-word?
-      if v_burst_cnt = (C_BURST_LENGTH - 1) then
-        s_dat_valid <= '1';
-      else
-        s_dat_valid <= '0';
-      end if;
-    end if;
-  end process;
-
-  -- Write the next sub-word from the write buffer to the SDRAM.
-  -- We also keep track of the Tdpl counter here (i.e. write-to-precharge delay).
-  process (i_rst, i_clk)
-    variable v_burst_cnt : integer range 0 to C_BURST_LENGTH := C_BURST_LENGTH;
-  begin
-    if i_rst = '1' then
+      -- Write signals.
       s_dq_out_en <= '0';
       s_dq_out <= (others => '0');
       o_sdram_dqm <= (others => '0');
-      s_write_done <= '0';
       s_dpl_cycle_cnt <= 0;
+
+      s_ack <= '0';
     elsif rising_edge(i_clk) then
-      if s_next_cmd = C_CMD_WR then
-        -- Start a new write burst.
-        v_burst_cnt := 0;
-      elsif v_burst_cnt < C_BURST_LENGTH then
-        v_burst_cnt := v_burst_cnt + 1;
+      ------------------------------------------------------------
+      -- Read the next sub-word as it's bursted from the SDRAM.
+      ------------------------------------------------------------
+      if s_read_burst_data_start = '1' then
+        -- Start a new read burst.
+        v_rd_burst_cnt := 0;
+      elsif v_rd_burst_cnt < C_BURST_LENGTH then
+        v_rd_burst_cnt := v_rd_burst_cnt + 1;
       end if;
 
-      if v_burst_cnt < C_BURST_LENGTH then
+      if v_rd_burst_cnt < C_BURST_LENGTH then
+        s_dat(G_SDRAM_DQ_WIDTH*(v_rd_burst_cnt+1)-1 downto G_SDRAM_DQ_WIDTH*v_rd_burst_cnt) <= s_dq_in;
+      end if;
+
+      -- Was this the final sub-word?
+      if v_rd_burst_cnt = (C_BURST_LENGTH - 1) then
+        v_read_done := '1';
+      else
+        v_read_done := '0';
+      end if;
+
+      -------------------------------------------------------------------------------
+      -- Write the next sub-word from the write buffer to the SDRAM.
+      -- We also keep track of the Tdpl counter here (i.e. write-to-precharge delay).
+      -------------------------------------------------------------------------------
+      if s_next_cmd = C_CMD_WR then
+        -- Start a new write burst.
+        v_wr_burst_cnt := 0;
+      elsif v_wr_burst_cnt < C_BURST_LENGTH then
+        v_wr_burst_cnt := v_wr_burst_cnt + 1;
+      end if;
+
+      if v_wr_burst_cnt < C_BURST_LENGTH then
         s_dq_out_en <= '1';
-        s_dq_out <= s_dat_w(G_SDRAM_DQ_WIDTH*(v_burst_cnt+1)-1 downto G_SDRAM_DQ_WIDTH*v_burst_cnt);
-        o_sdram_dqm <= s_sel_n((G_SDRAM_DQ_WIDTH/8)*(v_burst_cnt+1)-1 downto (G_SDRAM_DQ_WIDTH/8)*v_burst_cnt);
+        s_dq_out <= s_dat_w(G_SDRAM_DQ_WIDTH*(v_wr_burst_cnt+1)-1 downto G_SDRAM_DQ_WIDTH*v_wr_burst_cnt);
+        o_sdram_dqm <= s_sel_n((G_SDRAM_DQ_WIDTH/8)*(v_wr_burst_cnt+1)-1 downto (G_SDRAM_DQ_WIDTH/8)*v_wr_burst_cnt);
       else
         s_dq_out_en <= '0';
         s_dq_out <= (others => '0');
@@ -800,17 +809,19 @@ begin
       end if;
 
       -- Was this the final sub-word?
-      if v_burst_cnt = (C_BURST_LENGTH - 1) then
-        s_write_done <= '1';
+      if v_wr_burst_cnt = (C_BURST_LENGTH - 1) then
+        v_write_done := '1';
         s_dpl_cycle_cnt <= C_DPL_CYCLES;
       else
-        s_write_done <= '0';
+        v_write_done := '0';
         if s_dpl_cycle_cnt /= 0 then
           s_dpl_cycle_cnt <= s_dpl_cycle_cnt - 1;
         end if;
       end if;
-    end if;
 
+      -- ACK?
+      s_ack <= v_read_done or v_write_done;
+    end if;
   end process;
 
 end rtl;
