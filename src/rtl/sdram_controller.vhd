@@ -201,8 +201,6 @@ architecture rtl of sdram_controller is
   -- Current (latched or unlatched) request signals.
   signal s_adr : std_logic_vector(G_ADDR_WIDTH-1 downto 0);
   signal s_we : std_logic;
-  signal s_dat_w : std_logic_vector(G_DATA_WIDTH-1 downto 0);
-  signal s_sel_n : std_logic_vector(G_DATA_WIDTH/8-1 downto 0);
 
   -- Read buffer.
   signal s_dat : std_logic_vector(G_DATA_WIDTH-1 downto 0);
@@ -300,14 +298,10 @@ begin
     if i_rst = '1' then
       s_latched_adr <= (others => '0');
       s_latched_we <= '0';
-      s_latched_dat_w <= (others => '0');
-      s_latched_sel_n <= (others => '0');
     elsif rising_edge(i_clk) then
       if s_start_req = '1' then
         s_latched_adr <= i_adr;
         s_latched_we <= i_we;
-        s_latched_dat_w <= i_dat_w;
-        s_latched_sel_n <= not i_sel;
       end if;
     end if;
   end process;
@@ -319,14 +313,10 @@ begin
       -- Use un-latched input signals during the first request cycle.
       s_adr <= i_adr;
       s_we <= i_we;
-      s_dat_w <= i_dat_w;
-      s_sel_n <= not i_sel;
     else
       -- Use latched input signals during the rest of the cycles.
       s_adr <= s_latched_adr;
       s_we <= s_latched_we;
-      s_dat_w <= s_latched_dat_w;
-      s_sel_n <= s_latched_sel_n;
     end if;
   end process;
 
@@ -760,6 +750,8 @@ begin
       s_rd_burst_cnt <= C_BURST_LENGTH-1;
 
       -- Write signals.
+      s_latched_dat_w <= (others => '0');
+      s_latched_sel_n <= (others => '0');
       s_dq_out_en <= '0';
       s_dq_out <= (others => '0');
       o_sdram_dqm <= (others => '0');
@@ -794,15 +786,38 @@ begin
       -- Write the next sub-word from the write buffer to the SDRAM.
       -- We also keep track of the Tdpl counter here (i.e. write-to-precharge delay).
       -------------------------------------------------------------------------------
+      -- Shift the write data & mask in pace with the burst.
+      if s_start_req = '1' then
+        if s_next_cmd /= C_CMD_WR then
+          s_latched_dat_w <= i_dat_w;
+          s_latched_sel_n <= not i_sel;
+        else
+          s_latched_dat_w(G_DATA_WIDTH-1 downto G_DATA_WIDTH-G_SDRAM_DQ_WIDTH) <= (others => '0');
+          s_latched_dat_w(G_DATA_WIDTH-G_SDRAM_DQ_WIDTH-1 downto 0) <= i_dat_w(G_DATA_WIDTH-1 downto G_SDRAM_DQ_WIDTH);
+          s_latched_sel_n(G_DATA_WIDTH/8-1 downto (G_DATA_WIDTH-G_SDRAM_DQ_WIDTH)/8) <= (others => '1');
+          s_latched_sel_n((G_DATA_WIDTH-G_SDRAM_DQ_WIDTH)/8-1 downto 0) <= not i_sel(G_DATA_WIDTH/8-1 downto G_SDRAM_DQ_WIDTH/8);
+        end if;
+      elsif s_next_state = ST_BURST then
+        s_latched_dat_w(G_DATA_WIDTH-1 downto G_DATA_WIDTH-G_SDRAM_DQ_WIDTH) <= (others => '0');
+        s_latched_dat_w(G_DATA_WIDTH-G_SDRAM_DQ_WIDTH-1 downto 0) <= s_latched_dat_w(G_DATA_WIDTH-1 downto G_SDRAM_DQ_WIDTH);
+        s_latched_sel_n(G_DATA_WIDTH/8-1 downto (G_DATA_WIDTH-G_SDRAM_DQ_WIDTH)/8) <= (others => '1');
+        s_latched_sel_n((G_DATA_WIDTH-G_SDRAM_DQ_WIDTH)/8-1 downto 0) <= s_latched_sel_n(G_DATA_WIDTH/8-1 downto G_SDRAM_DQ_WIDTH/8);
+      end if;
+
+      -- Select output data & mask signals.
       if s_next_cmd = C_CMD_WR then
         s_dq_out_en <= '1';
-        s_dq_out <= s_dat_w(G_SDRAM_DQ_WIDTH-1 downto 0);
-        o_sdram_dqm <= s_sel_n((G_SDRAM_DQ_WIDTH/8)-1 downto 0);
+        if s_state = ST_SERVICE_REQUEST then
+          s_dq_out <= i_dat_w(G_SDRAM_DQ_WIDTH-1 downto 0);
+          o_sdram_dqm <= not i_sel((G_SDRAM_DQ_WIDTH/8)-1 downto 0);
+        else
+          s_dq_out <= s_latched_dat_w(G_SDRAM_DQ_WIDTH-1 downto 0);
+          o_sdram_dqm <= s_latched_sel_n((G_SDRAM_DQ_WIDTH/8)-1 downto 0);
+        end if;
       elsif s_wr_burst_cnt < C_BURST_LENGTH-1 then
         s_dq_out_en <= '1';
-        -- TODO(m): Optimize these expressions. Perhaps use clocked shift registers instead?
-        s_dq_out <= s_latched_dat_w(G_SDRAM_DQ_WIDTH*(s_wr_burst_cnt+2)-1 downto G_SDRAM_DQ_WIDTH*(s_wr_burst_cnt+1));
-        o_sdram_dqm <= s_latched_sel_n((G_SDRAM_DQ_WIDTH/8)*(s_wr_burst_cnt+2)-1 downto (G_SDRAM_DQ_WIDTH/8)*(s_wr_burst_cnt+1));
+        s_dq_out <= s_latched_dat_w(G_SDRAM_DQ_WIDTH-1 downto 0);
+        o_sdram_dqm <= s_latched_sel_n((G_SDRAM_DQ_WIDTH/8)-1 downto 0);
       else
         s_dq_out_en <= '0';
         s_dq_out <= (others => '0');
