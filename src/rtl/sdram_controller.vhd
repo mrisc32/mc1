@@ -200,7 +200,6 @@ architecture rtl of sdram_controller is
 
   -- Current (latched or unlatched) request signals.
   signal s_adr : std_logic_vector(G_ADDR_WIDTH-1 downto 0);
-  signal s_we : std_logic;
 
   -- Read buffer.
   signal s_dat : std_logic_vector(G_DATA_WIDTH-1 downto 0);
@@ -312,11 +311,9 @@ begin
     if s_start_req = '1' then
       -- Use un-latched input signals during the first request cycle.
       s_adr <= i_adr;
-      s_we <= i_we;
     else
       -- Use latched input signals during the rest of the cycles.
       s_adr <= s_latched_adr;
-      s_we <= s_latched_we;
     end if;
   end process;
 
@@ -382,6 +379,9 @@ begin
       o_sdram_a <= (others => '0');
     elsif rising_edge(i_clk) then
       -- Set the bank.
+      -- TODO(m): Can we always use s_bank (skip the (others => '0') cases)?
+      -- In other words, we only need to update o_sdram_ba from i_adr when s_start_req = '1'.
+      -- Check the DESL init logic!
       case s_next_cmd is
         when C_CMD_ACT | C_CMD_WR | C_CMD_RD =>
           o_sdram_ba <= s_bank;
@@ -406,6 +406,7 @@ begin
         when C_CMD_WR | C_CMD_RD =>
           o_sdram_a <= col2sdram_a(s_col);
         when others =>
+          -- TODO(m): Can we use don't-care here?
           o_sdram_a <= (others => '0');
       end case;
     end if;
