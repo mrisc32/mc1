@@ -391,9 +391,9 @@ begin
         when C_CMD_MRS =>
           o_sdram_a <= mode2sdram_a;
         when C_CMD_ACT =>
-          o_sdram_a <= row2sdram_a(s_row);
+          o_sdram_a <= row2sdram_a(s_row);  -- TODO(m): Use latched value! (delay ACT)
         when C_CMD_WR | C_CMD_RD =>
-          o_sdram_a <= col2sdram_a(s_col);
+          o_sdram_a <= col2sdram_a(s_col);  -- TODO(m): Use latched value!
         when others =>
           -- For other commands the address is treated as don't care.
           o_sdram_a <= (others => '-');
@@ -531,15 +531,13 @@ begin
             v_bank_state := s_bank_state(to_integer(unsigned(s_bank)));
             if v_bank_state.active = '1' and v_bank_state.row = s_row then
               -- Send the WR/RD command immediately if we're in an already active row.
-              if i_we = '1' and s_read_cycle_cnt > 1 then
-                -- Handle read-to-write (+CAS latency delay).
+              if i_we = '1' then
+                -- Don't write immediately (for performance reasons we want to latch the host write
+                -- inputs first).
+                -- TODO(m): Pipeline write requests.
                 s_next_state <= ST_DELAYED_WRITE;
               else
-                if i_we = '1' then
-                  s_next_cmd <= C_CMD_WR;
-                else
-                  s_next_cmd <= C_CMD_RD;
-                end if;
+                s_next_cmd <= C_CMD_RD;
                 if C_BURST_LENGTH >= 2 then
                   s_next_state <= ST_BURST;
                 else
@@ -776,42 +774,25 @@ begin
       -- Write the next sub-word from the write buffer to the SDRAM.
       -- We also keep track of the Tdpl counter here (i.e. write-to-precharge delay).
       -------------------------------------------------------------------------------
+      -- Output DQ & DQM signals to the SDRAM (gated by s_dq_out_en).
+      s_dq_out <= s_latched_dat_w(G_SDRAM_DQ_WIDTH-1 downto 0);
+      if (s_next_cmd = C_CMD_WR) or (s_wr_burst_cnt < C_BURST_LENGTH-1) then
+        o_sdram_dqm <= s_latched_sel_n((G_SDRAM_DQ_WIDTH/8)-1 downto 0);
+        s_dq_out_en <= '1';
+      else
+        o_sdram_dqm <= (others => '0');  -- No mask during reads (for instance).
+        s_dq_out_en <= '0';
+      end if;
+
       -- Shift the write data & mask in pace with the burst.
       if s_start_req = '1' then
-        if s_next_cmd /= C_CMD_WR then
-          s_latched_dat_w <= i_dat_w;
-          s_latched_sel_n <= not i_sel;
-        else
-          s_latched_dat_w(G_DATA_WIDTH-1 downto G_DATA_WIDTH-G_SDRAM_DQ_WIDTH) <= (others => '0');
-          s_latched_dat_w(G_DATA_WIDTH-G_SDRAM_DQ_WIDTH-1 downto 0) <= i_dat_w(G_DATA_WIDTH-1 downto G_SDRAM_DQ_WIDTH);
-          s_latched_sel_n(G_DATA_WIDTH/8-1 downto (G_DATA_WIDTH-G_SDRAM_DQ_WIDTH)/8) <= (others => '1');
-          s_latched_sel_n((G_DATA_WIDTH-G_SDRAM_DQ_WIDTH)/8-1 downto 0) <= not i_sel(G_DATA_WIDTH/8-1 downto G_SDRAM_DQ_WIDTH/8);
-        end if;
+        s_latched_dat_w <= i_dat_w;
+        s_latched_sel_n <= not i_sel;
       elsif s_next_state = ST_BURST then
         s_latched_dat_w(G_DATA_WIDTH-1 downto G_DATA_WIDTH-G_SDRAM_DQ_WIDTH) <= (others => '0');
         s_latched_dat_w(G_DATA_WIDTH-G_SDRAM_DQ_WIDTH-1 downto 0) <= s_latched_dat_w(G_DATA_WIDTH-1 downto G_SDRAM_DQ_WIDTH);
         s_latched_sel_n(G_DATA_WIDTH/8-1 downto (G_DATA_WIDTH-G_SDRAM_DQ_WIDTH)/8) <= (others => '1');
         s_latched_sel_n((G_DATA_WIDTH-G_SDRAM_DQ_WIDTH)/8-1 downto 0) <= s_latched_sel_n(G_DATA_WIDTH/8-1 downto G_SDRAM_DQ_WIDTH/8);
-      end if;
-
-      -- Select output data & mask signals.
-      if s_next_cmd = C_CMD_WR then
-        s_dq_out_en <= '1';
-        if s_state = ST_SERVICE_REQUEST then
-          s_dq_out <= i_dat_w(G_SDRAM_DQ_WIDTH-1 downto 0);
-          o_sdram_dqm <= not i_sel((G_SDRAM_DQ_WIDTH/8)-1 downto 0);
-        else
-          s_dq_out <= s_latched_dat_w(G_SDRAM_DQ_WIDTH-1 downto 0);
-          o_sdram_dqm <= s_latched_sel_n((G_SDRAM_DQ_WIDTH/8)-1 downto 0);
-        end if;
-      elsif s_wr_burst_cnt < C_BURST_LENGTH-1 then
-        s_dq_out_en <= '1';
-        s_dq_out <= s_latched_dat_w(G_SDRAM_DQ_WIDTH-1 downto 0);
-        o_sdram_dqm <= s_latched_sel_n((G_SDRAM_DQ_WIDTH/8)-1 downto 0);
-      else
-        s_dq_out_en <= '0';
-        s_dq_out <= (others => '0');
-        o_sdram_dqm <= (others => '0');
       end if;
 
       -- Was this the final sub-word?
@@ -826,7 +807,7 @@ begin
         end if;
       end if;
 
-      -- Update the read burst counter.
+      -- Update the write burst counter.
       if s_next_cmd = C_CMD_WR then
         s_wr_burst_cnt <= 0;
       elsif s_wr_burst_cnt < (C_BURST_LENGTH-1) then
