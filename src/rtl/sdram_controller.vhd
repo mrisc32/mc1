@@ -371,7 +371,7 @@ begin
   -- Send the current command to the SDRAM control signals.
   (o_sdram_cs_n, o_sdram_ras_n, o_sdram_cas_n, o_sdram_we_n) <= s_cmd;
 
-  -- Set the SDRAM bank and address lines depending on which command we are executing.
+  -- Set the SDRAM address lines depending on which command we are executing.
   process (i_rst, i_clk)
   begin
     if i_rst = '1' then
@@ -379,21 +379,10 @@ begin
       o_sdram_a <= (others => '0');
     elsif rising_edge(i_clk) then
       -- Set the bank.
-      -- TODO(m): Can we always use s_bank (skip the (others => '0') cases)?
-      -- In other words, we only need to update o_sdram_ba from i_adr when s_start_req = '1'.
-      -- Check the DESL init logic!
-      case s_next_cmd is
-        when C_CMD_ACT | C_CMD_WR | C_CMD_RD =>
-          o_sdram_ba <= s_bank;
-        when C_CMD_PRE =>
-          if s_precharge_all_banks = '1' then
-            o_sdram_ba <= (others => '0');
-          else
-            o_sdram_ba <= s_bank;
-          end if;
-        when others =>
-          o_sdram_ba <= (others => '0');
-      end case;
+      -- Note: We always set the bank address, regardless of command. For the commands that care
+      -- about the bank address (ACT, PRE, WR, RD), s_bank will be defined. For other commands
+      -- (including NOP) the bank address is treated as don't care.
+      o_sdram_ba <= s_bank;
 
       -- Set the address.
       case s_next_cmd is
@@ -406,8 +395,8 @@ begin
         when C_CMD_WR | C_CMD_RD =>
           o_sdram_a <= col2sdram_a(s_col);
         when others =>
-          -- TODO(m): Can we use don't-care here?
-          o_sdram_a <= (others => '0');
+          -- For other commands the address is treated as don't care.
+          o_sdram_a <= (others => '-');
       end case;
     end if;
   end process;
