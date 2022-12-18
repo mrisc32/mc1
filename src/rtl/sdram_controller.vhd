@@ -189,6 +189,8 @@ architecture rtl of sdram_controller is
   signal s_refresh_cycle_cnt : integer range 0 to C_MAX_REFRESH_CYCLE_CNT;
   signal s_dpl_cycle_cnt : integer range 0 to C_MAX_DPL_CYCLE_CNT;
   signal s_read_cycle_cnt : integer range 0 to C_MAX_READ_CYCLE_CNT;
+  signal s_rd_burst_cnt : integer range 0 to C_BURST_LENGTH-1;
+  signal s_wr_burst_cnt : integer range 0 to C_BURST_LENGTH-1;
 
   -- Latched request signals.
   signal s_latched_adr : std_logic_vector(G_ADDR_WIDTH-1 downto 0);
@@ -749,20 +751,20 @@ begin
   s_read_burst_data_start <= s_read_delay_line(C_READ_DLY_LEN-1);
 
   process (i_rst, i_clk)
-    variable v_rd_burst_cnt : integer range 0 to C_BURST_LENGTH := C_BURST_LENGTH;
-    variable v_wr_burst_cnt : integer range 0 to C_BURST_LENGTH := C_BURST_LENGTH;
     variable v_read_done : std_logic;
     variable v_write_done : std_logic;
   begin
     if i_rst = '1' then
       -- Read signals.
       s_dat <= (others => '0');
+      s_rd_burst_cnt <= C_BURST_LENGTH-1;
 
       -- Write signals.
       s_dq_out_en <= '0';
       s_dq_out <= (others => '0');
       o_sdram_dqm <= (others => '0');
       s_dpl_cycle_cnt <= 0;
+      s_wr_burst_cnt <= C_BURST_LENGTH-1;
 
       s_ack <= '0';
     elsif rising_edge(i_clk) then
@@ -773,18 +775,19 @@ begin
       s_dat(G_DATA_WIDTH-G_SDRAM_DQ_WIDTH-1 downto 0) <= s_dat(G_DATA_WIDTH-1 downto G_SDRAM_DQ_WIDTH);
       s_dat(G_DATA_WIDTH-1 downto G_DATA_WIDTH-G_SDRAM_DQ_WIDTH) <= s_dq_in;
 
-      -- TODO(m): Simplify this logic.
-      if s_read_burst_data_start = '1' then
-        -- Start a new read burst.
-        v_rd_burst_cnt := 0;
-      elsif v_rd_burst_cnt < C_BURST_LENGTH then
-        v_rd_burst_cnt := v_rd_burst_cnt + 1;
-      end if;
       -- Was this the final sub-word?
-      if v_rd_burst_cnt = (C_BURST_LENGTH - 1) then
+      if (s_read_burst_data_start = '1' and C_BURST_LENGTH = 1) or
+         (s_rd_burst_cnt = (C_BURST_LENGTH - 2)) then
         v_read_done := '1';
       else
         v_read_done := '0';
+      end if;
+
+      -- Update the read burst counter.
+      if s_read_burst_data_start = '1' then
+        s_rd_burst_cnt <= 0;
+      elsif s_rd_burst_cnt < (C_BURST_LENGTH-1) then
+        s_rd_burst_cnt <= s_rd_burst_cnt + 1;
       end if;
 
       -------------------------------------------------------------------------------
@@ -792,28 +795,23 @@ begin
       -- We also keep track of the Tdpl counter here (i.e. write-to-precharge delay).
       -------------------------------------------------------------------------------
       if s_next_cmd = C_CMD_WR then
-        v_wr_burst_cnt := 0;
-
         s_dq_out_en <= '1';
         s_dq_out <= s_dat_w(G_SDRAM_DQ_WIDTH-1 downto 0);
         o_sdram_dqm <= s_sel_n((G_SDRAM_DQ_WIDTH/8)-1 downto 0);
-      elsif v_wr_burst_cnt < C_BURST_LENGTH-1 then
-        v_wr_burst_cnt := v_wr_burst_cnt + 1;
-
+      elsif s_wr_burst_cnt < C_BURST_LENGTH-1 then
         s_dq_out_en <= '1';
         -- TODO(m): Optimize these expressions. Perhaps use clocked shift registers instead?
-        s_dq_out <= s_latched_dat_w(G_SDRAM_DQ_WIDTH*(v_wr_burst_cnt+1)-1 downto G_SDRAM_DQ_WIDTH*v_wr_burst_cnt);
-        o_sdram_dqm <= s_latched_sel_n((G_SDRAM_DQ_WIDTH/8)*(v_wr_burst_cnt+1)-1 downto (G_SDRAM_DQ_WIDTH/8)*v_wr_burst_cnt);
+        s_dq_out <= s_latched_dat_w(G_SDRAM_DQ_WIDTH*(s_wr_burst_cnt+2)-1 downto G_SDRAM_DQ_WIDTH*(s_wr_burst_cnt+1));
+        o_sdram_dqm <= s_latched_sel_n((G_SDRAM_DQ_WIDTH/8)*(s_wr_burst_cnt+2)-1 downto (G_SDRAM_DQ_WIDTH/8)*(s_wr_burst_cnt+1));
       else
-        v_wr_burst_cnt := C_BURST_LENGTH;
-
         s_dq_out_en <= '0';
         s_dq_out <= (others => '0');
         o_sdram_dqm <= (others => '0');
       end if;
 
       -- Was this the final sub-word?
-      if v_wr_burst_cnt = (C_BURST_LENGTH - 1) then
+      if (s_next_cmd = C_CMD_WR and C_BURST_LENGTH = 1) or
+         (s_wr_burst_cnt = (C_BURST_LENGTH - 2)) then
         v_write_done := '1';
         s_dpl_cycle_cnt <= C_DPL_CYCLES;
       else
@@ -821,6 +819,13 @@ begin
         if s_dpl_cycle_cnt /= 0 then
           s_dpl_cycle_cnt <= s_dpl_cycle_cnt - 1;
         end if;
+      end if;
+
+      -- Update the read burst counter.
+      if s_next_cmd = C_CMD_WR then
+        s_wr_burst_cnt <= 0;
+      elsif s_wr_burst_cnt < (C_BURST_LENGTH-1) then
+        s_wr_burst_cnt <= s_wr_burst_cnt + 1;
       end if;
 
       -- ACK?
