@@ -142,6 +142,7 @@ architecture rtl of sdram_controller is
                    ST_INIT_REFRESH2,
                    ST_INIT_SET_MODE,
                    ST_SERVICE_REQUEST,
+                   ST_DELAYED_ACTIVE,
                    ST_ACTIVE,
                    ST_DELAYED_WRITE,
                    ST_BURST,
@@ -214,6 +215,11 @@ architecture rtl of sdram_controller is
   signal s_col : std_logic_vector(G_SDRAM_COL_WIDTH-1 downto 0);
   signal s_row : std_logic_vector(G_SDRAM_ROW_WIDTH-1 downto 0);
   signal s_bank : std_logic_vector(G_SDRAM_BA_WIDTH-1 downto 0);
+
+  -- ...and latched.
+  signal s_latched_col : std_logic_vector(G_SDRAM_COL_WIDTH-1 downto 0);
+  signal s_latched_row : std_logic_vector(G_SDRAM_ROW_WIDTH-1 downto 0);
+  signal s_latched_bank : std_logic_vector(G_SDRAM_BA_WIDTH-1 downto 0);
 
   -- Control signals.
   signal s_busy : std_logic;
@@ -321,15 +327,22 @@ begin
   -- Note: We adjust the incoming address to the SDRAM address space (e.g. from 32-bit word
   -- addressing to 16-bit word addressing) by padding zeros in the least significant SDRAM address
   -- bits.
-  process (s_adr)
+  process (all)
     constant C_ADR_PAD_BITS : integer := ilog2(G_DATA_WIDTH / G_SDRAM_DQ_WIDTH);
     constant C_ADR_PAD : std_logic_vector(C_ADR_PAD_BITS-1 downto 0) := (others => '0');
     variable v_adr : std_logic_vector(G_ADDR_WIDTH+C_ADR_PAD_BITS-1 downto 0);
   begin
+    -- Unlatched/latched address.
     v_adr := s_adr & C_ADR_PAD;
     s_col <= v_adr(G_SDRAM_COL_WIDTH-1 downto 0);
     s_bank <= v_adr(G_SDRAM_COL_WIDTH+G_SDRAM_BA_WIDTH-1 downto G_SDRAM_COL_WIDTH);
     s_row <= v_adr(G_SDRAM_COL_WIDTH+G_SDRAM_BA_WIDTH+G_SDRAM_ROW_WIDTH-1 downto G_SDRAM_COL_WIDTH+G_SDRAM_BA_WIDTH);
+
+    -- Latched address.
+    v_adr := s_latched_adr & C_ADR_PAD;
+    s_latched_col <= v_adr(G_SDRAM_COL_WIDTH-1 downto 0);
+    s_latched_bank <= v_adr(G_SDRAM_COL_WIDTH+G_SDRAM_BA_WIDTH-1 downto G_SDRAM_COL_WIDTH);
+    s_latched_row <= v_adr(G_SDRAM_COL_WIDTH+G_SDRAM_BA_WIDTH+G_SDRAM_ROW_WIDTH-1 downto G_SDRAM_COL_WIDTH+G_SDRAM_BA_WIDTH);
   end process;
 
   -- Responses to the host interface.
@@ -391,9 +404,9 @@ begin
         when C_CMD_MRS =>
           o_sdram_a <= mode2sdram_a;
         when C_CMD_ACT =>
-          o_sdram_a <= row2sdram_a(s_row);  -- TODO(m): Use latched value! (delay ACT)
+          o_sdram_a <= row2sdram_a(s_latched_row);
         when C_CMD_WR | C_CMD_RD =>
-          o_sdram_a <= col2sdram_a(s_col);  -- TODO(m): Use latched value!
+          o_sdram_a <= col2sdram_a(s_col);
         when others =>
           -- For other commands the address is treated as don't care.
           o_sdram_a <= (others => '-');
@@ -529,6 +542,7 @@ begin
           if i_req = '1' then
             -- Check the state of this bank.
             v_bank_state := s_bank_state(to_integer(unsigned(s_bank)));
+            -- TODO(m): Use unlatched row here!
             if v_bank_state.active = '1' and v_bank_state.row = s_row then
               -- Send the WR/RD command immediately if we're in an already active row.
               if i_we = '1' then
@@ -546,8 +560,10 @@ begin
               end if;
             elsif v_bank_state.active = '0' then
               -- Activate a new row for this bank, but skip PRE since no row was active.
-              s_next_state <= ST_ACTIVE;
-              s_next_cmd <= C_CMD_ACT;
+              -- Don't ACT immediately (for performance reasons we want to latch the host inputs
+              -- first). This should be a fairly uncommon case anyway, so no big latency loss (only
+              -- one cycle extra latency per bank after a refresh operation).
+              s_next_state <= ST_DELAYED_ACTIVE;
             else
               -- Do the full PRE+ACT dance if we need to change from one active row to another.
               if s_dpl_cycle_cnt > 1 then
@@ -565,6 +581,10 @@ begin
             end if;
           end if;
         end if;
+
+      when ST_DELAYED_ACTIVE =>
+        s_next_state <= ST_ACTIVE;
+        s_next_cmd <= C_CMD_ACT;
 
       when ST_ACTIVE =>
         if s_state_cycle_cnt = C_RCD_CYCLES then
