@@ -40,26 +40,43 @@ end reset_stabilizer;
 architecture rtl of reset_stabilizer is
   constant C_ALL_ONES : unsigned(STABLE_COUNT_BITS-1 downto 0) := (others => '1');
 
-  signal s_next_stable_count : unsigned(STABLE_COUNT_BITS-1 downto 0);
-  signal s_is_stable : std_logic;
+  signal s_conditioned_rst_1 : std_logic := '1';
+  signal s_conditioned_rst : std_logic := '1';
 
+  signal s_stable_rst_1 : std_logic := '1';
   signal s_stable_rst : std_logic := '1';
   signal s_stable_count : unsigned(STABLE_COUNT_BITS-1 downto 0) := to_unsigned(0, STABLE_COUNT_BITS);
 begin
-  -- The signal s_is_stable will be 1 every 2^STABLE_COUNT_BITS cycles.
-  s_next_stable_count <= s_stable_count + to_unsigned(1, STABLE_COUNT_BITS);
-  s_is_stable <= '1' when s_stable_count = C_ALL_ONES else '0';
-
+  -- Two cascaded flip-flops to condition the source reset signal.
   process(i_clk, i_rst_n)
   begin
     if i_rst_n = '0' then
+      s_conditioned_rst_1 <= '1';
+      s_conditioned_rst <= '1';
+    elsif rising_edge(i_clk) then
+      s_conditioned_rst_1 <= '0';
+      s_conditioned_rst <= s_conditioned_rst_1;
+    end if;
+  end process;
+
+  -- Counter
+  process(i_clk, s_conditioned_rst)
+  begin
+    if s_conditioned_rst = '1' then
+      s_stable_rst_1 <= '1';
       s_stable_rst <= '1';
       s_stable_count <= to_unsigned(0, STABLE_COUNT_BITS);
     elsif rising_edge(i_clk) then
-      if s_is_stable = '1' then
-        s_stable_rst <= '0';
+      -- Deassert the first stable reset signal when the counter has reached its maximum value.
+      if s_stable_count = C_ALL_ONES then
+        s_stable_rst_1 <= '0';
       end if;
-      s_stable_count <= s_next_stable_count;
+
+      -- Cascade the stable reset through another register for good measure.
+      s_stable_rst <= s_stable_rst_1;
+
+      -- Increment the counter (wrapping).
+      s_stable_count <= s_stable_count + 1;
     end if;
   end process;
 

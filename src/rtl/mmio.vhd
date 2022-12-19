@@ -133,6 +133,8 @@ architecture rtl of mmio is
 
   -- Keyboard input circular buffer.
   signal s_key_buf : T_KEY_BUF;
+  signal s_key_buf_clear_adr : T_KEY_BUF_ADR;
+  signal s_key_buf_clear_done : std_logic;
 
   function sign_ext_raster(x : std_logic_vector) return std_logic_vector is
     variable v_ext : std_logic_vector(31 downto 0);
@@ -212,12 +214,24 @@ begin
     if i_rst = '1' then
       -- Reset buffer pointer.
       s_regs_r.KEYPTR <= (others => '0');
-      s_key_buf(0) <= (others => '0');
-    elsif rising_edge(i_wb_clk) then
-      -- Calculate the new key buffer pointer.
-      v_new_keyptr := unsigned(s_regs_r.KEYPTR) + 1;
 
-      if i_kb_stb = '1' then
+      -- Initialize key event buffer reset sequence.
+      s_key_buf_clear_adr <= 0;
+      s_key_buf_clear_done <= '0';
+    elsif rising_edge(i_wb_clk) then
+      if s_key_buf_clear_done = '0' then
+        -- Clear one entry in the key event buffer.
+        s_key_buf(s_key_buf_clear_adr) <= (others => '0');
+
+        -- Reset sequence done?
+        if s_key_buf_clear_adr = C_KEY_BUF_SIZE-1 then
+          s_key_buf_clear_done <= '1';
+        end if;
+        s_key_buf_clear_adr <= s_key_buf_clear_adr + 1;
+      elsif i_kb_stb = '1' then
+        -- Calculate the new key buffer pointer.
+        v_new_keyptr := unsigned(s_regs_r.KEYPTR) + 1;
+
         -- Write the new keycode to the key event buffer.
         v_key_event := i_kb_press & i_kb_scancode;
         v_write_addr := to_integer(v_new_keyptr(C_LOG2_KEY_BUF_SIZE-1 downto 0));
