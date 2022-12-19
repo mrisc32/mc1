@@ -91,17 +91,40 @@ architecture rtl of xram_sdram is
   signal s_req : std_logic;
 
   -- Result signals.
+  signal s_wb_stall : std_logic;
   signal s_busy : std_logic;
   signal s_ack : std_logic;
   signal s_dat : std_logic_vector(C_DATA_WIDTH-1 downto 0);
 begin
-  -- Wishbone adaptations.
-  s_adr <= i_wb_adr(C_ADDR_WIDTH-1 downto 0);
-  s_dat_w <= i_wb_dat;
-  s_we <= i_wb_we;
-  s_sel <= i_wb_sel;
-  s_req <= i_wb_cyc and i_wb_stb;
-  o_wb_stall <= s_busy;
+  -- Buffer requests (reduce combinatorial delay).
+  -- TODO(m):
+  --   1) ACK write requests immediately.
+  --   2) Add a store buffer (e.g. 4-8 entries).
+  --   3) Add a read buffer (e.g. 4 entries).
+  process (i_rst, i_wb_clk)
+  begin
+    if i_rst = '1' then
+      s_adr <= (others => '0');
+      s_dat_w <= (others => '0');
+      s_we <= '0';
+      s_sel <= (others => '0');
+      s_req <= '0';
+    elsif rising_edge(i_wb_clk) then
+      if s_wb_stall = '0' then
+        s_adr <= i_wb_adr(C_ADDR_WIDTH-1 downto 0);
+        s_dat_w <= i_wb_dat;
+        s_we <= i_wb_we;
+        s_sel <= i_wb_sel;
+        s_req <= i_wb_cyc and i_wb_stb;
+      end if;
+    end if;
+  end process;
+
+  -- Do we need to stall the WB master?
+  s_wb_stall <= s_req and s_busy;
+
+  -- Send results back to the Wishbone master.
+  o_wb_stall <= s_wb_stall;
   o_wb_ack <= s_ack;
   o_wb_dat <= s_dat;
   o_wb_err <= '0';
