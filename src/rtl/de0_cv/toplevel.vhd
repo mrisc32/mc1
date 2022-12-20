@@ -93,11 +93,11 @@ architecture rtl of toplevel is
   constant C_SYSTEM_CLK_HZ : integer := 50_000_000;
 
   -- 70 MHz seems to be a good safe bet, but going higher is certainly possible.
-  constant C_CPU_CLK_HZ : integer := 80_000_000;
+  constant C_CPU_CLK_HZ : integer := 70_000_000;
 
   -- SDRAM read sample clock is phase-shifted to compensate for signal progpagation delay.
   -- Note: This value has to be chosen carefully (not every value is valid).
-  constant C_SDRAM_CLK_PHASE : time := (270.0/360.0) * (1_000 ms / real(C_CPU_CLK_HZ));
+  constant C_SDRAM_CLK_PHASE : time := -3869 ps;  -- CPU clock = 70 MHz
 
   -- Pixel frequencies for supported video modes:
   --  1920x1080 @ 60 Hz: 148.500 MHz
