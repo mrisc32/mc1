@@ -279,13 +279,13 @@ begin
       SDRAM_ROW_WIDTH => 13,                -- 8k rows
       SDRAM_BANK_WIDTH => 2,                -- 4 banks
       CAS_LATENCY => 2,                     -- 2 below 133 MHz, 3 over 133 MHz
-      T_DESL => 200000.0,                   -- Can be lowered to 100 us?
+      T_DESL => 200_000.0,                  -- Can be lowered to 100 us?
       T_MRD => 14.0,
       T_RC => 60.0,
       T_RCD => 15.0,
       T_RP => 15.0,
-      T_WR => 14.0,                         -- Same as t_DPL?
-      T_REFI => 7812.5                      -- 8192 refreshes / 64 ms
+      T_DPL => 14.0,
+      T_REF => 64_000_000.0                 -- 8192 refreshes / 64 ms
     )
     port map (
       i_rst  => s_cpu_rst,

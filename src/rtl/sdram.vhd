@@ -43,101 +43,94 @@ use ieee.math_real.all;
 -- etc.).
 entity sdram is
   generic (
-    -- clock frequency (in MHz)
+    -- clock frequency (in Hz)
     --
     -- This value must be provided, as it is used to calculate the number of
     -- clock cycles required for the other timing values.
-    CLK_FREQ : real;
+    G_CLK_FREQ_HZ : integer;
 
     -- 32-bit controller interface
-    ADDR_WIDTH : natural := 23;
-    DATA_WIDTH : natural := 32;
+    G_ADDR_WIDTH : integer := 23;
+    G_DATA_WIDTH : integer := 32;
 
     -- SDRAM interface
-    SDRAM_ADDR_WIDTH : natural := 13;
-    SDRAM_DATA_WIDTH : natural := 16;
-    SDRAM_COL_WIDTH  : natural := 9;
-    SDRAM_ROW_WIDTH  : natural := 13;
-    SDRAM_BANK_WIDTH : natural := 2;
-
-    -- The delay in clock cycles, between the start of a read command and the
-    -- availability of the output data.
-    CAS_LATENCY : natural := 2; -- 2=below 133MHz, 3=above 133MHz
-
-    -- The number of 16-bit words to be bursted during a read/write.
-    BURST_LENGTH : natural := 2;
+    G_SDRAM_DQ_WIDTH : integer := 16;
+    G_SDRAM_A_WIDTH : integer := 13;
+    G_SDRAM_BA_WIDTH : integer := 2;
+    G_SDRAM_COL_WIDTH  : integer := 9;
+    G_SDRAM_ROW_WIDTH  : integer := 13;
 
     -- timing values (in nanoseconds)
     --
     -- These values can be adjusted to match the exact timing of your SDRAM
     -- chip (refer to the datasheet).
-    T_DESL : real := 200000.0; -- startup delay
-    T_MRD  : real :=     12.0; -- mode register cycle time
-    T_RC   : real :=     60.0; -- row cycle time
-    T_RCD  : real :=     18.0; -- RAS to CAS delay
-    T_RP   : real :=     18.0; -- precharge to activate delay
-    T_WR   : real :=     12.0; -- write recovery time
-    T_REFI : real :=   7800.0  -- average refresh interval
+    G_T_DESL : real :=     200000.0;  -- startup delay
+    G_T_MRD  : real :=         12.0;  -- mode register cycle time
+    G_T_RC   : real :=         60.0;  -- row cycle time
+    G_T_RCD  : real :=         18.0;  -- RAS to CAS delay
+    G_T_RP   : real :=         18.0;  -- precharge to activate delay
+    G_T_DPL  : real :=         12.0;  -- write recovery time
+    G_T_REF  : real := 64_000_000.0;  -- refresh cycle time
+
+    -- The delay in clock cycles, between the start of a read command and the
+    -- availability of the output data.
+    G_CAS_LATENCY : integer := 2  -- 2=below 133MHz, 3=above 133MHz
   );
   port (
     -- reset
-    reset : in std_logic := '0';
+    i_rst : in std_logic := '0';
 
     -- clock
-    clk : in std_logic;
+    i_clk : in std_logic;
 
     -- address bus
-    addr : in unsigned(ADDR_WIDTH-1 downto 0);
+    i_adr : in std_logic_vector(G_ADDR_WIDTH-1 downto 0);
 
     -- input data bus
-    data : in std_logic_vector(DATA_WIDTH-1 downto 0);
+    i_dat_w : in std_logic_vector(G_DATA_WIDTH-1 downto 0);
 
     -- When the write enable signal is asserted, a write operation will be performed.
-    we : in std_logic;
+    i_we : in std_logic;
 
     -- Byte select for write operations ('1' = enable byte)
-    sel : in std_logic_vector(DATA_WIDTH/8-1 downto 0);
+    i_sel : in std_logic_vector(G_DATA_WIDTH/8-1 downto 0);
 
     -- When the request signal is asserted, an operation will be performed.
-    req : in std_logic;
+    i_req : in std_logic;
 
-    -- The ready signal is asserted when the controller is ready to accept a
+    -- The o_busy signal is deasserted when the controller is ready to accept a
     -- new request.
-    ready : out std_logic;
+    o_busy : out std_logic;
 
     -- The acknowledge signal is asserted by the SDRAM controller when
-    -- a request has been accepted.
-    ack : out std_logic;
-
-    -- The valid signal is asserted when there is a valid word on the output
-    -- data bus.
-    valid : out std_logic;
+    -- a request has been completed.
+    o_ack : out std_logic;
 
     -- output data bus
-    q : out std_logic_vector(DATA_WIDTH-1 downto 0);
+    o_dat : out std_logic_vector(G_DATA_WIDTH-1 downto 0);
 
     -- SDRAM interface (e.g. AS4C16M16SA-6TCN, IS42S16400F, etc.)
-    sdram_a     : out unsigned(SDRAM_ADDR_WIDTH-1 downto 0);
-    sdram_ba    : out unsigned(SDRAM_BANK_WIDTH-1 downto 0);
-    sdram_dq    : inout std_logic_vector(SDRAM_DATA_WIDTH-1 downto 0);
-    sdram_cke   : out std_logic;
-    sdram_cs_n  : out std_logic;
-    sdram_ras_n : out std_logic;
-    sdram_cas_n : out std_logic;
-    sdram_we_n  : out std_logic;
-    sdram_dqm   : out std_logic_vector(SDRAM_DATA_WIDTH/8-1 downto 0)
+    o_sdram_a     : out std_logic_vector(G_SDRAM_A_WIDTH-1 downto 0);
+    o_sdram_ba    : out std_logic_vector(G_SDRAM_BA_WIDTH-1 downto 0);
+    io_sdram_dq   : inout std_logic_vector(G_SDRAM_DQ_WIDTH-1 downto 0);
+    o_sdram_cke   : out std_logic;
+    o_sdram_cs_n  : out std_logic;
+    o_sdram_ras_n : out std_logic;
+    o_sdram_cas_n : out std_logic;
+    o_sdram_we_n  : out std_logic;
+    o_sdram_dqm   : out std_logic_vector(G_SDRAM_DQ_WIDTH/8-1 downto 0)
   );
 
   -- Use fast I/O flip-flops for the SDRAM output signals.
   attribute useioff : boolean;
-  attribute useioff of sdram_a : signal is true;
-  attribute useioff of sdram_ba : signal is true;
-  attribute useioff of sdram_cke : signal is true;
-  attribute useioff of sdram_cs_n : signal is true;
-  attribute useioff of sdram_ras_n : signal is true;
-  attribute useioff of sdram_cas_n : signal is true;
-  attribute useioff of sdram_we_n : signal is true;
-  attribute useioff of sdram_dqm : signal is true;
+  attribute useioff of o_sdram_a : signal is true;
+  attribute useioff of o_sdram_ba : signal is true;
+  attribute useioff of o_sdram_cke : signal is true;
+  attribute useioff of o_sdram_cs_n : signal is true;
+  attribute useioff of o_sdram_ras_n : signal is true;
+  attribute useioff of o_sdram_cas_n : signal is true;
+  attribute useioff of o_sdram_we_n : signal is true;
+  attribute useioff of o_sdram_dqm : signal is true;
 end sdram;
 
 architecture arch of sdram is
@@ -146,27 +139,27 @@ architecture arch of sdram is
     return natural(ceil(log2(real(n))));
   end ilog2;
 
-  -- Convert a ROW address to a signal suitable for sdram_a.
-  function row2addr(x : unsigned) return unsigned is
+  -- Convert a ROW address to a signal suitable for o_sdram_a.
+  function row2addr(x : unsigned) return std_logic_vector is
   begin
-    return resize(x, SDRAM_ADDR_WIDTH);
+    return std_logic_vector(resize(x, G_SDRAM_A_WIDTH));
   end row2addr;
 
-  -- Convert a COL address to a signal suitable for sdram_a.
-  function col2addr(x : unsigned) return unsigned is
-    variable a : unsigned(SDRAM_ADDR_WIDTH-2 downto 0);
+  -- Convert a COL address to a signal suitable for o_sdram_a.
+  function col2addr(x : unsigned) return std_logic_vector is
+    variable a : std_logic_vector(G_SDRAM_A_WIDTH-2 downto 0);
   begin
-    a := resize(x, SDRAM_ADDR_WIDTH-1);
+    a := std_logic_vector(resize(x, G_SDRAM_A_WIDTH-1));
     -- A10 = '1' -> auto precharge
-    return a(SDRAM_ADDR_WIDTH-2 downto 10) & "1" & a(9 downto 0);
+    return a(G_SDRAM_A_WIDTH-2 downto 10) & "1" & a(9 downto 0);
   end col2addr;
 
   -- Adjust the incoming address to the SDRAM address space (e.g.
   -- from 32-bit word addressing to 16-bit word addressing).
-  function adjust_addr(x : unsigned) return unsigned is
-    constant C_SHIFT : natural := ilog2(DATA_WIDTH / SDRAM_DATA_WIDTH);
+  function adjust_addr(x : std_logic_vector) return unsigned is
+    constant C_SHIFT : natural := ilog2(G_DATA_WIDTH / G_SDRAM_DQ_WIDTH);
   begin
-    return x & to_unsigned(0, C_SHIFT);
+    return unsigned(x) & to_unsigned(0, C_SHIFT);
   end adjust_addr;
 
   subtype command_t is std_logic_vector(3 downto 0);
@@ -182,6 +175,9 @@ architecture arch of sdram is
   constant CMD_STOP         : command_t := "0110";
   constant CMD_NOP          : command_t := "0111";
 
+  -- The number of 16-bit words to be bursted during a read/write.
+  constant BURST_LENGTH : natural := G_DATA_WIDTH / G_SDRAM_DQ_WIDTH;
+
   -- the ordering of the accesses within a burst
   constant BURST_TYPE : std_logic := '0'; -- 0=sequential, 1=interleaved
 
@@ -189,51 +185,53 @@ architecture arch of sdram is
   constant WRITE_BURST_MODE : std_logic := '0'; -- 0=burst, 1=single
 
   -- the value written to the address bus during initialization
-  constant INIT_CMD : unsigned(SDRAM_ADDR_WIDTH-1 downto 0) := (
-    to_unsigned(0, SDRAM_ADDR_WIDTH-11) &
+  constant INIT_CMD : std_logic_vector(G_SDRAM_A_WIDTH-1 downto 0) := (
+    std_logic_vector(to_unsigned(0, G_SDRAM_A_WIDTH-11)) &
     "10000000000"
   );
 
   -- the value written to the mode register to configure the memory
-  constant MODE_REG : unsigned(SDRAM_ADDR_WIDTH-1 downto 0) := (
-    to_unsigned(0, SDRAM_ADDR_WIDTH-10) &
+  constant MODE_REG : std_logic_vector(G_SDRAM_A_WIDTH-1 downto 0) := (
+    std_logic_vector(to_unsigned(0, G_SDRAM_A_WIDTH-10)) &
     WRITE_BURST_MODE &
     "00" &
-    to_unsigned(CAS_LATENCY, 3) &
+    std_logic_vector(to_unsigned(G_CAS_LATENCY, 3)) &
     BURST_TYPE &
-    to_unsigned(ilog2(BURST_LENGTH), 3)
+    std_logic_vector(to_unsigned(ilog2(BURST_LENGTH), 3))
   );
 
   -- calculate the clock period (in nanoseconds)
+  constant CLK_FREQ : real := real(G_CLK_FREQ_HZ) / 1_000_000.0;
   constant CLK_PERIOD : real := 1.0/CLK_FREQ*1000.0;
 
   -- the number of clock cycles to wait before initialising the device
-  constant INIT_WAIT : natural := natural(ceil(T_DESL/CLK_PERIOD));
+  constant INIT_WAIT : natural := natural(ceil(G_T_DESL/CLK_PERIOD));
 
   -- the number of clock cycles to wait while a LOAD MODE command is being
   -- executed
-  constant LOAD_MODE_WAIT : natural := natural(ceil(T_MRD/CLK_PERIOD));
+  constant LOAD_MODE_WAIT : natural := natural(ceil(G_T_MRD/CLK_PERIOD));
 
   -- the number of clock cycles to wait while an ACTIVE command is being
   -- executed
-  constant ACTIVE_WAIT : natural := natural(ceil(T_RCD/CLK_PERIOD));
+  constant ACTIVE_WAIT : natural := natural(ceil(G_T_RCD/CLK_PERIOD));
 
   -- the number of clock cycles to wait while a REFRESH command is being
   -- executed
-  constant REFRESH_WAIT : natural := natural(ceil(T_RC/CLK_PERIOD));
+  constant REFRESH_WAIT : natural := natural(ceil(G_T_RC/CLK_PERIOD));
 
   -- the number of clock cycles to wait while a PRECHARGE command is being
   -- executed
-  constant PRECHARGE_WAIT : natural := natural(ceil(T_RP/CLK_PERIOD));
+  constant PRECHARGE_WAIT : natural := natural(ceil(G_T_RP/CLK_PERIOD));
 
   -- the number of clock cycles to wait while a READ command is being executed
-  constant READ_WAIT : natural := CAS_LATENCY+BURST_LENGTH;
+  constant READ_WAIT : natural := G_CAS_LATENCY+BURST_LENGTH;
 
   -- the number of clock cycles to wait while a WRITE command is being executed
-  constant WRITE_WAIT : natural := BURST_LENGTH+natural(ceil((T_WR+T_RP)/CLK_PERIOD));
+  constant WRITE_WAIT : natural := BURST_LENGTH+natural(ceil((G_T_DPL+G_T_RP)/CLK_PERIOD));
 
   -- the number of clock cycles before the memory controller needs to refresh
   -- the SDRAM
+  constant T_REFI : real := G_T_REF / real(2 ** G_SDRAM_ROW_WIDTH);
   constant REFRESH_INTERVAL : natural := natural(floor(T_REFI/CLK_PERIOD))-10;
 
   type state_t is (INIT, MODE, IDLE, ACTIVE, READ, WRITE, REFRESH);
@@ -253,6 +251,12 @@ architecture arch of sdram is
   signal write_done     : std_logic;
   signal should_refresh : std_logic;
 
+  -- signals for the ack logic
+  signal ack : std_logic;
+  signal valid : std_logic;
+  signal waiting_for_read_response : std_logic;
+  signal waiting_for_write_response : std_logic;
+
   -- counters
   constant MAX_WAIT_COUNT    : natural := INIT_WAIT+PRECHARGE_WAIT+REFRESH_WAIT+REFRESH_WAIT+1;
   constant MAX_REFRESH_COUNT : natural := REFRESH_INTERVAL;
@@ -260,29 +264,29 @@ architecture arch of sdram is
   signal refresh_counter : natural range 0 to MAX_REFRESH_COUNT;
 
   -- registers
-  signal addr_reg  : unsigned(ADDR_WIDTH-1 downto 0);
-  signal data_reg  : std_logic_vector(DATA_WIDTH-1 downto 0);
+  signal addr_reg  : std_logic_vector(G_ADDR_WIDTH-1 downto 0);
+  signal data_reg  : std_logic_vector(G_DATA_WIDTH-1 downto 0);
   signal we_reg    : std_logic;
-  signal sel_n_reg : std_logic_vector(DATA_WIDTH/8-1 downto 0);
-  signal q_reg     : std_logic_vector(DATA_WIDTH-1 downto 0);
+  signal sel_n_reg : std_logic_vector(G_DATA_WIDTH/8-1 downto 0);
+  signal q_reg     : std_logic_vector(G_DATA_WIDTH-1 downto 0);
 
   -- DQ in/out signals
-  signal dq_in : std_logic_vector(SDRAM_DATA_WIDTH-1 downto 0);
-  signal dq_out : std_logic_vector(SDRAM_DATA_WIDTH-1 downto 0);
+  signal dq_in : std_logic_vector(G_SDRAM_DQ_WIDTH-1 downto 0);
+  signal dq_out : std_logic_vector(G_SDRAM_DQ_WIDTH-1 downto 0);
   signal dq_out_en : std_logic;
 
   -- aliases to decode the address
-  signal addr_current : unsigned(SDRAM_COL_WIDTH+SDRAM_ROW_WIDTH+SDRAM_BANK_WIDTH-1 downto 0);
-  alias col  : unsigned(SDRAM_COL_WIDTH-1 downto 0) is addr_current(SDRAM_COL_WIDTH-1 downto 0);
-  alias row  : unsigned(SDRAM_ROW_WIDTH-1 downto 0) is addr_current(SDRAM_COL_WIDTH+SDRAM_ROW_WIDTH-1 downto SDRAM_COL_WIDTH);
-  alias bank : unsigned(SDRAM_BANK_WIDTH-1 downto 0) is addr_current(SDRAM_COL_WIDTH+SDRAM_ROW_WIDTH+SDRAM_BANK_WIDTH-1 downto SDRAM_COL_WIDTH+SDRAM_ROW_WIDTH);
+  signal addr_current : unsigned(G_SDRAM_COL_WIDTH+G_SDRAM_ROW_WIDTH+G_SDRAM_BA_WIDTH-1 downto 0);
+  alias col  : unsigned(G_SDRAM_COL_WIDTH-1 downto 0) is addr_current(G_SDRAM_COL_WIDTH-1 downto 0);
+  alias row  : unsigned(G_SDRAM_ROW_WIDTH-1 downto 0) is addr_current(G_SDRAM_COL_WIDTH+G_SDRAM_ROW_WIDTH-1 downto G_SDRAM_COL_WIDTH);
+  alias bank : unsigned(G_SDRAM_BA_WIDTH-1 downto 0) is addr_current(G_SDRAM_COL_WIDTH+G_SDRAM_ROW_WIDTH+G_SDRAM_BA_WIDTH-1 downto G_SDRAM_COL_WIDTH+G_SDRAM_ROW_WIDTH);
 
   -- Use fast I/O flip-flops for the SDRAM data in/out signals.
   attribute useioff of dq_in : signal is true;
   attribute useioff of dq_out : signal is true;
 begin
   -- state machine
-  fsm : process (state, wait_counter, req, we_reg, sel_n_reg, load_mode_done, active_done, refresh_done, read_done, write_done, should_refresh)
+  fsm : process (state, wait_counter, i_req, we_reg, sel_n_reg, load_mode_done, active_done, refresh_done, read_done, write_done, should_refresh)
   begin
     next_state <= state;
 
@@ -316,7 +320,7 @@ begin
         if should_refresh = '1' then
           next_state <= REFRESH;
           next_cmd   <= CMD_AUTO_REFRESH;
-        elsif req = '1' then
+        elsif i_req = '1' then
           next_state <= ACTIVE;
           next_cmd   <= CMD_ACTIVE;
         end if;
@@ -339,7 +343,7 @@ begin
           if should_refresh = '1' then
             next_state <= REFRESH;
             next_cmd   <= CMD_AUTO_REFRESH;
-          elsif req = '1' then
+          elsif i_req = '1' then
             next_state <= ACTIVE;
             next_cmd   <= CMD_ACTIVE;
           else
@@ -353,7 +357,7 @@ begin
           if should_refresh = '1' then
             next_state <= REFRESH;
             next_cmd   <= CMD_AUTO_REFRESH;
-          elsif req = '1' then
+          elsif i_req = '1' then
             next_state <= ACTIVE;
             next_cmd   <= CMD_ACTIVE;
           else
@@ -364,7 +368,7 @@ begin
       -- execute an auto refresh
       when REFRESH =>
         if refresh_done = '1' then
-          if req = '1' then
+          if i_req = '1' then
             next_state <= ACTIVE;
             next_cmd   <= CMD_ACTIVE;
           else
@@ -375,12 +379,12 @@ begin
   end process;
 
   -- latch the next state
-  latch_next_state : process (clk, reset)
+  latch_next_state : process (i_clk, i_rst)
   begin
-    if reset = '1' then
+    if i_rst = '1' then
       state <= INIT;
       cmd   <= CMD_NOP;
-    elsif rising_edge(clk) then
+    elsif rising_edge(i_clk) then
       state <= next_state;
       cmd   <= next_cmd;
     end if;
@@ -388,11 +392,11 @@ begin
 
   -- the wait counter is used to hold the current state for a number of clock
   -- cycles
-  update_wait_counter : process (clk, reset)
+  update_wait_counter : process (i_clk, i_rst)
   begin
-    if reset = '1' then
+    if i_rst = '1' then
       wait_counter <= 0;
-    elsif rising_edge(clk) then
+    elsif rising_edge(i_clk) then
       if state /= next_state then -- state changing
         wait_counter <= 0;
       elsif state = IDLE then    -- counter would overflow when IDLE
@@ -404,12 +408,12 @@ begin
   end process;
 
   -- the refresh counter is used to periodically trigger a refresh operation
-  update_refresh_counter : process (clk, reset)
+  update_refresh_counter : process (i_clk, i_rst)
   begin
-    if reset = '1' then
+    if i_rst = '1' then
       refresh_counter <= 0;
       should_refresh <= '0';
-    elsif rising_edge(clk) then
+    elsif rising_edge(i_clk) then
       -- Update the refresh counter.
       if state = REFRESH and wait_counter = 0 then
         refresh_counter <= 0;
@@ -427,19 +431,19 @@ begin
   end process;
 
   -- latch the request
-  latch_request : process (reset, clk)
+  latch_request : process (i_rst, i_clk)
   begin
-    if reset = '1' then
+    if i_rst = '1' then
       addr_reg <= (others => '0');
       data_reg <= (others => '0');
       we_reg <= '0';
       sel_n_reg <= (others => '0');
-    elsif rising_edge(clk) then
+    elsif rising_edge(i_clk) then
       if start = '1' then
-        addr_reg  <= addr;
-        data_reg  <= data;
-        we_reg    <= we;
-        sel_n_reg <= not sel;
+        addr_reg  <= i_adr;
+        data_reg  <= i_dat_w;
+        we_reg    <= i_we;
+        sel_n_reg <= not i_sel;
       end if;
     end if;
   end process;
@@ -459,15 +463,30 @@ begin
                (state = WRITE and write_done = '1') or
                (state = REFRESH and refresh_done = '1') else '0';
 
-  -- assert the ready signal when we're ready to accept a new request
-  ready <= start;
+  -- deassert the o_busy signal when we're ready to accept a new request
+  o_busy <= not start;
 
-  -- assert the acknowledge signal at the beginning of the ACTIVE state
-  process (reset, clk)
+  -- keep track of ongoing requests and generate an ack signal
+  process (i_rst, i_clk)
   begin
-    if reset = '1' then
+    if i_rst = '1' then
       ack <= '0';
-    elsif rising_edge(clk) then
+      waiting_for_read_response <= '0';
+      waiting_for_write_response <= '0';
+    elsif rising_edge(i_clk) then
+      if start = '1' and i_req = '1' then
+        waiting_for_read_response <= not i_we;
+        waiting_for_write_response <= i_we;
+      else
+        if ack = '1' then
+          waiting_for_write_response <= '0';
+        end if;
+        if valid = '1' then
+          waiting_for_read_response <= '0';
+        end if;
+      end if;
+
+      -- TODO(m): We could assert o_ack directly for write requests.
       if next_state = ACTIVE and next_state /= state then
         ack <= '1';
       else
@@ -476,72 +495,75 @@ begin
     end if;
   end process;
 
+  o_ack <= (waiting_for_read_response and valid) or
+           (waiting_for_write_response and ack);
+
   -- set output data
-  q <= q_reg;
+  o_dat <= q_reg;
 
   -- assert the clock enable signal once we have entered the INIT state
-  process (reset, clk)
+  process (i_rst, i_clk)
   begin
-    if reset = '1' then
-      sdram_cke <= '0';
-    elsif rising_edge(clk) then
+    if i_rst = '1' then
+      o_sdram_cke <= '0';
+    elsif rising_edge(i_clk) then
       if state = INIT then
-        sdram_cke <= '1';
+        o_sdram_cke <= '1';
       end if;
     end if;
   end process;
 
   -- set SDRAM control signals
-  (sdram_cs_n, sdram_ras_n, sdram_cas_n, sdram_we_n) <= cmd;
+  (o_sdram_cs_n, o_sdram_ras_n, o_sdram_cas_n, o_sdram_we_n) <= cmd;
 
   -- set SDRAM bank and address
-  addr_current <= adjust_addr(addr) when start = '1' else adjust_addr(addr_reg);
-  process (reset, clk)
+  addr_current <= adjust_addr(i_adr) when start = '1' else adjust_addr(addr_reg);
+  process (i_rst, i_clk)
   begin
-    if reset = '1' then
-      sdram_ba <= (others => '0');
-      sdram_a <= (others => '0');
-    elsif rising_edge(clk) then
+    if i_rst = '1' then
+      o_sdram_ba <= (others => '0');
+      o_sdram_a <= (others => '0');
+    elsif rising_edge(i_clk) then
       case next_state is
         when ACTIVE | READ | WRITE =>
-          sdram_ba <= bank;
+          o_sdram_ba <= std_logic_vector(bank);
         when others =>
-          sdram_ba <= (others => '0');
+          o_sdram_ba <= (others => '0');
       end case;
 
       case next_state is
         when INIT =>
-          sdram_a <= INIT_CMD;
+          o_sdram_a <= INIT_CMD;
         when MODE =>
-          sdram_a <= MODE_REG;
+          o_sdram_a <= MODE_REG;
         when ACTIVE =>
-          sdram_a <= row2addr(row);
+          o_sdram_a <= row2addr(row);
         when READ | WRITE =>
-          sdram_a <= col2addr(col);
+          o_sdram_a <= col2addr(col);
         when others =>
-          sdram_a <= (others => '0');
+          o_sdram_a <= (others => '0');
       end case;
     end if;
   end process;
 
   -- read the next sub-word as it's bursted from the SDRAM
-  process (reset, clk)
+  process (i_rst, i_clk)
     -- Add one extra cycle delay due to SDRAM clock phase diff.
     constant C_START_CNT : integer := -1;
     variable v_burst_cnt : integer range C_START_CNT to BURST_LENGTH := BURST_LENGTH;
   begin
-    if reset = '1' then
+    if i_rst = '1' then
       q_reg <= (others => '0');
       valid <= '0';
-    elsif rising_edge(clk) then
-      if state = READ and wait_counter = CAS_LATENCY then
+    elsif rising_edge(i_clk) then
+      if state = READ and wait_counter = G_CAS_LATENCY then
         v_burst_cnt := C_START_CNT;
       elsif v_burst_cnt < BURST_LENGTH then
         v_burst_cnt := v_burst_cnt + 1;
       end if;
 
       if v_burst_cnt >= 0 and v_burst_cnt < BURST_LENGTH then
-        q_reg(SDRAM_DATA_WIDTH*(v_burst_cnt+1)-1 downto SDRAM_DATA_WIDTH*v_burst_cnt) <= dq_in;
+        q_reg(G_SDRAM_DQ_WIDTH*(v_burst_cnt+1)-1 downto G_SDRAM_DQ_WIDTH*v_burst_cnt) <= dq_in;
       end if;
 
       -- Was this the final sub-word?
@@ -554,14 +576,14 @@ begin
   end process;
 
   -- write the next sub-word from the write buffer
-  process (reset, clk)
+  process (i_rst, i_clk)
     variable v_burst_cnt : natural range 0 to BURST_LENGTH := BURST_LENGTH;
   begin
-    if reset = '1' then
+    if i_rst = '1' then
       dq_out_en <= '0';
       dq_out <= (others => '0');
-      sdram_dqm <= (others => '0');
-    elsif rising_edge(clk) then
+      o_sdram_dqm <= (others => '0');
+    elsif rising_edge(i_clk) then
       if next_state = WRITE and next_state /= state then
         -- Start a new write burst.
         v_burst_cnt := 0;
@@ -571,12 +593,12 @@ begin
 
       if v_burst_cnt < BURST_LENGTH then
         dq_out_en <= '1';
-        dq_out <= data_reg(SDRAM_DATA_WIDTH*(v_burst_cnt+1)-1 downto SDRAM_DATA_WIDTH*v_burst_cnt);
-        sdram_dqm <= sel_n_reg((SDRAM_DATA_WIDTH/8)*(v_burst_cnt+1)-1 downto (SDRAM_DATA_WIDTH/8)*v_burst_cnt);
+        dq_out <= data_reg(G_SDRAM_DQ_WIDTH*(v_burst_cnt+1)-1 downto G_SDRAM_DQ_WIDTH*v_burst_cnt);
+        o_sdram_dqm <= sel_n_reg((G_SDRAM_DQ_WIDTH/8)*(v_burst_cnt+1)-1 downto (G_SDRAM_DQ_WIDTH/8)*v_burst_cnt);
       else
         dq_out_en <= '0';
         dq_out <= (others => '0');
-        sdram_dqm <= (others => '0');
+        o_sdram_dqm <= (others => '0');
       end if;
     end if;
   end process;
@@ -587,16 +609,16 @@ begin
   ---------------------------------------------------------------------------
 
   -- Sample the input DQ signal.
-  process (reset, clk)
+  process (i_rst, i_clk)
   begin
-    if reset = '1' then
+    if i_rst = '1' then
       dq_in <= (others => '0');
-    elsif rising_edge(clk) then
-      dq_in <= sdram_dq;
+    elsif rising_edge(i_clk) then
+      dq_in <= io_sdram_dq;
     end if;
   end process;
 
   -- This should infer an IOBUF.
-  sdram_dq <= dq_out when dq_out_en = '1' else (others => 'Z');
+  io_sdram_dq <= dq_out when dq_out_en = '1' else (others => 'Z');
 
 end architecture arch;
