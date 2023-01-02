@@ -107,7 +107,7 @@ begin
   o_wb_err <= '0';
 
   -- Instantiate the SDRAM controller.
-  sdram_controller_1: entity work.sdram
+  sdram_controller_1: entity work.sdram_controller
     generic map (
       G_CLK_FREQ_HZ => CPU_CLK_HZ,
       G_ADDR_WIDTH => C_ADDR_WIDTH,
