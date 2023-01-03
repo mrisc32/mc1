@@ -373,7 +373,7 @@ begin
     if i_rst = '1' then
       s_dq_in_reg <= (others => '0');
     elsif rising_edge(i_clk) then
-      s_dq_in_reg <= io_sdram_dq;
+      s_dq_in_reg <= s_dq_in;
     end if;
   end process;
 
