@@ -97,7 +97,32 @@ architecture rtl of toplevel is
 
   -- SDRAM read sample clock is phase-shifted to compensate for signal progpagation delay.
   -- Note: This value has to be chosen carefully (not every value is valid).
-  constant C_SDRAM_CLK_PHASE : time := -3869 ps;  -- CPU clock = 70 MHz
+  constant C_SDRAM_CLK_PHASE : time := -5805 ps;  -- CPU clock = 70 MHz
+
+  -- Info: "3125 ps" is a legal value
+  -- Info: "3274 ps" is a legal value
+  -- Info: "3423 ps" is a legal value
+  -- Info: "3571 ps" is a legal value   -> 42000 fails
+  -- Info: "3720 ps" is a legal value
+  -- Info: "3869 ps" is a legal value   -> 1400? fails
+  -- Info: "4018 ps" is a legal value   -> 4200 fails
+  -- Info: "4167 ps" is a legal value   -> 2900 fails
+  -- Info: "4315 ps" is a legal value
+  -- Info: "4464 ps" is a legal value   -> 2700-4000 fails
+  -- Info: "4613 ps" is a legal value
+  -- Info: "4762 ps" is a legal value
+  -- Info: "4911 ps" is a legal value
+  -- Info: "5060 ps" is a legal value
+  -- Info: "5209 ps" is a legal value   -> 9+ fails (10s Quake)
+  -- Info: "5358 ps" is a legal value
+  -- Info: "5507 ps" is a legal value   -> 0 fails (no Quake!)
+  -- Info: "5656 ps" is a legal value
+  -- Info: "5805 ps" is a legal value   -> 50+ fails (no Quake!)
+  -- Info: "5954 ps" is a legal value   -> 10 fails (1m+ Quake)
+  -- Info: "6103 ps" is a legal value
+  -- Info: "6252 ps" is a legal value
+  -- Info: "6401 ps" is a legal value
+  -- Info: "6550 ps" is a legal value   -> 80 fails
 
   -- Pixel frequencies for supported video modes:
   --  1920x1080 @ 60 Hz: 148.500 MHz
