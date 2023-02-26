@@ -110,11 +110,47 @@ architecture rtl of xram_sdram is
   alias a_fifo_rd_sel : std_logic_vector(C_SEL_WIDTH-1 downto 0) is s_fifo_rd_data(C_SEL_WIDTH+1-1 downto 1);
   alias a_fifo_rd_we : std_logic is s_fifo_rd_data(0);
 
+  -- Write combiner registers.
+  signal s_wc_pending_write : std_logic;
+  signal s_wc_adr : std_logic_vector(C_ADDR_WIDTH-1 downto 0);
+  signal s_wc_dat : std_logic_vector(C_DATA_WIDTH-1 downto 0);
+  signal s_wc_sel : std_logic_vector(C_SEL_WIDTH-1 downto 0);
+
+  -- Write combiner logic
+  signal s_wc_adr_match : std_logic;
+  signal s_update_wc : std_logic;
+  signal s_wc_to_sdram : std_logic;
+  signal s_fifo_to_sdram : std_logic;
+
   -- Result signals.
   signal s_busy : std_logic;
   signal s_ack : std_logic;
   signal s_dat : std_logic_vector(C_DATA_WIDTH-1 downto 0);
+
+  -- Helper function to mix two data words according to a byte select vector.
+  function mix_words(a : std_logic_vector(C_DATA_WIDTH-1 downto 0);
+                     b : std_logic_vector(C_DATA_WIDTH-1 downto 0);
+                     sel : std_logic_vector(C_SEL_WIDTH-1 downto 0))
+                     return std_logic_vector is
+    variable idx : integer;
+    variable result : std_logic_vector(C_DATA_WIDTH-1 downto 0);
+  begin
+    for k in 0 to C_SEL_WIDTH-1 loop
+      idx := k * 8;
+      if sel(k) = '0' then
+        result(idx+7 downto idx) := a(idx+7 downto idx);
+      else
+        result(idx+7 downto idx) := b(idx+7 downto idx);
+      end if;
+    end loop;
+    return result;
+  end function;
+
 begin
+  --------------------------------------------------------------------------------------------------
+  -- Memory operation FIFO (queue requests from the Wishbone bus).
+  --------------------------------------------------------------------------------------------------
+
   -- Instantiate the memory operation FIFO.
   fifo_1: entity work.fifo
     generic map (
@@ -139,13 +175,109 @@ begin
                     i_wb_sel &
                     i_wb_we;
 
-  -- Read from the FIFO and send to the SDRAM controller.
-  s_fifo_rd_en <= (not s_busy) and (not s_fifo_empty);
-  s_req <= (not s_busy) and (not s_fifo_empty);
-  s_adr <= a_fifo_rd_adr;
-  s_dat_w <= a_fifo_rd_dat;
-  s_sel <= a_fifo_rd_sel;
-  s_we <= a_fifo_rd_we;
+  -- Read from the fifo?
+  s_fifo_rd_en <= s_update_wc or s_fifo_to_sdram;
+
+
+  --------------------------------------------------------------------------------------------------
+  -- Write combiner (combine several writes into a single SDRAM request).
+  --------------------------------------------------------------------------------------------------
+
+  -- TODO: WE NEED TO SEND ACK:S TO THE WB MASTER WHENEVER WE COLLAPSE A WRITE OPERATION INTO THE
+  -- WRITE COMBINER. AND THE ACK:S NEED TO COME IN THE RIGHT ORDER (CONSIDER READ ACK:S).
+
+  -- +-------+---------+-------+-------+-------||--------+-------+---------+------+
+  -- | ADR   | WC      | FIFO  | FIFO  | SDRAM || Update | WC to | FIFO to | Read |
+  -- | match | pending | empty | we    | busy  || WC     | SDRAM | SDRAM   | FIFO |
+  -- +-------+---------+-------+-------+-------||--------+-------+---------+------+
+  -- |   -   |    0    |   0   |   0   |   0   ||    0   |   0   |    1    |   1  |
+  -- |   -   |    0    |   0   |   0   |   1   ||    0   |   0   |    0    |   0  |
+  -- |   -   |    0    |   0   |   1   |   0   ||    0   |   0   |    1    |   1  |
+  -- |   -   |    0    |   0   |   1   |   1   ||    1   |   0   |    0    |   1  |
+  -- |   -   |    0    |   1   |   -   |   0   ||    0   |   0   |    0    |   0  |
+  -- |   -   |    0    |   1   |   -   |   1   ||    0   |   0   |    0    |   0  |
+  -- |   -   |    0    |   1   |   -   |   0   ||    0   |   0   |    0    |   0  |
+  -- |   -   |    0    |   1   |   -   |   1   ||    0   |   0   |    0    |   0  |
+  -- |   0   |    1    |   0   |   0   |   0   ||    0   |   1   |    0    |   0  |
+  -- |   0   |    1    |   0   |   0   |   1   ||    0   |   0   |    0    |   0  |
+  -- |   0   |    1    |   0   |   1   |   0   ||    0   |   1   |    0    |   0  |
+  -- |   0   |    1    |   0   |   1   |   1   ||    0   |   0   |    0    |   0  |
+  -- |   -   |    1    |   1   |   -   |   0   ||    0   |   1   |    0    |   0  |
+  -- |   -   |    1    |   1   |   -   |   1   ||    0   |   0   |    0    |   0  |
+  -- |   -   |    1    |   1   |   -   |   0   ||    0   |   1   |    0    |   0  |
+  -- |   -   |    1    |   1   |   -   |   1   ||    0   |   0   |    0    |   0  |
+  -- +-------+---------+-------+-------+-------||--------+-------+---------+------+
+  -- |   -   |    0    |   0   |   0   |   0   ||    0   |   0   |    1    |   1  |
+  -- |   -   |    0    |   0   |   0   |   1   ||    0   |   0   |    0    |   0  |
+  -- |   -   |    0    |   0   |   1   |   0   ||    0   |   0   |    1    |   1  |
+  -- |   -   |    0    |   0   |   1   |   1   ||    1   |   0   |    0    |   1  |
+  -- |   -   |    0    |   1   |   -   |   0   ||    0   |   0   |    0    |   0  |
+  -- |   -   |    0    |   1   |   -   |   1   ||    0   |   0   |    0    |   0  |
+  -- |   -   |    0    |   1   |   -   |   0   ||    0   |   0   |    0    |   0  |
+  -- |   -   |    0    |   1   |   -   |   1   ||    0   |   0   |    0    |   0  |
+  -- |   1   |    1    |   0   |   0   |   0   ||    0   |   1   |    0    |   0  |
+  -- |   1   |    1    |   0   |   0   |   1   ||    0   |   0   |    0    |   0  |
+  -- |   1   |    1    |   0   |   1   |   0   ||    1   |   0   |    0    |   1  |
+  -- |   1   |    1    |   0   |   1   |   1   ||    1   |   0   |    0    |   1  |
+  -- |   -   |    1    |   1   |   -   |   0   ||    0   |   1   |    0    |   0  |
+  -- |   -   |    1    |   1   |   -   |   1   ||    0   |   0   |    0    |   0  |
+  -- |   -   |    1    |   1   |   -   |   0   ||    0   |   1   |    0    |   0  |
+  -- |   -   |    1    |   1   |   -   |   1   ||    0   |   0   |    0    |   0  |
+  -- +-------+---------+-------+-------+-------||--------+-------+---------+------+
+
+  -- Does the next memory operation from the FIFO match the address of the write combiner?
+  s_wc_adr_match <= '1' when s_wc_adr = a_fifo_rd_adr else '0';
+
+  -- Should we update the write combiner?
+  s_update_wc <= (not s_fifo_empty) and s_fifo_rd_we and
+                   (((not s_wc_pending_write) and s_busy) or
+                    (s_wc_pending_write and s_wc_adr_match));
+
+  -- Should we send the contents of the write combiner to the SDRAM?
+  s_wc_to_sdram <= (not s_busy) and s_wc_pending_write and
+                   not (s_wc_adr_match and (not s_fifo_empty) and s_fifo_rd_we);
+
+  -- Should we send the next FIFO operation to the SDRAM?
+  s_fifo_to_sdram <= (not s_busy) and (not s_fifo_empty) and (not s_wc_pending_write);
+
+  process (i_rst, i_clk) is
+  begin
+    if i_rst = '1' then
+      s_wc_pending_write <= '0';
+      s_wc_adr <= (others => '0');
+      s_wc_dat <= (others => '0');
+      s_wc_sel <= (others => '0');
+    elsif rising_edge(i_clk) then
+      if s_update_wc = '1' then
+        if s_wc_adr_match = '1' and s_wc_pending_write = '1' then
+          -- Combine DAT according to SEL.
+          s_wc_dat <= mix_words(s_wc_dat, a_fifo_rd_dat, a_fifo_rd_sel);
+          s_wc_sel <= s_wc_sel or a_fifo_rd_sel;
+        else
+          -- Over-write DAT.
+          s_wc_dat <= a_fifo_rd_dat;
+          s_wc_sel <= a_fifo_rd_sel;
+        end if;
+
+        s_wc_adr <= a_fifo_rd_adr;
+        s_wc_pending_write <= '1';
+      elsif s_wc_to_sdram = '1' then
+        s_wc_pending_write <= '0';
+      end if;
+    end if;
+  end if;
+
+
+  --------------------------------------------------------------------------------------------------
+  -- SDRAM controller.
+  --------------------------------------------------------------------------------------------------
+
+  -- Send request from the FIFO or the write combiner to the SDRAM controller.
+  s_req   <= s_fifo_to_sdram or s_wc_to_sdram;
+  s_adr   <= s_wc_adr when s_wc_to_sdram = '1' else a_fifo_rd_adr;
+  s_dat_w <= s_wc_dat when s_wc_to_sdram = '1' else a_fifo_rd_dat;
+  s_sel   <= s_wc_sel when s_wc_to_sdram = '1' else a_fifo_rd_sel;
+  s_we    <= '1'      when s_wc_to_sdram = '1' else a_fifo_rd_we;
 
   -- Instantiate the SDRAM controller.
   sdram_controller_1: entity work.sdram
