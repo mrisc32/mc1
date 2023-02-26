@@ -46,7 +46,10 @@ entity xram_sdram is
     T_RCD : real := 18.0;
     T_RP : real := 18.0;
     T_DPL : real := 14.0;
-    T_REF : real := 64_000_000.0
+    T_REF : real := 64_000_000.0;
+
+    -- FIFO configuration.
+    FIFO_DEPTH : integer := 16
   );
   port (
     -- Reset signal.
@@ -82,29 +85,67 @@ end xram_sdram;
 architecture rtl of xram_sdram is
   constant C_ADDR_WIDTH : integer := SDRAM_COL_WIDTH+SDRAM_ROW_WIDTH+SDRAM_BANK_WIDTH-1;
   constant C_DATA_WIDTH : integer := i_wb_dat'length;
+  constant C_SEL_WIDTH : integer := C_DATA_WIDTH/8;
+
+  constant C_MEM_OP_WIDTH : integer := C_ADDR_WIDTH + C_DATA_WIDTH + C_SEL_WIDTH + 1;
 
   -- Input signals.
   signal s_adr : std_logic_vector(C_ADDR_WIDTH-1 downto 0);
   signal s_dat_w : std_logic_vector(C_DATA_WIDTH-1 downto 0);
   signal s_we : std_logic;
-  signal s_sel : std_logic_vector(C_DATA_WIDTH/8-1 downto 0);
+  signal s_sel : std_logic_vector(C_SEL_WIDTH-1 downto 0);
   signal s_req : std_logic;
+
+  -- FIFO signals.
+  signal s_fifo_wr_en : std_logic;
+  signal s_fifo_wr_data : std_logic_vector(C_MEM_OP_WIDTH-1 downto 0);
+  signal s_fifo_full : std_logic;
+  signal s_fifo_rd_en : std_logic;
+  signal s_fifo_rd_data : std_logic_vector(C_MEM_OP_WIDTH-1 downto 0);
+  signal s_fifo_empty : std_logic;
+
+  -- Map of FIFO outputs.
+  alias a_fifo_rd_adr : std_logic_vector(C_ADDR_WIDTH-1 downto 0) is s_fifo_rd_data(C_ADDR_WIDTH+C_DATA_WIDTH+C_SEL_WIDTH+1-1 downto C_DATA_WIDTH+C_SEL_WIDTH+1);
+  alias a_fifo_rd_dat : std_logic_vector(C_DATA_WIDTH-1 downto 0) is s_fifo_rd_data(C_DATA_WIDTH+C_SEL_WIDTH+1-1 downto C_SEL_WIDTH+1);
+  alias a_fifo_rd_sel : std_logic_vector(C_SEL_WIDTH-1 downto 0) is s_fifo_rd_data(C_SEL_WIDTH+1-1 downto 1);
+  alias a_fifo_rd_we : std_logic is s_fifo_rd_data(0);
 
   -- Result signals.
   signal s_busy : std_logic;
   signal s_ack : std_logic;
   signal s_dat : std_logic_vector(C_DATA_WIDTH-1 downto 0);
 begin
-  -- Wishbone adaptations.
-  s_adr <= i_wb_adr(C_ADDR_WIDTH-1 downto 0);
-  s_dat_w <= i_wb_dat;
-  s_we <= i_wb_we;
-  s_sel <= i_wb_sel;
-  s_req <= i_wb_cyc and i_wb_stb;
-  o_wb_stall <= s_busy;
-  o_wb_ack <= s_ack;
-  o_wb_dat <= s_dat;
-  o_wb_err <= '0';
+  -- Instantiate the memory operation FIFO.
+  fifo_1: entity work.fifo
+    generic map (
+      G_WIDTH => C_MEM_OP_WIDTH,
+      G_DEPTH => FIFO_DEPTH
+    )
+    port map (
+      i_rst => i_rst,
+      i_clk => i_wb_clk,
+      i_wr_en => s_fifo_wr_en,
+      i_wr_data => s_fifo_wr_data,
+      o_full => s_fifo_full,
+      i_rd_en => s_fifo_rd_en,
+      o_rd_data => s_fifo_rd_data,
+      o_empty => s_fifo_empty
+    );
+
+  -- Write to the FIFO.
+  s_fifo_wr_en <= i_wb_cyc and i_wb_stb and not s_fifo_full;
+  s_fifo_wr_data <= i_wb_adr(C_ADDR_WIDTH-1 downto 0) &
+                    i_wb_dat &
+                    i_wb_sel &
+                    i_wb_we;
+
+  -- Read from the FIFO and send to the SDRAM controller.
+  s_fifo_rd_en <= (not s_busy) and (not s_fifo_empty);
+  s_req <= (not s_busy) and (not s_fifo_empty);
+  s_adr <= a_fifo_rd_adr;
+  s_dat_w <= a_fifo_rd_dat;
+  s_sel <= a_fifo_rd_sel;
+  s_we <= a_fifo_rd_we;
 
   -- Instantiate the SDRAM controller.
   sdram_controller_1: entity work.sdram
@@ -127,7 +168,7 @@ begin
       G_T_REF => T_REF
     )
     port map (
-      i_rst  => i_rst,
+      i_rst => i_rst,
       i_clk => i_wb_clk,
 
       -- CPU/Wishbone interface.
@@ -152,4 +193,10 @@ begin
       o_sdram_dqm => o_sdram_dqm
     );
 
-end architecture rtl;
+  -- Wishbone outputs.
+  o_wb_stall <= s_fifo_full;
+  o_wb_ack <= s_ack;
+  o_wb_dat <= s_dat;
+  o_wb_err <= '0';
+end rtl;
+
