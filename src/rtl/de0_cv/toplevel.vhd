@@ -93,7 +93,7 @@ architecture rtl of toplevel is
   constant C_SYSTEM_CLK_HZ : integer := 50_000_000;
 
   -- 70 MHz seems to be a good safe bet, but going higher is certainly possible.
-  constant C_CPU_CLK_HZ : integer := 80_000_000;
+  constant C_CPU_CLK_HZ : integer := 100_000_000;
 
   -- SDRAM read sample clock is phase-shifted to compensate for signal progpagation delay.
   -- Note: This value has to be chosen carefully (not every value is valid).
