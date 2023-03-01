@@ -110,11 +110,25 @@ architecture rtl of xram_sdram is
   alias a_fifo_rd_sel : std_logic_vector(C_SEL_WIDTH-1 downto 0) is s_fifo_rd_data(C_SEL_WIDTH+1-1 downto 1);
   alias a_fifo_rd_we : std_logic is s_fifo_rd_data(0);
 
+  -- Load buffer.
+  signal s_load_adr : std_logic_vector(C_ADDR_WIDTH-1 downto 0);
+  signal s_load_dat : std_logic_vector(C_DATA_WIDTH-1 downto 0);
+  signal s_load_valid : std_logic;
+  signal s_load_hit : std_logic;
+  signal s_pending_req_adr : std_logic_vector(C_ADDR_WIDTH-1 downto 0);
+  signal s_pending_req_we : std_logic;
+  signal s_dat_from_load_buf : std_logic_vector(C_DATA_WIDTH-1 downto 0);
+  signal s_hit_from_load_buf : std_logic;
+
   -- Result signals.
   signal s_busy : std_logic;
   signal s_ack : std_logic;
   signal s_dat : std_logic_vector(C_DATA_WIDTH-1 downto 0);
 begin
+  --------------------------------------------------------------------------------------------------
+  -- Memory operation FIFO.
+  --------------------------------------------------------------------------------------------------
+
   -- Instantiate the memory operation FIFO.
   fifo_1: entity work.fifo
     generic map (
@@ -139,13 +153,69 @@ begin
                     i_wb_sel &
                     i_wb_we;
 
-  -- Read from the FIFO and send to the SDRAM controller.
+  -- Read the next host request from the FIFO.
   s_fifo_rd_en <= (not s_busy) and (not s_fifo_empty);
-  s_req <= (not s_busy) and (not s_fifo_empty);
   s_adr <= a_fifo_rd_adr;
   s_dat_w <= a_fifo_rd_dat;
   s_sel <= a_fifo_rd_sel;
   s_we <= a_fifo_rd_we;
+
+
+  --------------------------------------------------------------------------------------------------
+  -- Load buffer (very small read cache).
+  --------------------------------------------------------------------------------------------------
+
+  -- Did we have a load buffer hit?
+  s_load_hit <= '1' when s_load_adr = a_fifo_rd_adr and
+                         s_load_valid = '1' and
+                         s_fifo_empty = '0' and
+                         a_fifo_rd_we = '0' and
+                         s_busy = '0' else '0';
+
+  process (i_rst, i_wb_clk) is
+  begin
+    if i_rst = '1' then
+      s_pending_req_adr <= (others => '0');
+      s_pending_req_we <= '0';
+
+      s_load_adr <= (others => '0');
+      s_load_dat <= (others => '0');
+      s_load_valid <= '0';
+
+      s_dat_from_load_buf <= (others => '0');
+      s_hit_from_load_buf <= '0';
+    elsif rising_edge(i_wb_clk) then
+      -- Update (or invalidate) the load buffer as necessary.
+      if s_req = '1' then
+        s_pending_req_adr <= a_fifo_rd_adr;
+        s_pending_req_we <= a_fifo_rd_we;
+        if a_fifo_rd_we = '1' and a_fifo_rd_adr = s_load_adr then
+          if a_fifo_rd_sel = "1111" then
+            s_load_dat <= a_fifo_rd_dat;
+            s_load_valid <= '1';
+          else
+            s_load_valid <= '0';
+          end if;
+        end if;
+      elsif s_ack = '1' and s_pending_req_we = '0' then
+        s_load_adr <= s_pending_req_adr;
+        s_load_dat <= s_dat;
+        s_load_valid <= '1';
+      end if;
+
+      -- Propagate the load hit to the Wishbone master.
+      s_dat_from_load_buf <= s_load_dat;
+      s_hit_from_load_buf <= s_load_hit;
+    end if;
+  end process;
+
+
+  --------------------------------------------------------------------------------------------------
+  -- SDRAM controller.
+  --------------------------------------------------------------------------------------------------
+
+  -- Send a request to the SDRAM controller?
+  s_req <= (not s_busy) and (not s_load_hit) and (not s_fifo_empty);
 
   -- Instantiate the SDRAM controller.
   sdram_controller_1: entity work.sdram
@@ -195,8 +265,8 @@ begin
 
   -- Wishbone outputs.
   o_wb_stall <= s_fifo_full;
-  o_wb_ack <= s_ack;
-  o_wb_dat <= s_dat;
+  o_wb_ack <= s_hit_from_load_buf or s_ack;
+  o_wb_dat <= s_dat_from_load_buf when s_hit_from_load_buf = '1' else s_dat;
   o_wb_err <= '0';
 end rtl;
 
