@@ -132,11 +132,17 @@ $(OUT)/rom.vhd: $(OUT)/rom.raw rom.vhd.in
 # libmc1.a
 #-----------------------------------------------------------------------------
 
+# Configure libmc1 to minimize code size (the ROM does not need everything).
+LIBMC1_MINI_FLAGS = -Os                     \
+                    -DMFAT_ENABLE_WRITE=0   \
+                    -DMFAT_ENABLE_GPT=0     \
+                    -DMFAT_ENABLE_OPENDIR=0
+
 $(OUT)/libmc1.a: libmc1
 	@$(CP) $(LIBMC1OUT)/libmc1.a $(OUT)/libmc1.a
 
 libmc1:
-	$(MAKE) CFLAGS_OPT='-Os' -C $(LIBMC1DIR)
+	$(MAKE) CFLAGS_OPT="$(LIBMC1_MINI_FLAGS)" -C $(LIBMC1DIR)
 
 
 #-----------------------------------------------------------------------------
