@@ -1,3 +1,5 @@
+## This repo has moved to: https://gitlab.com/mrisc32/mc1
+
 ![MC1 logo](docs/mc1-logo.png)
 
 MC1 is a compact computer intended for FPGA:s, based on the [MRISC32-A1](https://github.com/mrisc32/mrisc32-a1) soft microprocessor.
